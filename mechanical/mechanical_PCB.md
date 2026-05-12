@@ -27,3 +27,17 @@ To ensure consistency and predictable enclosure design, modules should follow th
 For standardized noknok modules, any other dimensions should increase size by increments of 1cm.
 i.e. please do not use e.g. 2.53cm x 1.48cm dimensions. Instead go for full centimeters: 1x1cm, 1x4cm, 5x8cm, etc.
 This facilitates 3D housing design.
+
+---
+
+## 2. Safety & Responsibility Disclaimer
+
+The mechanical guidelines described in this document are intended to support reproducible, modular, and maker‑friendly designs within the noknok ecosystem. They do **not** replace professional engineering judgment.
+
+By using these guidelines, you acknowledge that:
+
+- You are responsible for ensuring **electrical safety**, **mechanical safety**, and **structural integrity** of your designs.  
+- You must verify that your modules, housings, and assemblies comply with relevant **local regulations**, **material limitations**, and **use‑case requirements**.  
+- noknok and its contributors are not liable for damages resulting from improper design, manufacturing, or use of modules or housings.
+
+These guidelines are provided **as‑is** to support creativity and reproducibility in the community.
