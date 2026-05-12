@@ -11,17 +11,78 @@ It is the authoritative reference for anyone creating:
 
 ---
 
-# 📡System Architecture
+## noknok's 3 Major Goals:
 
-The noknok ecosystem follows the **Conductor–Musicians** model:
+- **Community creativity** — enable anyone to reproduce and share maker‑created products using 3D printing and modular electronics.
+- **Sustainability** — design products that can be repaired, reused, extended and repurposed through modularity.
+- **Enablement & participation** — lower barriers through standardization, open‑source tools, and revenue‑sharing for creators.
 
-- The **Conductor** is the central MCU (e.g., Raspberry Pi Pico)  
-- The **Musicians** are the modules (I²C, USB, audio, sensors, etc.)  
-- Communication is standardized through **I²C**, **USB**, and **defined power rules**
+## Guiding Principles and design philosophy behind noknok's modules, kits and software:
 
-See:  
-- [System Architecture](overview/architecture.md)  
-- [Conductor–Musician Model](overview/conductor-musician-model.md)
+- **Rapid reproducibility** — anyone (maker or not) is able to quickly reproduce a noknok product.
+- **Local manufacturing** — all you need is a 3D printer (or CNC-machine), noknok modules, a phone, and an internet connection to create products.
+- **Community driven** — products are created by and for the community.
+- **Modularity first** — don't reinvent the wheel - use modules that are reusable across many projects.
+- **Hardware–software abstraction** — each module has its own MCU and exposes a clean API, so the central MCU doesn’t need to know the peripheral’s electronics.
+- **Sustainability** — products are built to last, easy to repair, extendable in features, and designed so modules can be reused in other creations.
+- **Empowerment through openness** — standards, products, and documentation are open so the community can learn, improve, and contribute.
+- **Fun** — building with noknok should feel playful, creative, and joyful — because making things should be fun.
+
+---
+
+## 📡 System Architecture
+
+The noknok ecosystem is built around a clear analogy: **a classical orchestra**.
+
+In an orchestra, the **conductor** leads, sets the rhythm, and keeps the overview.  
+The **musicians** each master a single instrument, performing their part with expertise while following the conductor’s direction.
+
+The noknok architecture works the same way:
+
+- The **Conductor** is the central MCU (e.g., a Raspberry Pi Pico) running the main product logic, typically in Python.
+- The **Musicians** are the noknok modules — each an expert in its domain.  
+  A module knows how to drive a display, read a sensor, play audio, connect to 5G, or perform any specialized task.
+- The **Conductor** orchestrates the **Musicians**, defining timing, behavior, and overall product flow.
+- The **Musicians** handle their own complexity internally, so the Conductor doesn’t need to know their electronics.
+
+Communication between Conductor and Musicians is standardized through:
+
+- **Open APIs** (software abstraction)
+- **Standardized connectors** such as Stemma QT / Qwiic (I2C) and USB‑C
+- **Defined power rules** for predictable, safe operation
+
+This architecture allows products to be built like orchestral compositions:  
+**modular, expressive, scalable, and easy to reproduce.**
+
+```
+                         ┌──────────────────────────┐
+                         │        Conductor         │
+                         │  (Central MCU, e.g. Pico)│
+                         │                          │
+                         │  • Runs main logic       │
+                         │  • Orchestrates modules  │
+                         │  • Written mostly in Python
+                         └─────────────┬────────────┘
+                                       │
+                     Standardized API  │  Standardized Connectors
+                                       │
+        ┌──────────────────────────────┼──────────────────────────────┐
+        │                              │                              │
+┌──────────────┐              ┌──────────────┐              ┌──────────────┐
+│   Musician   │              │   Musician   │              │   Musician   │
+│   (Module)   │              │   (Module)   │              │   (Module)   │
+│              │              │              │              │              │
+│ • Sensor     │              │ • Display    │              │ • Connectivity│
+│ • Audio      │              │ • Motor Ctrl │              │   (e.g. 5G)  │
+│ • Actuator   │              │ • Lighting   │              │ • Storage     │
+│              │              │              │              │              │
+│ Own MCU +    │              │ Own MCU +    │              │ Own MCU +    │
+│ Internal API │              │ Internal API │              │ Internal API │
+└───────┬──────┘              └───────┬──────┘              └───────┬──────┘
+        │                              │                              │
+        └─────────────── I²C Bus (Stemma QT / Qwiic) ─────────────────┘
+                         or USB‑C (for high‑power / high‑bandwidth)
+```
 
 ---
 
@@ -29,21 +90,16 @@ See:
 
 Standards for designing modules that plug into the ecosystem.
 
-- [Connector Standards](electrical/connectors.md)  
-- [Power Rules](electrical/power.md)  
-- [I²C Standardization](electrical/i2c-standard.md)  
-- [USB Module Standard](electrical/usb-standard.md)  
-- [PCB Design Guidelines](electrical/pcb-design.md)  
-- [Flashing Interface (Castellated Pads)](electrical/flashing-interface.md)
+**[Check electrial guidelines](electrical/guidelines.md)**
 
 Topics include:
 
-- When to use **Stemma QT / Qwiic / JST‑SH**  
-- Single‑power‑feed rules  
-- Pinout conventions  
-- KiCad as the default PCB design tool  
-- 4‑pad flashing interface for MCUs  
-- I²C addressing rules and best practices  
+- Connector Standards: When to use **Stemma QT / Qwiic / JST‑SH / USB-C**  
+- Power Rules: Single‑power‑feed rules  
+- I2C Standardization: Pinout conventions  
+- PCB Design Guidelines: KiCad as the default PCB design tool  
+- Flashing Interface: 4‑pad flashing interface for MCUs  
+- I2C addressing rules and best practices  
 
 ---
 
@@ -51,18 +107,14 @@ Topics include:
 
 Standards for module dimensions, mounting, and 3D‑printed housings.
 
-- [Module Dimensions](mechanical/module-dimensions.md)  
-- [Mounting Holes](mechanical/mounting-holes.md)  
-- [3D Printing Guidelines](mechanical/3d-printing-guidelines.md)  
-- [Tolerances & Clearances](mechanical/tolerances.md)
+**[Check mechanical guidelines](mechanical/guidelines.md)**
 
 Topics include:
 
-- Standard PCB sizes  
-- Mounting hole positions  
-- Recommended wall thickness  
-- Clearance for connectors  
-- 3D printing material recommendations  
+- Module Dimensions: Standard PCB sizes  
+- Mounting Holes: Mounting hole positions  
+- 3D Printing Guidelines: Recommendation on printer settings  & material  
+- Tolerances & Clearances: Clearance for connectors  
 
 ---
 
@@ -70,18 +122,15 @@ Topics include:
 
 Guidelines for writing firmware for modules and applications for the central MCU.
 
-- [Python on Raspberry Pi Pico](firmware/pico-python-guidelines.md)  
-- [C on Microcontrollers](firmware/mcu-c-guidelines.md)  
-- [Compiler Toolchains (GCC, SDCC)](firmware/compiler-toolchains.md)  
-- [Firmware Update Process](firmware/firmware-update-process.md)
+**[Check firmware guidelines](firmware/guidelines.md)**
 
 Topics include:
 
 - Python as the primary language for the Conductor  
 - C as the primary language for module MCUs  
-- Recommended toolchains  
+- Recommended toolchains (GCC, SDCC)  
 - Code structure conventions  
-- I²C register map design  
+- I2C register map design  
 
 ---
 
