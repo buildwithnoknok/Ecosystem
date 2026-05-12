@@ -138,3 +138,17 @@ Topics include:
 
 All documentation in this repository is open‑source and may be used for creating compatible modules and housings.
 
+---
+
+## Safety & Responsibility Disclaimer
+
+The guidelines described in this repository are intended to support reproducible, modular, and maker‑friendly designs within the noknok ecosystem. They do **not** replace professional engineering judgment.
+
+By using these guidelines, you acknowledge that:
+
+- You are responsible for ensuring **electrical safety**, **mechanical safety**, and **structural integrity** of your designs.  
+- You must verify that your modules, housings, and assemblies comply with relevant **local regulations**, **material limitations**, and **use‑case requirements**.  
+- noknok and its contributors are not liable for damages resulting from improper design, manufacturing, or use of modules or housings.
+
+These guidelines are provided **as‑is** to support creativity and reproducibility in the community.
+
