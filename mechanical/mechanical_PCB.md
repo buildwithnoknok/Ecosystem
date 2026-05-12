@@ -15,13 +15,13 @@ To ensure consistency and predictable enclosure design, modules should follow th
   - 5-pin castellated edge pads at (126.19/80) for MCU flashing
   - 4-pin castellated edge pads at (133.81/100) for I2C connector
   - JST 4-pin I2C connectors (123.1/95.5 at -90° rotation) and (136.9/84.5 at 90° rotation)
-  ![2x2cm PCB-design](mechanical/Guidelines_PCB_dimensions_2x2cm_I2C.png)
+  ![2x2cm PCB-design](Guidelines_PCB_dimensions_2x2cm_I2C.png)
 - **40 × 40 mm** — USB-C modules (audio, motor drivers, connectivity)
   - (120/80) - (160/120) in KiCad PCB Design
   - Holes at (124/84), (156/84), (124/116) and (156/116) with 2.8mm diameter, non plated through hole
   - downstream JST 4-pin I2C connector (156.5/100 at 90° rotation)
   - USB connector (123/100 at -90° rotation)
-  ![4x4cm PCB-design](mechanical/Guidelines_PCB_dimensions_4x4cm_USB.png)
+  ![4x4cm PCB-design](Guidelines_PCB_dimensions_4x4cm_USB.png)
 - **40 × 60 mm** — larger modules (USB Hub, USB Power, etc.)
 
 For standardized noknok modules, any other dimensions should increase size by increments of 1cm.
