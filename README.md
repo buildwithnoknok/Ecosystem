@@ -122,7 +122,7 @@ Topics include:
 
 Guidelines for writing firmware for modules and applications for the central MCU.
 
-**[Check firmware guidelines](firmware/readme.md)**
+**[Check software guidelines](software/readme.md)**
 
 Topics include:
 
