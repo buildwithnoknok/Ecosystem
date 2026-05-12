@@ -25,7 +25,7 @@ Unless highlighted otherwise, all provided 3D enclosures for existing noknok pro
 ## 2. Housing Design Rules
 
 ### Mechanical PCB dimensions: 
-- **[Please check the existing mechanical guidelines](mechanical/readme.md)**
+- **[Please check the existing mechanical guidelines](mechanical/mechanical_PCB.md)**
 
 ### Avoid
 - Overhangs > 45°  
