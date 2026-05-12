@@ -90,7 +90,7 @@ This architecture allows products to be built like orchestral compositions:
 
 Standards for designing modules that plug into the ecosystem.
 
-**[Check electrial guidelines](electrical/guidelines.md)**
+**[Check electrial guidelines](electrical/readme.md)**
 
 Topics include:
 
@@ -107,7 +107,7 @@ Topics include:
 
 Standards for module dimensions, mounting, and 3D‑printed housings.
 
-**[Check mechanical guidelines](mechanical/guidelines.md)**
+**[Check mechanical guidelines](mechanical/readme.md)**
 
 Topics include:
 
@@ -122,7 +122,7 @@ Topics include:
 
 Guidelines for writing firmware for modules and applications for the central MCU.
 
-**[Check firmware guidelines](firmware/guidelines.md)**
+**[Check firmware guidelines](firmware/readme.md)**
 
 Topics include:
 
@@ -131,12 +131,6 @@ Topics include:
 - Recommended toolchains (GCC, SDCC)  
 - Code structure conventions  
 - I2C register map design  
-
----
-
-# 📄License
-
-All documentation in this repository is open‑source and may be used for creating compatible modules and housings.
 
 ---
 
@@ -152,3 +146,8 @@ By using these guidelines, you acknowledge that:
 
 These guidelines are provided **as‑is** to support creativity and reproducibility in the community.
 
+---
+
+# 📄License
+
+All documentation in this repository is open‑source and may be used for creating compatible modules and housings.
