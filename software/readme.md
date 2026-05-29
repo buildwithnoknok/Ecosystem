@@ -195,7 +195,21 @@ Each module defines its own command and data registers starting at `0x20`. These
 
 ---
 
-## 8. Summary
+## 8. State Persistence
+
+After enumeration, the Conductor saves module assignments to `noknok_state.json` on the Pico. On the next run, it pings each saved address first. Modules that respond are restored immediately without re-running the `0x7F` enumeration cycle.
+
+```
+First run:   enumerate() → finds 4 modules on 0x7F → saves noknok_state.json
+Second run:  enumerate() → pings 0x08–0x0B → all respond → restored instantly
+Power cycle: enumerate() → modules gone from 0x08–0x0B → full 0x7F scan again
+```
+
+> **Filesystem write access required.** The Pico filesystem must be writable from code for `noknok_state.json` and `noknok_roles.json` to be saved. See the [CircuitPython filesystem docs](https://docs.circuitpython.org/en/latest/docs/library/storage.html).
+
+---
+
+## 9. Summary
 
 | Topic | Standard |
 |-------|---------|
@@ -212,14 +226,14 @@ Each module defines its own command and data registers starting at `0x20`. These
 
 ---
 
-## 9. Related Documentation
+## 10. Related Documentation
 
 - [Electrical Guidelines](/electrical/readme.md)
 - [Mechanical Guidelines](/mechanical/readme.md)
 
 ---
 
-## 10. Safety & Responsibility Disclaimer
+## 11. Safety & Responsibility Disclaimer
 
 The overall guidelines described in this repository are intended to support reproducible, modular, and maker‑friendly designs within the noknok ecosystem. They do **not** replace professional engineering judgment.
 
