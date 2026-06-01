@@ -138,22 +138,24 @@ from noknok import Conductor
 c = Conductor()     # GP8=SDA, GP9=SCL
 c.enumerate()       # discovers all modules, assigns addresses (~3 s)
 
-c.buzzer[0].play(440, 500)   # first buzzer
-c.buzzer[1].play(880, 500)   # second buzzer (if present)
+c.buzzer[0].play(440, 500)      # first buzzer
+c.knob[0].read()                # first knob
+c.ledbutton[0].set_color(0, 255, 0)  # first LED button
 ```
 
 ---
 
-## 4. Module Type Codes
+## 4. I²C Module Type Codes
 
-Every module reports its type in the enumeration response (byte 8). The Conductor uses this to instantiate the correct Python driver class.
+Every I²C module reports its type in the enumeration response (byte 8). The Conductor uses this to instantiate the correct Python driver class.
 
-| Code | Module | Python class |
-|------|--------|--------------|
-| `0x01` | Buzzer | `NoknokBuzzer` |
-| `0x02` | Rotary Encoder (Knob) | `NoknokKnob` |
-| `0x03` | Keyboard Switch + RGB LED | `NoknokKeyboard` |
-| `0x04` | USB‑C LED Strip | `NoknokLEDStrip` *(planned)* |
+> USB‑based modules do not use this enumeration protocol. See the USB module guidelines (coming soon).
+
+| Code | Module name | Python class |
+|------|-------------|--------------|
+| `0x01` | noknokbuzzer | `NoknokBuzzer` |
+| `0x02` | noknokknob | `NoknokKnob` |
+| `0x03` | noknokledbutton | `NoknokLedButton` |
 
 ---
 
@@ -213,6 +215,6 @@ By using these guidelines, you acknowledge that:
 
 - You are responsible for ensuring **electrical safety**, **mechanical safety**, and **structural integrity** of your designs.
 - You must verify that your modules, housings, and assemblies comply with relevant **local regulations**, **material limitations**, and **use‑case requirements**.
-- noknok and its contributors are not liable for damages resulting from improper design, manufacturing, or use of modules or housings.
+- noknok and its contributors are not liable for damages resulting from improper design, manufacturing, or use of modules or hsings.
 
 These guidelines are provided **as‑is** to support creativity and reproducibility in the community.
