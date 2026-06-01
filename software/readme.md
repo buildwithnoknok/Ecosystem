@@ -65,83 +65,11 @@ make flash    # compile and flash via WCH Link-E
 
 ## 3. Module Discovery & Enumeration
 
-**Every module must implement this exact enumeration protocol.** There are no hardcoded I2C addresses. All addresses are assigned dynamically at boot by the Conductor.
+All I²C modules use the noknok dynamic enumeration protocol. There are no hardcoded addresses. Every module boots with I²C off, waits a UID-derived backoff delay (300–2799 ms), then joins the bus at staging address `0x7F`. The Conductor reads a 10-byte UID + type + CRC8 response, assigns a unique runtime address, and the module switches to it.
 
-### Staging address
+**→ Full specification: [software/enumeration.md](enumeration.md)**
 
-All modules boot with their I2C peripheral **disabled**. After a unique backoff delay, the module enables I2C at the shared staging address **`0x7F`**.
-
-### Backoff delay
-
-Each module calculates a unique delay using an **FNV‑1a hash** of its 64‑bit hardware UID:
-
-```c
-static uint32_t fnv_hash(uint32_t h)
-{
-    volatile uint8_t *uid = (volatile uint8_t*)0x1FFFF7E8;  // CH32V003 UID
-    for (uint8_t i = 0; i < 8; i++) {
-        h ^= uid[i];
-        h *= 16777619UL;
-    }
-    return h;
-}
-
-// Initial backoff: pass FNV-1a offset basis as starting value
-backoff_ms = (fnv_hash(2166136261UL) % 2500) + 300;  // 300–2799 ms
-```
-
-> **Important:** always pass `2166136261UL` (the FNV‑1a offset basis) directly as the starting value — do **not** XOR it with any seed first. XORing before the loop can collapse chips from the same manufacturing batch to near-identical backoff times.
-
-This ensures even chips from the same manufacturing batch receive well‑separated backoff times. The formula works reliably for up to ~20 modules on the same bus.
-
-### Module state machine
-
-```
-BOOT_WAITING  ──[backoff expires]──►  ENUM_READY  ──[address received]──►  ASSIGNING  ──►  ASSIGNED
-    ▲                                      │
-    └──────[200 ms timeout, re-backoff]────┘
-```
-
-- **BOOT_WAITING**: I2C peripheral off. Counting down backoff timer.
-- **ENUM_READY**: I2C enabled at `0x7F`. Waiting for Conductor.
-- **ASSIGNING**: New address received in ISR. Address switch performed in main loop on next cycle.
-- **ASSIGNED**: I2C at runtime address. Normal operation.
-
-If a module is in `ENUM_READY` for more than **200 ms** without being assigned, it assumes a collision occurred and re-backs off using the current timestamp as an additional seed. This resolves any edge-case collisions automatically.
-
-### Enumeration byte protocol
-
-**Step 1 — Conductor reads 10 bytes from `0x7F`:**
-
-| Bytes | Content |
-|-------|---------|
-| 0–7 | 64‑bit hardware UID (little‑endian, from `0x1FFFF7E8`) |
-| 8 | Module type code (see table below) |
-| 9 | CRC8 of bytes 0–8 (polynomial `0x07`) |
-
-**Step 2 — Conductor writes 2 bytes to `0x7F` to assign address:**
-
-| Byte | Value |
-|------|-------|
-| 0 | `0x1D` (ASSIGN register) |
-| 1 | New runtime address (from pool `0x08–0x77`) |
-
-The module switches to the new address and enters `ASSIGNED` state.
-
-**Step 3 — Repeat** until `0x7F` produces no response for **3000 ms**.
-
-### Conductor Python implementation
-
-```python
-from noknok import Conductor
-
-c = Conductor()     # GP8=SDA, GP9=SCL
-c.enumerate()       # discovers all modules, assigns addresses (~3 s)
-
-c.buzzer[0].play(440, 500)      # first buzzer
-c.knob[0].read()                # first knob
-c.ledbutton[0].set_color(0, 255, 0)  # first LED button
-```
+This covers: backoff formula, state machine (4 states), byte protocol, CRC8, state persistence, the role system, and FAQ.
 
 ---
 
@@ -202,8 +130,9 @@ Power cycle: enumerate() → modules not at saved addresses → full 0x7F scan
 
 ## 8. Related Documentation
 
-- [Electrical Guidelines](/electrical/readme.md)
-- [Mechanical Guidelines](/mechanical/readme.md)
+- [Enumeration Protocol — full spec](enumeration.md)
+- [Electrical Guidelines](../electrical/readme.md)
+- [Mechanical Guidelines](../mechanical/readme.md)
 
 ---
 
@@ -215,6 +144,6 @@ By using these guidelines, you acknowledge that:
 
 - You are responsible for ensuring **electrical safety**, **mechanical safety**, and **structural integrity** of your designs.
 - You must verify that your modules, housings, and assemblies comply with relevant **local regulations**, **material limitations**, and **use‑case requirements**.
-- noknok and its contributors are not liable for damages resulting from improper design, manufacturing, or use of modules or hsings.
+- noknok and its contributors are not liable for damages resulting from improper design, manufacturing, or use of modules or housings.
 
 These guidelines are provided **as‑is** to support creativity and reproducibility in the community.
