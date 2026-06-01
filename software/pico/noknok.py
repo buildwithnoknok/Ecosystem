@@ -5,11 +5,11 @@
 # Quick start:
 #   from noknok import Conductor
 #   c = Conductor()
-#   c.enumerate()                          # discover all modules (~3 s)
-#   c.load_roles()                         # load noknok_roles.json (optional)
-#   c.role["volume_knob"].value            # access by role name
-#   c.buzzer[0].play(440, 500)             # or by type + index
-#   c.keyboard[0].set_color(255, 0, 0, 0)  # red LED on keyboard module
+#   c.enumerate()                             # discover all modules (~3 s)
+#   c.load_roles()                            # load noknok_roles.json (optional)
+#   c.role["volume_knob"].value               # access by role name
+#   c.buzzer[0].play(440, 500)                # or by type + index
+#   c.ledbutton[0].set_color(255, 0, 0)       # red LED on LED button module
 
 import busio
 import board
@@ -41,28 +41,27 @@ class Conductor:
         # Access by role (stable — same physical module every boot):
         c.role["volume_knob"].value
         c.role["alert_buzzer"].play(880, 200)
-        c.role["ok_button"].set_color(0, 255, 0, 0)
+        c.role["ok_button"].set_color(0, 255, 0)
 
         # Access by type + index (order = discovery order):
         c.buzzer[0].play(440, 500)
-        c.keyboard[0].set_color(255, 0, 0, 0)
+        c.ledbutton[0].set_color(255, 0, 0)
     """
 
     ENUM_ADDR  = 0x7F
     ASSIGN_REG = 0x1D
 
-    TYPE_BUZZER   = 0x01
-    TYPE_KNOB     = 0x02
-    TYPE_KEYBOARD = 0x03
-    TYPE_LED      = 0x04
+    TYPE_BUZZER    = 0x01
+    TYPE_KNOB      = 0x02
+    TYPE_LEDBUTTON = 0x03
 
     def __init__(self, sda=board.GP8, scl=board.GP9, frequency=100_000):
-        self.i2c      = busio.I2C(scl, sda, frequency=frequency)
-        self.buzzer   = []    # NoknokBuzzer instances, indexed by discovery order
-        self.knob     = []    # NoknokKnob instances (future)
-        self.keyboard = []    # NoknokKeyboard instances
-        self.role     = {}    # role_name → module object, populated by load_roles()
-        self._registry = {}   # uid_hex → module object
+        self.i2c       = busio.I2C(scl, sda, frequency=frequency)
+        self.buzzer    = []    # NoknokBuzzer instances, indexed by discovery order
+        self.knob      = []    # NoknokKnob instances
+        self.ledbutton = []    # NoknokLedButton instances
+        self.role      = {}    # role_name → module object, populated by load_roles()
+        self._registry = {}    # uid_hex → module object
 
     # ── Low-level I2C ─────────────────────────────────────────────────────────
 
@@ -100,7 +99,7 @@ class Conductor:
         print("Enumerating noknok modules...")
         self.buzzer    = []
         self.knob      = []
-        self.keyboard  = []
+        self.ledbutton = []
         self._registry = {}
         self.role      = {}
 
@@ -152,19 +151,19 @@ class Conductor:
             # Instantiate correct class
             if module_type == self.TYPE_BUZZER:
                 module    = NoknokBuzzer(self.i2c, address=addr)
-                type_name = "Buzzer"
+                type_name = "noknokbuzzer"
                 self.buzzer.append(module)
             elif module_type == self.TYPE_KNOB:
                 module    = NoknokKnob(self.i2c, address=addr)
-                type_name = "Knob"
+                type_name = "noknokknob"
                 self.knob.append(module)
-            elif module_type == self.TYPE_KEYBOARD:
-                module    = NoknokKeyboard(self.i2c, address=addr)
-                type_name = "Keyboard"
-                self.keyboard.append(module)
+            elif module_type == self.TYPE_LEDBUTTON:
+                module    = NoknokLedButton(self.i2c, address=addr)
+                type_name = "noknokledbutton"
+                self.ledbutton.append(module)
             else:
                 module    = None
-                type_name = f"Unknown(0x{module_type:02X})"
+                type_name = f"unknown(0x{module_type:02X})"
 
             if module is not None:
                 module._uid_hex = uid_hex
@@ -179,7 +178,7 @@ class Conductor:
         self._save_state()
 
         # ── Summary ───────────────────────────────────────────────────────────
-        total = sum([len(self.buzzer), len(self.knob), len(self.keyboard)])
+        total = sum([len(self.buzzer), len(self.knob), len(self.ledbutton)])
         if new_found == 0 and restored > 0:
             print(f"No new modules. {restored} module(s) already assigned:")
             for uid, m in self._registry.items():
@@ -199,8 +198,8 @@ class Conductor:
                     t = self.TYPE_BUZZER
                 elif isinstance(module, NoknokKnob):
                     t = self.TYPE_KNOB
-                elif isinstance(module, NoknokKeyboard):
-                    t = self.TYPE_KEYBOARD
+                elif isinstance(module, NoknokLedButton):
+                    t = self.TYPE_LEDBUTTON
                 else:
                     t = 0
                 data[uid_hex] = {"address": module.address, "type": t}
@@ -237,10 +236,10 @@ class Conductor:
                 module = NoknokKnob(self.i2c, address=addr)
                 module._uid_hex = uid_hex
                 self.knob.append(module)
-            elif type_code == self.TYPE_KEYBOARD:
-                module = NoknokKeyboard(self.i2c, address=addr)
+            elif type_code == self.TYPE_LEDBUTTON:
+                module = NoknokLedButton(self.i2c, address=addr)
                 module._uid_hex = uid_hex
-                self.keyboard.append(module)
+                self.ledbutton.append(module)
             else:
                 module = None
 
@@ -312,13 +311,13 @@ class Conductor:
         Walks through every discovered module, activates it so you can identify
         it physically, then asks you to type a role name.
 
-          Buzzer   → plays a beep
-          Keyboard → flashes LED white for 1 s
+          noknokbuzzer    → plays a beep
+          noknokledbutton → flashes LED white for 1 s
 
         Example session:
             >>> c.enumerate()
             >>> c.setup_roles()
-            Module 1/2: Keyboard at 0x08  (UID: fc6eabcd65f3bdb8)
+            Module 1/2: NoknokLedButton at 0x08  (UID: fc6eabcd65f3bdb8)
             Flashing LED so you can identify it...
             Role name (or Enter to skip): ok_button
             → assigned as 'ok_button'
@@ -350,7 +349,7 @@ class Conductor:
                 time.sleep(0.5)
             elif isinstance(module, NoknokKnob):
                 print("  → Turn the knob or press it to identify it.")
-            elif isinstance(module, NoknokKeyboard):
+            elif isinstance(module, NoknokLedButton):
                 print("  → Flashing LED white so you can identify it...")
                 module.set_color(40, 40, 40)
                 time.sleep(1.0)
@@ -387,7 +386,7 @@ class Conductor:
 # ═════════════════════════════════════════════════════════════════════════════
 class NoknokBuzzer:
     """
-    Driver for the noknok Buzzer Module (CH32V003, firmware v3+).
+    Driver for the noknok Buzzer Module (noknokbuzzer, CH32V003, firmware v3+).
 
     Normally obtained via Conductor.enumerate():
         c = Conductor()
@@ -481,7 +480,7 @@ class NoknokBuzzer:
 # ═════════════════════════════════════════════════════════════════════════════
 class NoknokKnob:
     """
-    Driver for the noknok Knob Module (CH32V003J4M6, firmware v1+).
+    Driver for the noknok Knob Module (noknokknob, CH32V003J4M6, firmware v1+).
 
     Normally obtained via Conductor.enumerate():
         c = Conductor()
@@ -566,8 +565,6 @@ class NoknokKnob:
         lo = value & 0xFF
         self._send([self._CMD_SET_POS, hi, lo])
 
-    # ── Convenience properties (single read each) ─────────────────────────────
-
     @property
     def position(self):
         """Current cumulative position as a signed integer. Returns None on error."""
@@ -594,10 +591,8 @@ class KnobStatus:
     __slots__ = ("position", "delta", "pressed")
 
     def __init__(self, buf):
-        # position: big-endian signed 16-bit
         raw = (buf[0] << 8) | buf[1]
         self.position = raw if raw < 32768 else raw - 65536
-        # delta: signed 8-bit
         self.delta    = buf[2] if buf[2] < 128 else buf[2] - 256
         self.pressed  = bool(buf[3])
 
@@ -607,14 +602,14 @@ class KnobStatus:
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-class NoknokKeyboard:
+class NoknokLedButton:
     """
-    Driver for the noknok Keyboard Button Module (CH32V003F4U6, firmware v1+).
+    Driver for the noknok LED Button Module (noknokledbutton, CH32V003F4U6, firmware v1+).
 
     Normally obtained via Conductor.enumerate():
         c = Conductor()
         c.enumerate()
-        k = c.keyboard[0]           # by discovery index
+        k = c.ledbutton[0]          # by discovery index
         k = c.role["ok_button"]     # by role name (after load_roles)
 
     LED control:
@@ -674,8 +669,6 @@ class NoknokKeyboard:
         finally:
             self.i2c.unlock()
 
-    # ── LED ──────────────────────────────────────────────────────────────────
-
     def set_color(self, r, g, b):
         """Set LED colour. R, G, B each 0-255. (SK6812MINI-E is RGB only.)"""
         self._send([self._CMD_LED_SET,
@@ -688,12 +681,10 @@ class NoknokKeyboard:
         """Turn LED off."""
         self._send([self._CMD_LED_OFF])
 
-    # ── Button ────────────────────────────────────────────────────────────────
-
     def read(self):
         """
         Read button state and press count from the module.
-        Returns a KeyboardStatus object, or None on I2C error.
+        Returns a LedButtonStatus object, or None on I2C error.
 
         Edge flags (press_event, release_event) are cleared on the module
         after each read — you won't miss events as long as you poll faster
@@ -702,13 +693,11 @@ class NoknokKeyboard:
         buf = self._read_raw(2)
         if buf is None:
             return None
-        return KeyboardStatus(buf[0], buf[1])
+        return LedButtonStatus(buf[0], buf[1])
 
     def reset_count(self):
         """Reset the cumulative press counter to 0."""
         self._send([self._CMD_CNT_RESET])
-
-    # ── Convenience ───────────────────────────────────────────────────────────
 
     @property
     def is_pressed(self):
@@ -720,9 +709,9 @@ class NoknokKeyboard:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-class KeyboardStatus:
+class LedButtonStatus:
     """
-    Result of NoknokKeyboard.read().
+    Result of NoknokLedButton.read().
 
     Attributes:
         pressed       (bool) — button is currently held down
@@ -739,7 +728,7 @@ class KeyboardStatus:
         self.count         = count_byte
 
     def __repr__(self):
-        return (f"KeyboardStatus(pressed={self.pressed}, "
+        return (f"LedButtonStatus(pressed={self.pressed}, "
                 f"press_event={self.press_event}, "
                 f"release_event={self.release_event}, "
                 f"count={self.count})")
