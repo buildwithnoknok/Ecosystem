@@ -21,12 +21,12 @@ if not c.buzzer:
     raise SystemExit("No buzzer found — check wiring.")
 if not c.knob:
     raise SystemExit("No knob found — check wiring.")
-if not c.keyboard:
+if not c.ledbutton:
     raise SystemExit("No LED button found — check wiring.")
 
 buz = c.buzzer[0]
 knb = c.knob[0]
-kbd = c.keyboard[0]
+kbd = c.ledbutton[0]
 
 print("\n noknok trio demo — Light & Sound Controller")
 print(" ─────────────────────────────────────────────")
@@ -40,28 +40,27 @@ print()
 NOTES = [262, 294, 330, 392, 440, 523, 587, 659, 784, 880]
 NAMES = ["C4", "D4", "E4", "G4", "A4", "C5", "D5", "E5", "G5", "A5"]
 
-# LED colour per note: cool blue (low) → warm red/purple (high)
-# Tuple: (R, G, B, W)  — brightness kept modest so it's not blinding
+# LED colour per note: cool blue (low) → warm red/purple (high) — RGB only
 NOTE_COLORS = [
-    (  0,   0, 180,   0),  # C4  blue
-    (  0,  80, 180,   0),  # D4  blue-cyan
-    (  0, 160, 120,   0),  # E4  cyan
-    (  0, 180,   0,   0),  # G4  green
-    ( 80, 180,   0,   0),  # A4  yellow-green
-    (180, 140,   0,   0),  # C5  yellow
-    (220,  60,   0,   0),  # D5  orange
-    (220,   0,   0,   0),  # E5  red
-    (200,   0,  80,   0),  # G5  red-pink
-    (160,   0, 180,   0),  # A5  purple
+    (  0,   0, 180),  # C4  blue
+    (  0,  80, 180),  # D4  blue-cyan
+    (  0, 160, 120),  # E4  cyan
+    (  0, 180,   0),  # G4  green
+    ( 80, 180,   0),  # A4  yellow-green
+    (180, 140,   0),  # C5  yellow
+    (220,  60,   0),  # D5  orange
+    (220,   0,   0),  # E5  red
+    (200,   0,  80),  # G5  red-pink
+    (160,   0, 180),  # A5  purple
 ]
 
-# Manual colour cycle for LED button short press
+# Manual colour cycle for LED button short press — RGB only
 MANUAL_COLORS = [
-    (180,   0,   0,   0),  # red
-    (  0, 180,   0,   0),  # green
-    (  0,   0, 180,   0),  # blue
-    (220, 160,  60,   0),  # warm white (RGB approximation)
-    (120,   0, 160,   0),  # purple
+    (180,   0,   0),  # red
+    (  0, 180,   0),  # green
+    (  0,   0, 180),  # blue
+    (200, 160,  60),  # warm white (RGB approximation)
+    (120,   0, 160),  # purple
 ]
 MANUAL_NAMES = ["red", "green", "blue", "warm white", "purple"]
 
@@ -84,10 +83,10 @@ kbd_long_fired   = False
 def apply_led():
     """Set LED to note colour, unless user has manually overridden it."""
     if manual_color:
-        r, g, b, w = MANUAL_COLORS[manual_idx]
+        r, g, b = MANUAL_COLORS[manual_idx]
     else:
-        r, g, b, w = NOTE_COLORS[note_idx]
-    kbd.set_color(r, g, b, w)
+        r, g, b = NOTE_COLORS[note_idx]
+    kbd.set_color(r, g, b)
 
 
 def show_note():
@@ -105,6 +104,10 @@ while True:
     now    = time.monotonic()
     ks     = knb.read()
     kbd_s  = kbd.read()
+
+    if ks is None or kbd_s is None:
+        time.sleep(0.03)
+        continue
 
     # ── Knob rotation ─────────────────────────────────────────────────────────
     if ks.delta != 0:
@@ -132,7 +135,7 @@ while True:
             and not kbd_long_fired
             and (now - kbd_press_start) >= LONG_PRESS_S):
         kbd_long_fired = True
-        kbd.set_color(255, 255, 255, 0)    # flash white as feedback
+        kbd.set_color(255, 255, 255)   # flash white as feedback
         time.sleep(0.08)
         apply_led()
         print("  LED btn long → playing Nokia tune")
