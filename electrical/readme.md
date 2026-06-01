@@ -39,7 +39,7 @@ All modules must be powered from a **single upstream source** (typically the Con
 Rules:
 - No module may back‑feed power upstream  
 - No module may generate a second independent power rail unless isolated  
-- Power consumption must be documented in the module’s spec  
+- Power consumption must be documented in the module's spec  
 - USB‑C modules must declare their maximum draw  
 
 ### **Voltage Levels**
@@ -59,10 +59,8 @@ All I2C modules must follow standardized pin order as defined by **[Sparkfun: Qw
 4. **SCL**
 
 ### **Pull‑Ups**
-- **TO BE REFINED!!!!!**
-- Currently all modules have **10 kΩ** on SDA and SCL.
-- There are no pull-ups on the host
-- I believe we should remove pull-ups from modules and add **4.7 kΩ** to the host   
+
+> **Note — pending refinement:** Current modules have **10 kΩ** pull-ups on SDA and SCL on each module board, with no pull-ups on the host. The planned change is to remove pull-ups from individual modules and place a single **4.7 kΩ** pair on the host (Conductor). This has not yet been implemented.
 
 ### **Cable Length**
 - Recommended maximum cable length per I2C connector (branch): **100 cm**  
@@ -77,12 +75,12 @@ In the noknok ecosystem, I2C addresses are **not fixed per module**.
 Instead, the Conductor assigns addresses dynamically during a **discovery and enumeration process**.
 
 ### **Dynamic Addressing Model**
-- All modules boot at a **shared default address** (e.g., 0x7F).
-- Each module exposes a **unique ID** stored in its MCU (derived from MCU UID or generated on first boot).
+- All modules boot at a **shared staging address** (`0x7F`).
+- Each module exposes a **64‑bit unique ID** stored in its MCU hardware registers.
 - During startup, the Conductor performs a **discovery scan**:
   - Modules respond one‑by‑one using a collision‑avoidance backoff.
-  - Each module reports its unique ID, module type, and capabilities.
-  - The Conductor assigns a **runtime I2C address** (e.g., 0x20, 0x21, 0x22…).
+  - Each module reports its unique ID, module type, and a CRC8 checksum.
+  - The Conductor assigns a **runtime I2C address** (from pool `0x08–0x77`).
 - Modules switch to their assigned address and remain there until reset.
 
 This ensures:
@@ -94,17 +92,14 @@ This ensures:
 ### **Module Requirements**
 - Each module must:
   - Contain an MCU capable of changing its I2C address at runtime.
-  - Expose a **unique ID** (96–128 bits).
-  - Respond to enumeration commands at the default address.
+  - Expose a **64‑bit unique ID** (from MCU hardware UID registers).
+  - Respond to enumeration commands at the staging address `0x7F`.
   - Accept a new I2C address assigned by the Conductor.
 
 ### **Best Practices**
-- Document the module’s **default enumeration address** (e.g., 0x7F).
-- Document the module’s **unique ID format**.
+- Document the module's **staging address** (`0x7F`) and **runtime address pool** (`0x08–0x77`).
 - Avoid using fixed hardware addresses unless required by a chip.
-- If a module contains a fixed‑address peripheral internally, the MCU must:
-  - Proxy it behind the module’s virtual I2C device, or  
-  - Handle communication internally and expose a clean API.
+- If a module contains a fixed‑address peripheral internally, the MCU must proxy it behind the module's virtual I2C device and expose a clean API.
 
 ### **Legacy Compatibility**
 If a module uses a fixed hardware address (rare cases):
@@ -117,7 +112,7 @@ If a module uses a fixed hardware address (rare cases):
 
 ### **KiCad as the Standard Tool**
 All modules must be designed in **KiCad** to ensure:
-- long term Open‑source reproducibility  
+- Long‑term open‑source reproducibility  
 - Consistent library usage  
 - Easy community contributions  
 
@@ -176,5 +171,3 @@ By using these guidelines, you acknowledge that:
 - noknok and its contributors are not liable for damages resulting from improper design, manufacturing, or use of modules or housings.
 
 These guidelines are provided **as‑is** to support creativity and reproducibility in the community.
-
-
