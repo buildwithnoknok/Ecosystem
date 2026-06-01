@@ -94,7 +94,7 @@ class Conductor:
     def enumerate(self, total_timeout_sec=10):
         """
         Discover all modules on the bus.
-        Polls 0x7F every 20 ms. Stops after 500 ms of no response.
+        Polls 0x7F every 20 ms. Stops after 3000 ms of no response.
         Returns total number of modules found.
         """
         print("Enumerating noknok modules...")
@@ -116,7 +116,9 @@ class Conductor:
             next_addr += 1
 
         # ── Step 2: Scan 0x7F for new (unassigned) modules ───────────────────
-        no_resp_limit = 1000 if restored > 0 else 3000
+        # Always wait the full 3000 ms so a new module with a long backoff
+        # (up to 2799 ms) is never missed, even when a saved state was restored.
+        no_resp_limit = 3000
         no_resp_ms    = 0
         deadline      = time.monotonic() + total_timeout_sec
         new_found     = 0
@@ -350,7 +352,7 @@ class Conductor:
                 print("  → Turn the knob or press it to identify it.")
             elif isinstance(module, NoknokKeyboard):
                 print("  → Flashing LED white so you can identify it...")
-                module.set_color(40, 40, 40, 40)
+                module.set_color(40, 40, 40)
                 time.sleep(1.0)
                 module.led_off()
 
@@ -410,22 +412,29 @@ class NoknokBuzzer:
         self._uid_hex = None   # set by Conductor.enumerate()
 
     def _send(self, data):
+        """Send bytes to the module. Returns True on success, False on I2C error."""
         while not self.i2c.try_lock():
             pass
         try:
             self.i2c.writeto(self.address, bytes(data))
+            return True
+        except OSError:
+            return False
         finally:
             self.i2c.unlock()
 
     def _read(self, n=1):
+        """Read n bytes from the module. Returns bytearray or None on I2C error."""
         buf = bytearray(n)
         while not self.i2c.try_lock():
             pass
         try:
             self.i2c.readfrom_into(self.address, buf)
+            return buf
+        except OSError:
+            return None
         finally:
             self.i2c.unlock()
-        return buf
 
     def play(self, freq_hz, duration_ms, volume=100):
         """Play a single note. Fire and forget — returns immediately."""
@@ -453,8 +462,11 @@ class NoknokBuzzer:
         self._send([self._CMD_STOP])
 
     def is_playing(self):
-        """Returns True if currently playing."""
-        return self._read(1)[0] == 0x01
+        """Returns True if currently playing. Returns False on I2C error."""
+        buf = self._read(1)
+        if buf is None:
+            return False
+        return buf[0] == 0x01
 
     def wait(self, timeout_sec=30):
         """Block until idle or timeout. Returns True if idle."""
@@ -490,9 +502,9 @@ class NoknokKnob:
     Simple polling example:
         while True:
             s = k.read()
-            if s.delta != 0:
+            if s is not None and s.delta != 0:
                 print("Position:", s.position)
-            if s.pressed:
+            if s is not None and s.pressed:
                 print("Button held")
             time.sleep(0.05)
     """
@@ -506,32 +518,41 @@ class NoknokKnob:
         self._uid_hex = None   # set by Conductor.enumerate()
 
     def _send(self, data):
+        """Send bytes to the module. Returns True on success, False on I2C error."""
         while not self.i2c.try_lock():
             pass
         try:
             self.i2c.writeto(self.address, bytes(data))
+            return True
+        except OSError:
+            return False
         finally:
             self.i2c.unlock()
 
     def _read_raw(self, n=4):
+        """Read n bytes from the module. Returns bytearray or None on I2C error."""
         buf = bytearray(n)
         while not self.i2c.try_lock():
             pass
         try:
             self.i2c.readfrom_into(self.address, buf)
+            return buf
+        except OSError:
+            return None
         finally:
             self.i2c.unlock()
-        return buf
 
     def read(self):
         """
         Read position, delta, and button state from the module.
-        Returns a KnobStatus object.
+        Returns a KnobStatus object, or None on I2C error.
 
         delta auto-clears on the module after each read — you won't miss
         increments as long as you poll before the int8 overflows (±127 steps).
         """
         buf = self._read_raw(4)
+        if buf is None:
+            return None
         return KnobStatus(buf)
 
     def reset(self):
@@ -549,13 +570,15 @@ class NoknokKnob:
 
     @property
     def position(self):
-        """Current cumulative position as a signed integer."""
-        return self.read().position
+        """Current cumulative position as a signed integer. Returns None on error."""
+        s = self.read()
+        return s.position if s is not None else None
 
     @property
     def is_pressed(self):
-        """True if the button is currently held down."""
-        return self.read().pressed
+        """True if the button is currently held down. Returns False on error."""
+        s = self.read()
+        return s.pressed if s is not None else False
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -595,9 +618,9 @@ class NoknokKeyboard:
         k = c.role["ok_button"]     # by role name (after load_roles)
 
     LED control:
-        k.set_color(255, 0, 0, 0)   # red  (R, G, B, W — 0-255 each)
-        k.set_color(0, 255, 0, 0)   # green
-        k.set_color(0, 0, 0, 128)   # warm white via W channel
+        k.set_color(255, 0, 0)      # red  (R, G, B — 0-255 each)
+        k.set_color(0, 255, 0)      # green
+        k.set_color(255, 255, 255)  # white
         k.led_off()                  # off
 
     Button reading:
@@ -612,7 +635,7 @@ class NoknokKeyboard:
     Simple polling example:
         while True:
             s = k.read()
-            if s.press_event:
+            if s is not None and s.press_event:
                 print("Button pressed!")
             time.sleep(0.05)
     """
@@ -627,32 +650,39 @@ class NoknokKeyboard:
         self._uid_hex = None   # set by Conductor.enumerate()
 
     def _send(self, data):
+        """Send bytes to the module. Returns True on success, False on I2C error."""
         while not self.i2c.try_lock():
             pass
         try:
             self.i2c.writeto(self.address, bytes(data))
+            return True
+        except OSError:
+            return False
         finally:
             self.i2c.unlock()
 
     def _read_raw(self, n=2):
+        """Read n bytes from the module. Returns bytearray or None on I2C error."""
         buf = bytearray(n)
         while not self.i2c.try_lock():
             pass
         try:
             self.i2c.readfrom_into(self.address, buf)
+            return buf
+        except OSError:
+            return None
         finally:
             self.i2c.unlock()
-        return buf
 
     # ── LED ──────────────────────────────────────────────────────────────────
 
-    def set_color(self, r, g, b, w=0):
-        """Set LED colour. R, G, B, W each 0-255."""
+    def set_color(self, r, g, b):
+        """Set LED colour. R, G, B each 0-255. (SK6812MINI-E is RGB only.)"""
         self._send([self._CMD_LED_SET,
                     max(0, min(255, r)),
                     max(0, min(255, g)),
                     max(0, min(255, b)),
-                    max(0, min(255, w))])
+                    0])   # W byte kept for protocol compatibility — ignored by firmware
 
     def led_off(self):
         """Turn LED off."""
@@ -663,13 +693,15 @@ class NoknokKeyboard:
     def read(self):
         """
         Read button state and press count from the module.
-        Returns a KeyboardStatus object.
+        Returns a KeyboardStatus object, or None on I2C error.
 
         Edge flags (press_event, release_event) are cleared on the module
         after each read — you won't miss events as long as you poll faster
         than the user can press and release (~50 ms is plenty).
         """
         buf = self._read_raw(2)
+        if buf is None:
+            return None
         return KeyboardStatus(buf[0], buf[1])
 
     def reset_count(self):
@@ -680,8 +712,11 @@ class NoknokKeyboard:
 
     @property
     def is_pressed(self):
-        """True if the button is currently held down."""
-        return bool(self._read_raw(1)[0] & 0x01)
+        """True if the button is currently held down. Returns False on error."""
+        buf = self._read_raw(1)
+        if buf is None:
+            return False
+        return bool(buf[0] & 0x01)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
