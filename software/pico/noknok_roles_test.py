@@ -8,7 +8,7 @@
 #   4. Commanding a module by role actually works
 #   5. Reboot stability — roles survive power cycle (re-run to verify)
 
-from noknok import Conductor, NoknokBuzzer, NoknokKeyboard
+from noknok import Conductor, NoknokBuzzer, NoknokLedButton
 import time
 
 ROLES_FILE = "noknok_roles.json"
@@ -55,10 +55,13 @@ print("Step 4 — Discovery order")
 print("────────────────────────")
 if c.buzzer:
     for i, b in enumerate(c.buzzer):
-        print(f"  buzzer[{i}]    addr=0x{b.address:02X}  uid={b._uid_hex}")
-if c.keyboard:
-    for i, k in enumerate(c.keyboard):
-        print(f"  keyboard[{i}]  addr=0x{k.address:02X}  uid={k._uid_hex}")
+        print(f"  buzzer[{i}]     addr=0x{b.address:02X}  uid={b._uid_hex}")
+if c.knob:
+    for i, k in enumerate(c.knob):
+        print(f"  knob[{i}]       addr=0x{k.address:02X}  uid={k._uid_hex}")
+if c.ledbutton:
+    for i, k in enumerate(c.ledbutton):
+        print(f"  ledbutton[{i}]  addr=0x{k.address:02X}  uid={k._uid_hex}")
 
 print()
 
@@ -71,45 +74,46 @@ for role_name, module in c.role.items():
         continue
 
     if isinstance(module, NoknokBuzzer):
-        print(f"  '{role_name}' (Buzzer) → playing Beep OK...")
+        print(f"  '{role_name}' (noknokbuzzer) → playing Beep OK...")
         module.tune(module.BEEP_OK)
         time.sleep(0.6)
         print(f"    is_playing() = {module.is_playing()}  (expect False)")
 
-    elif isinstance(module, NoknokKeyboard):
-        print(f"  '{role_name}' (Keyboard) → cycling LED colours...")
-        module.set_color(64, 0, 0, 0)   # red
+    elif isinstance(module, NoknokLedButton):
+        print(f"  '{role_name}' (noknokledbutton) → cycling LED colours...")
+        module.set_color(64, 0, 0)   # red
         time.sleep(0.4)
-        module.set_color(0, 64, 0, 0)   # green
+        module.set_color(0, 64, 0)   # green
         time.sleep(0.4)
-        module.set_color(0, 0, 64, 0)   # blue
+        module.set_color(0, 0, 64)   # blue
         time.sleep(0.4)
         module.led_off()
         print(f"    LED off.")
 
         print(f"    Reading button state...")
         s = module.read()
-        print(f"    pressed={s.pressed}  press_event={s.press_event}  "
-              f"release_event={s.release_event}  count={s.count}")
+        if s is not None:
+            print(f"    pressed={s.pressed}  press_event={s.press_event}  "
+                  f"release_event={s.release_event}  count={s.count}")
 
     time.sleep(0.3)
 
 print()
 
-# ── Step 6: Button press test (keyboard modules only) ────────────────────────
-keyboards = [(name, m) for name, m in c.role.items() if isinstance(m, NoknokKeyboard)]
+# ── Step 6: Button press test (LED button modules only) ──────────────────────
+ledbuttons = [(name, m) for name, m in c.role.items() if isinstance(m, NoknokLedButton)]
 
-if keyboards:
+if ledbuttons:
     print("Step 6 — Button press test")
     print("──────────────────────────")
-    print("Press any keyboard button within 5 seconds...")
+    print("Press any LED button within 5 seconds...")
     deadline = time.monotonic() + 5.0
     detected = False
     while time.monotonic() < deadline:
-        for role_name, module in keyboards:
+        for role_name, module in ledbuttons:
             s = module.read()
-            if s.press_event:
-                module.set_color(0, 80, 0, 0)   # green flash on press
+            if s is not None and s.press_event:
+                module.set_color(0, 80, 0)   # green flash on press
                 print(f"  '{role_name}' pressed!  count={s.count}")
                 time.sleep(0.2)
                 module.led_off()
