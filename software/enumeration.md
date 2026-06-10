@@ -193,30 +193,19 @@ New module:   enumerate() → pings saved → all respond → continues polling 
 
 ---
 
-## Role system — stable names across reboots
+## Role system: stable names across reboots
 
-Discovery order can vary between boots (backoff is random). The role system maps human-readable names to UIDs so your code always refers to the same physical module:
+Discovery order can vary between boots, so the role system maps human-readable names
+to module UIDs: your code always refers to the same physical module regardless of order.
 
-```python
-from noknok import Conductor
-
-c = Conductor()
-c.enumerate()
-c.load_roles()           # loads noknok_roles.json
-
-# Always the same physical module, regardless of discovery order:
-c.role["volume_knob"].read()
-c.role["alert_buzzer"].play(880, 200)
-c.role["ok_button"].set_color(0, 255, 0)
-```
-
-Run `c.setup_roles()` once from the Thonny REPL to create `noknok_roles.json`. Each module identifies itself (buzzer plays a beep, LED button flashes) and you type a name.
+See **[Role Assignment](roles.md)** for the full process, the `noknok_roles.json`
+format, and the Conductor API.
 
 ---
 
 ## Conductor Python implementation
 
-Full implementation lives in [`software/pico/noknok.py`](pico/noknok.py).
+Full implementation lives in [`brain-Pico/software/noknok.py`](https://github.com/buildwithnoknok/brain-Pico/tree/main/software).
 
 ```python
 from noknok import Conductor
