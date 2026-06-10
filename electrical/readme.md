@@ -71,43 +71,11 @@ All I2C modules must follow standardized pin order as defined by **[Sparkfun: Qw
 
 ## 4. I2C Addressing Rules
 
-In the noknok ecosystem, I2C addresses are **not fixed per module**.  
-Instead, the Conductor assigns addresses dynamically during a **discovery and enumeration process**.
+I2C addresses are **not fixed per module**. Every module boots at a shared staging address (`0x7F`), exposes a 64-bit unique ID, and the Conductor assigns each a runtime address (`0x08–0x77`) during discovery — so identical modules never conflict and the bus is plug-and-play.
 
-### **Dynamic Addressing Model**
-- All modules boot at a **shared staging address** (`0x7F`).
-- Each module exposes a **64‑bit unique ID** stored in its MCU hardware registers.
-- During startup, the Conductor performs a **discovery scan**:
-  - Modules respond one‑by‑one using a collision‑avoidance backoff.
-  - Each module reports its unique ID, module type, and a CRC8 checksum.
-  - The Conductor assigns a **runtime I2C address** (from pool `0x08–0x77`).
-- Modules switch to their assigned address and remain there until reset.
-
-This ensures:
-- No address conflicts  
-- Unlimited identical modules on the same bus  
-- Stable identity via unique IDs  
-- Plug‑and‑play behavior  
-
-### **Module Requirements**
-- Each module must:
-  - Contain an MCU capable of changing its I2C address at runtime.
-  - Expose a **64‑bit unique ID** (from MCU hardware UID registers).
-  - Respond to enumeration commands at the staging address `0x7F`.
-  - Accept a new I2C address assigned by the Conductor.
-
-### **Best Practices**
-- Document the module's **staging address** (`0x7F`) and **runtime address pool** (`0x08–0x77`).
-- Avoid using fixed hardware addresses unless required by a chip.
-- If a module contains a fixed‑address peripheral internally, the MCU must proxy it behind the module's virtual I2C device and expose a clean API.
-
-### **Legacy Compatibility**
-If a module uses a fixed hardware address (rare cases):
-- Document the address clearly.
-- Ensure the MCU proxies the device so the module still appears as a **single virtual device** to the Conductor.
+The full discovery and address-assignment process (collision-avoidance backoff, CRC, state machine, and the module-side requirements) is specified in **[Software → Enumeration Protocol](../software/enumeration.md)**. Every I2C module must implement it.
 
 ---
-
 ## 5. PCB Design Guidelines
 
 ### **KiCad as the Standard Tool**
