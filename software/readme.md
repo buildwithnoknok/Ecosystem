@@ -131,6 +131,8 @@ Power cycle: enumerate() → modules not at saved addresses → full 0x7F scan
 ## 8. Related Documentation
 
 - [Enumeration Protocol — full spec](enumeration.md)
+- [Firmware Updates (I2C Bootloader)](firmware-update.md)
+- [Role Assignment](roles.md)
 - [Electrical Guidelines](../electrical/readme.md)
 - [Mechanical Guidelines](../mechanical/readme.md)
 
