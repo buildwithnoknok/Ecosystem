@@ -148,6 +148,12 @@ These guidelines are provided **as‑is** to support creativity and reproducibil
 
 ---
 
-# 📄License
+## License
 
-All documentation in this repository is open‑source and may be used for creating compatible modules and housings.
+- Documentation & standards: CC BY-SA 4.0 — see [LICENSE](LICENSE).
+
+---
+
+## Safety & Liability
+
+noknok hardware is an electronic device and a DIY/maker kit. You assemble, modify, flash, power, and operate it at your own risk, and it is provided as is, without warranty. See the full notice: [License, Safety & Liability](https://buildwithnoknok.github.io/safety-and-license/).
