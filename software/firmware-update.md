@@ -39,12 +39,10 @@ payload.
 ## Full detail
 
 The complete wire protocol (flash map, the `0x7E` flashing command set, the boot
-decision, brick-safety, and recovery/SWD procedure) lives in the canonical open repo
-and a Confluence design page — this file stays a high-level pointer to avoid drift:
+decision, brick-safety, and recovery/SWD procedure) is documented in noknok's internal
+design page — this file stays a high-level overview to avoid drift:
 
-- **Source of truth:** [module-I2C-bootloader](https://github.com/buildwithnoknok/module-I2C-bootloader)
-  — the bootloader README is the authoritative protocol reference.
-- **Full detail (archived):** Confluence —
+- **Full detail:** Confluence —
   [Module Firmware Update — I2C Bootloader Protocol (Full Detail)](https://noknokdev.atlassian.net/wiki/spaces/SD/pages/80478209)
   (child of *I²C Module Bootloader — Design & Process*).
 
