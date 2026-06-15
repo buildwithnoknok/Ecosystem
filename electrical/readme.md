@@ -113,7 +113,7 @@ MCU modules are flashed with a **pogo-pin clamp onto flat SMD pads** (not castel
 ### **CH32V003 I2C modules — 3-pad, single-wire SWD**
 Footprint: **`noknok:noknok_FlashPads_I2C-module_1x3_M2.5`**
 - 3 round Ø1.5 mm SMD pads, **2.54 mm pitch**, on the **bottom side**, copper + soldermask only (no paste), **ENIG finish** for repeated pogo contact.
-- Pin order: **1 = GND, 2 = SWIO, 3 = 3V3**.
+- Pin order: **1 = GND, 2 = SWIO, 3 = VCC**.
 - The CH32V003 uses WCH **single-wire** debug (SWIO only); reset/halt is handled in-protocol by the WCH-LinkE, so **no RST or SWCLK pad is needed**.
 - Recovery of a read-protected / factory chip: `minichlink -p` over SWIO (clears RDPR + mass-erase), then flash.
 
@@ -123,7 +123,7 @@ The flashing footprint **embeds one of the board's two M2.5 mounting holes** (at
 - **keys orientation** — the jig's locating post + the offset pad row can only seat one way. A 180° flip lands the pads on bare board, and because the pads are single-side, clamping the wrong side simply makes no contact (no reverse-power risk). A silk pin-1 triangle marks GND.
 
 ### **USB / CH32V203 modules — 4-pad, 2-wire SWD (planned)**
-The CH32V203 uses standard **2-wire SWD: SWDIO (PA13) + SWCLK (PA14)** → 4 pads: **GND, SWDIO, 3V3, SWCLK** (SWCLK added one 2.54 mm step beyond 3V3). It reuses the **same hole-to-pad offset** as the I2C footprint, so **one pogo jig flashes both module families** — on a 3-pad I2C module the jig's unused 4th pogo just rests on bare board. Footprint `noknok_FlashPads_USB-module_1x4_M2.5` will be added when the USB modules are revised.
+The CH32V203 uses standard **2-wire SWD: SWDIO (PA13) + SWCLK (PA14)** → 4 pads: **GND, SWDIO, VCC, SWCLK** (SWCLK added one 2.54 mm step beyond VCC). It reuses the **same hole-to-pad offset** as the I2C footprint, so **one pogo jig flashes both module families** — on a 3-pad I2C module the jig's unused 4th pogo just rests on bare board. Footprint `noknok_FlashPads_USB-module_1x4_M2.5` will be added when the USB modules are revised.
 
 ### **Status LED (on the SWIO / PD1 line)**
 Every CH32V003 module carries a **status LED on PD1 — the SWIO line — using zero extra GPIO**:

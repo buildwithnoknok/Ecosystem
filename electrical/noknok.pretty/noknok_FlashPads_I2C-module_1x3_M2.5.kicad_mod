@@ -3,7 +3,7 @@
 	(generator "pcbnew")
 	(generator_version "10.0")
 	(layer "F.Cu")
-	(descr "noknok flashing interface for CH32V003 I2C modules. Mounting hole at ORIGIN (0,0): M2.5, 2.5mm NPTH (Adafruit/Qwiic-aligned, nylon screw+standoff kit e.g. Adafruit 3299). 3 single-side SMD pogo pads (1=GND, 2=SWIO, 3=3V3) round Ø1.5mm on 2.54mm pitch, copper+mask only (NO paste); pad row offset +X and 1.25mm up (Y=-1.25), GND-to-hole = 3.75mm (~0.6mm pad-to-standoff clearance = metal-safe). SINGLE merged courtyard (hole keepout + pad strip as one F.CrtYd outline). The embedded hole sets the hole-to-pad spacing AND is the pogo-clamp orientation key. Authored on F.Cu - FLIP to bottom for bottom-side flashing. Shared-jig geometry: USB modules reuse the same hole-to-pad offset and add SWCLK at +2.54 from 3V3. Standard placement: hole at 2.25mm/2.25mm from the board corner on all 20x20 I2C modules.")
+	(descr "noknok flashing interface for CH32V003 I2C modules. Mounting hole at ORIGIN (0,0): M2.5, 2.5mm NPTH (Adafruit/Qwiic-aligned, nylon screw+standoff kit e.g. Adafruit 3299). 3 single-side SMD pogo pads (1=GND, 2=SWIO, 3=VCC) round Ø1.5mm on 2.54mm pitch, copper+mask only (NO paste); pad row offset +X and 1.25mm up (Y=-1.25), GND-to-hole = 3.75mm (~0.6mm pad-to-standoff clearance = metal-safe). SINGLE merged courtyard (hole keepout + pad strip as one F.CrtYd outline). The embedded hole sets the hole-to-pad spacing AND is the pogo-clamp orientation key. Authored on F.Cu - FLIP to bottom for bottom-side flashing. Shared-jig geometry: USB modules reuse the same hole-to-pad offset and add SWCLK at +2.54 from VCC. Standard placement: hole at 2.25mm/2.25mm from the board corner on all 20x20 I2C modules.")
 	(tags "noknok flash pogo SWIO CH32V003 I2C programming testpad M2.5")
 	(attr exclude_from_pos_files exclude_from_bom)
 	(property "Reference" "REF**"
@@ -67,8 +67,8 @@
 		(fill solid)
 		(layer "F.SilkS")
 	)
-	(fp_text user "G"
-		(at 3.75 -0.1 0)
+	(fp_text user "GND"
+		(at 3.75 0.1 0)
 		(layer "F.SilkS")
 		(effects
 			(font
@@ -77,8 +77,8 @@
 			)
 		)
 	)
-	(fp_text user "IO"
-		(at 6.29 -0.1 0)
+	(fp_text user "SWIO"
+		(at 6.29 0.1 0)
 		(layer "F.SilkS")
 		(effects
 			(font
@@ -87,8 +87,8 @@
 			)
 		)
 	)
-	(fp_text user "V"
-		(at 8.83 -0.1 0)
+	(fp_text user "VCC"
+		(at 8.83 0.1 0)
 		(layer "F.SilkS")
 		(effects
 			(font
