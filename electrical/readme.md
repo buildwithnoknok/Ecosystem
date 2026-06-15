@@ -91,7 +91,7 @@ Shared custom symbols and footprints live in this repo:
 
 Add both to KiCad with the library nickname **`noknok`**. Current parts:
 - `noknok_FlashPads_I2C-module` (symbol) + `noknok_FlashPads_I2C-module_1x3_M2.5` (footprint) — the flashing interface, see §6.
-- `noknok_MountingHole_2.5mm_M2.5` (footprint) — the standard mounting hole, see [Mechanical guidelines](../mechanical/readme.md).
+- `noknok_MountingHole` (symbol) + `noknok_MountingHole_2.5mm_M2.5` (footprint) — the standard mounting hole, see [Mechanical guidelines](../mechanical/readme.md).
 
 ### **General PCB Rules**
 - Module interconnect is via the **JST-SH (Qwiic / Stemma QT) connectors**. **Castellated edges are no longer used** — both the castellated I2C edge and the castellated flashing edge proved too unreliable to contact/clamp and have been removed.  
