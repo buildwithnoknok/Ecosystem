@@ -27,7 +27,7 @@
 				)
 			)
 		)
-		(property "Footprint" "noknok:noknok_FlashPads_I2C-module_1x3_M2"
+		(property "Footprint" "noknok:noknok_FlashPads_I2C-module_1x3_M2.5"
 			(at 0 0 0)
 			(hide yes)
 			(effects
@@ -45,7 +45,7 @@
 				)
 			)
 		)
-		(property "Description" "noknok pogo flashing interface for CH32V003 I2C modules (single-wire SWD). 3 pads: 1=GND, 2=SWIO, 3=3V3. NOTE: the footprint INCLUDES an M2 mounting hole that fixes the hole-to-pad spacing and acts as the pogo-clamp orientation key. Bottom-side pads (flip footprint to B.Cu)."
+		(property "Description" "noknok pogo flashing interface for CH32V003 I2C modules (single-wire SWD). 3 pads: 1=GND, 2=SWIO, 3=3V3. NOTE: the footprint INCLUDES an M2.5 mounting hole that fixes the hole-to-pad spacing and acts as the pogo-clamp orientation key. Bottom-side pads (flip footprint to B.Cu). Place the hole >=3mm from the board edge."
 			(at 0 0 0)
 			(hide yes)
 			(effects
@@ -84,7 +84,7 @@
 					(type background)
 				)
 			)
-			(text "Footprint incl. M2 mounting hole"
+			(text "Footprint incl. M2.5 mounting hole"
 				(at 1.905 -4.95 0)
 				(effects
 					(font
