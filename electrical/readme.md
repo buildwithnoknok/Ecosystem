@@ -60,7 +60,7 @@ All I2C modules must follow standardized pin order as defined by **[Sparkfun: Qw
 
 ### **Pull-Ups**
 
-> **Note — pending refinement:** Current modules have **10 kΩ** pull-ups on SDA and SCL on each module board, with no pull-ups on the host. The planned change is to remove pull-ups from individual modules and place a single **4.7 kΩ** pair on the host (Conductor). This has not yet been implemented.
+> **Pull-up strategy (decided — Option C):** noknok modules carry **no** I²C pull-ups; the **host (Conductor) provides a single 3.3 kΩ** pair on SDA/SCL. One pull-up location only → the bus stays deterministic regardless of module count. For a third-party host without pull-ups, use the noknok pull-up PCB ([DEV-9](https://noknokdev.atlassian.net/browse/DEV-9)). Rationale, module-count limits, and scaling options (LTC4311 accelerator / P82B96 buffer / TCA9548A mux) are in the [ADR: I²C Pull-up Resistor Strategy](https://noknokdev.atlassian.net/wiki/spaces/SD/pages/82280449). (Legacy modules had 10 kΩ on-board; these are being removed in V2.)
 
 ### **Cable Length**
 - Recommended maximum cable length per I2C connector (branch): **100 cm**  
