@@ -46,6 +46,34 @@ Rules:
 - Standard system voltage: **3.3 V**  
 - USB-C modules may use USB-PD **5 V**, **9 V**, **12 V** with up to **3 Amps** if used with the noknok USB Power module or noknok USB Hub module 
 
+### **Daisy-Chain Power Budget (I²C 3.3 V rail)**
+
+I²C modules draw power from the 3.3 V pin of the JST-SH connector. Two limits cap how many can be daisy-chained (independent of the I²C bus-capacitance limit in §3):
+
+- **Host 3.3 V source budget** — the Pico's onboard 3V3 supplies ~**300 mA** usable; a **dedicated 3.3 V regulator** on the host/PicoHub (fed from the PowerHub 5 V) gives ~**800 mA–1 A**.
+- **Voltage drop** — in a daisy chain the **first cable link carries the sum of all downstream current**, so keep it short/thick to avoid browning out far modules (the CH32V003 is brownout-sensitive).
+
+Approximate per-module current (**measure to confirm**):
+
+| Module | Idle / typical | Peak |
+| --- | --- | --- |
+| Knob | ~3–7 mA | ~7 mA |
+| Buzzer | ~3–7 mA | ~30–70 mA while sounding (brief) |
+| LED Button | ~5–10 mA (LED dim/off) | **~60–100 mA at full-white** (RGB via the 4.3 V boost) |
+| Status LED (every module) | +~0.6 mA | — |
+
+Realistic daisy-chain count:
+
+- **Knobs / buzzers / dim LED Buttons:** power is not the limit — the I²C bus capacitance caps you first at **~15–20** (see the [Pull-up Resistor Strategy ADR](https://noknokdev.atlassian.net/wiki/spaces/SD/pages/82280449)).
+- **Several LED Buttons at full brightness:** **power-limited** — ~**3–6** on a Pico-3V3 host (~300 mA), ~**10–12** with a dedicated ~1 A regulator.
+
+Guidance:
+
+- For products with **several LED Buttons**, give the host/PicoHub a **dedicated 3.3 V regulator** (from the PowerHub) rather than leaning on the Pico's onboard 3V3.
+- Keep the **first cable link short** when chain current is high.
+- Provide a firmware **global brightness / current cap** to bound the worst case.
+- **Measure** actual per-module current before publishing a max-module figure.
+
 ---
 
 ## 3. I2C Standardization
