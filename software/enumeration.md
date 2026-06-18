@@ -143,7 +143,7 @@ Conductor polls `0x7F` every 20 ms. Stops after **3000 ms** of no response.
 | `0x01` | noknokbuzzer | `NoknokBuzzer` | ✅ complete |
 | `0x02` | noknokknob | `NoknokKnob` | ✅ complete |
 | `0x03` | noknokledbutton | `NoknokLedButton` | ✅ complete |
-| `0x04` | USB modules | — | USB modules use a different protocol — see USB guidelines (coming soon) |
+| `0x04` | noknok LEDs (USB) | `NoknokLEDs` | ✅ complete — USB modules use a different discovery scheme, see [USB Module Discovery & Identity](#usb-module-discovery--identity) |
 
 ---
 
@@ -238,6 +238,54 @@ The Conductor sees a CRC mismatch and retries after 50 ms. Meanwhile both module
 
 **Does the Conductor need to know module types in advance?**
 No. The module type code in byte 8 tells the Conductor which Python driver class to instantiate. New module types can be added without changing the Conductor's core enumeration logic.
+
+---
+
+## USB Module Discovery & Identity
+
+USB modules (e.g. **noknok LEDs**) attach to the Conductor as **USB devices on a host port** — the Pico acts as USB host (PIO-USB on a consecutive GPIO pair, typically with the modules behind a **powered** hub such as the DataHub). They do **not** use the I²C backoff/address-assignment scheme above: USB addressing is handled by the host stack. Discovery instead relies on each module carrying a **globally-unique USB serial number** so identical modules can be told apart — the USB counterpart of the I²C UID.
+
+### The identity triple — symmetric with I²C
+
+I²C enumeration yields **UID + type + version**. USB modules expose the same triple from native USB sources:
+
+| Property | I²C source | USB source |
+|----------|------------|------------|
+| **Type** | `MODULE_TYPE` byte in the `0x7F` response | **PID** — one Product ID per module type |
+| **Instance ID** | 8-byte hardware UID | **iSerialNumber** — the MCU's hardware unique ID |
+| **Version** | `GET_VERSION` (`0xB1`) | `GET_VERSION` (`0xB1`) — identical command |
+
+So a USB module's identity is idiomatic USB: **VID = noknok, PID = module type, serial = unique instance.** (VID/PID assignment is being finalised; development units use the pid.codes prototype VID `0x1209`.)
+
+### Unique serial number
+
+Every USB module derives its serial from the MCU's hardware unique ID, so it is **stable across power cycles** and **unique per physical unit**:
+
+- **Source:** the 96-bit chip UID (CH32V203: ESIG `UNIID` at `0x1FFFF7E8`, three 32-bit words).
+- **Format:** 24-character uppercase hex string, no separators (e.g. `A1B2C3D4E5F6A1B2C3D4E5F6`), written into the USB `iSerialNumber` string descriptor (UTF-16LE) at boot.
+
+The Conductor and the role system treat this serial exactly as they treat an I²C UID — a unique hex-string identity.
+
+### Discovery flow
+
+```
+1. Conductor opens the USB host port (PIO-USB) and scans the bus.
+2. For each device whose VID = noknok:
+     - read iSerialNumber    -> instance ID  (which physical module)
+     - read PID              -> module type  (which driver class)
+     - send GET_VERSION 0xB1 -> firmware version
+3. Build the registry { serial: (type, version, handle) }.
+```
+
+No address assignment, no backoff, no collision handling — the host enumerates each device automatically and the serial provides the stable identity. Enumeration is **sequential** (~3 s per module as each attaches through the hub), comparable to the I²C timeline.
+
+> **Power is mandatory.** A USB module behind an *unpowered* hub enumerates its short descriptors but browns out on larger transfers. Hubs in a product must be externally powered (the DataHub is, by design).
+
+### State & roles
+
+Roles map **role → serial**, exactly as I²C maps **role → UID**. Because both identities are unique strings, the role map, the persisted registry, and the product manifest handle I²C and USB modules **uniformly**. See [Role Assignment](roles.md).
+
+> **Output-module role assignment.** Input modules (knob, button) are role-assigned by *interaction* — the customer touches the one to assign. Output-only USB modules (e.g. the LED ring) are assigned by *cue-and-confirm*: the Conductor lights each module in turn and the customer confirms which physical one responded.
 
 ---
 
