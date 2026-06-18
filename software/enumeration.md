@@ -223,6 +223,26 @@ c.ledbutton[0].set_color(0, 255, 0)
 c.by_uid("e290...").play(440, 200)
 ```
 
+### Mixing I2C and USB modules (unified control)
+
+USB modules are discovered separately (see [USB Module Discovery & Identity](#usb-module-discovery--identity))
+but join the **same** Conductor registry, so one product drives both buses uniformly.
+Call `enumerate_all()` (or `enumerate()` then `enumerate_usb()`):
+
+```python
+c = Conductor()
+c.enumerate_all()                 # I2C modules, then USB modules
+c.load_roles()
+
+c.knob[0].read()                  # I2C input module
+c.leds[0].play_preset(c.leds[0].PRESET_RAINBOW)   # USB output module
+c.role["lamp"].set_all(0, 255, 0)                 # by role, either bus
+c.by_uid("cdab6f70...").off()                     # by USB serial, same as a UID
+```
+
+The Conductor tolerates a missing bus: no I2C pull-ups / no I2C modules → I2C is
+skipped; no USB host support / no USB modules → USB is skipped. Each side fails soft.
+
 ---
 
 ## FAQ
