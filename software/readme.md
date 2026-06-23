@@ -77,7 +77,7 @@ This covers: backoff formula, state machine (4 states), byte protocol, CRC8, sta
 
 Every I²C module reports its type in the enumeration response (byte 8). The Conductor uses this to instantiate the correct Python driver class.
 
-> USB‑based modules do not use this enumeration protocol. See the USB module guidelines (coming soon).
+> USB‑based modules do not use this enumeration protocol (they attach as USB devices and are identified by a chip‑UID serial). They share the same `0xB0`/`0xB1` standard commands and OTA model — see [Firmware Updates (USB Bootloader)](firmware-update-usb.md).
 
 | Code | Module name | Python class |
 |------|-------------|--------------|
@@ -174,6 +174,7 @@ Power cycle: enumerate() → modules not at saved addresses → full 0x7F scan
 
 - [Enumeration Protocol — full spec](enumeration.md)
 - [Firmware Updates (I2C Bootloader)](firmware-update.md)
+- [Firmware Updates (USB Bootloader)](firmware-update-usb.md)
 - [Role Assignment](roles.md)
 - [Electrical Guidelines](../electrical/readme.md)
 - [Mechanical Guidelines](../mechanical/readme.md)

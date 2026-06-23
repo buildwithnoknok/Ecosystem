@@ -3,7 +3,8 @@
 How a noknok I2C module gets new firmware **over the I2C bus, with no SWD cable**.
 
 > Applies to all CH32V003 I2C modules (Buzzer, Knob, LED Button). USB-C modules
-> (CH32V203) are out of scope and will use a separate mechanism.
+> (CH32V203) use the same idea over a different transport — see
+> [Firmware Updates (USB Bootloader)](firmware-update-usb.md).
 
 ## Overview
 
@@ -49,5 +50,6 @@ design page — this file stays a high-level overview to avoid drift:
 ## Related documentation
 
 - [Software Guidelines](readme.md)
+- [Firmware Updates (USB Bootloader)](firmware-update-usb.md)
 - [Enumeration Protocol](enumeration.md)
 - [Role Assignment](roles.md)
