@@ -37,7 +37,7 @@ These are fixed across the USB modules — every CH32V203 module honours them:
 | Bootloader region | 8 KB at `0x08000000` (immutable in the field) |
 | Application offset | `0x08002000` (apps relinked here, ~23.75 KB region) |
 | Metadata (validity marker) | `0x08007F00` (256 B): `{magic 0x6E6B5542, app_len, app_crc32}` |
-| Bootloader USB identity | VID `0x1209` / PID `0x4E4F` (the application is PID `0x4E4E`) |
+| Bootloader USB identity | VID `0x1209` / PID `0x4E42` (the application is PID `0x4E4E`) |
 | `ENTER_BOOTLOADER` command | `0xB0` (over CDC) |
 | Handoff RAM cell | `0x200027F0` (top 16 B of RAM, reserved in every module) |
 | CRC32 | zlib (polynomial `0xEDB88320`) |
@@ -51,7 +51,7 @@ payload. (This is the USB analogue of the I2C `0x1000` relink rule.)
 ## A device that changes USB PID mid-update
 
 Unlike I2C (one stable bus address the whole time), a USB module **changes its USB PID**
-across an update — `app 0x4E4E → bootloader 0x4E4F → app 0x4E4E` — so the host must
+across an update — `app 0x4E4E → bootloader 0x4E42 → app 0x4E4E` — so the host must
 **re-enumerate** the device at each transition and match it by its chip-UID serial (the
 bootloader reports the same serial as the app). The Pico-side flasher handles this; it
 is the one behaviour that has no I2C equivalent.
