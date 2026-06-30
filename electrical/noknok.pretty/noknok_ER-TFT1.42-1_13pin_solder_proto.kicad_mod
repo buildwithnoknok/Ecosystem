@@ -1,0 +1,86 @@
+(footprint "noknok_ER-TFT1.42-1_13pin_solder_proto"
+	(version 20260206)
+	(generator "noknok_sam")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(descr "PROTOTYPE-ONLY variant of noknok_ER-TFT1.42-1_13pin_solder with STRETCHED pads (3.5mm long vs 1.7mm finger) to absorb FPC fold/placement error along the tail (~+/-0.9mm slack). Pitch (0.70mm) and count (13) are UNCHANGED and still must match the FPC exactly - only the length is extended. Align the FINGER CENTRE to the PAD CENTRE. Switch back to noknok_ER-TFT1.42-1_13pin_solder (datasheet-exact 2.0mm pads) once the fold geometry is confirmed on a prototype. EastRising ER-TFT1.42-1, 80x160 NV3022B, 4-wire SPI. VERIFY pin-1 side / front-back mirror vs the datasheet outline before ordering.")
+	(tags "TFT NV3022B ER-TFT1.42 80x160 IPS FPC noknok proto stretched")
+	(attr smd)
+	(property "Reference" "REF**"
+		(at 0 -3.3 0)
+		(layer "F.SilkS")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "noknok_ER-TFT1.42-1_13pin_solder_proto"
+		(at 0 3.3 0)
+		(layer "F.Fab")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" "https://www.buydisplay.com/download/manual/ER-TFT1.42-1_Datasheet.pdf"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" "PROTO: 1.42in 80x160 IPS TFT, NV3022B, 13-pin solder FPC, STRETCHED 3.5mm pads"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(fp_text user "Pin1"
+		(at -4.2 -2.65 0)
+		(layer "F.SilkS")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+		)
+	)
+	(fp_text user "PROTO pads (3.5mm)"
+		(at 0 2.6 0)
+		(layer "F.SilkS")
+		(effects
+			(font
+				(size 0.6 0.6)
+				(thickness 0.1)
+			)
+		)
+	)
+	(fp_line (start -5.0 -1.9) (end -5.0 1.9) (stroke (width 0.12) (type solid)) (layer "F.SilkS"))
+	(fp_rect (start -4.85 -2.0) (end 4.85 2.0) (stroke (width 0.05) (type solid)) (fill no) (layer "F.CrtYd"))
+	(fp_rect (start -4.7 -1.85) (end 4.7 1.85) (stroke (width 0.1) (type solid)) (fill no) (layer "F.Fab"))
+	(pad "1" smd rect (at -4.2 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
+	(pad "2" smd rect (at -3.5 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
+	(pad "3" smd rect (at -2.8 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
+	(pad "4" smd rect (at -2.1 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
+	(pad "5" smd rect (at -1.4 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
+	(pad "6" smd rect (at -0.7 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
+	(pad "7" smd rect (at 0 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
+	(pad "8" smd rect (at 0.7 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
+	(pad "9" smd rect (at 1.4 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
+	(pad "10" smd rect (at 2.1 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
+	(pad "11" smd rect (at 2.8 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
+	(pad "12" smd rect (at 3.5 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
+	(pad "13" smd rect (at 4.2 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
+	(embedded_fonts no)
+)
