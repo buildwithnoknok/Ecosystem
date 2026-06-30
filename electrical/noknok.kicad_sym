@@ -887,4 +887,109 @@
 		)
 		(embedded_fonts no)
 	)
+	(symbol "noknok_UART_debug_1x3_pogo"
+		(pin_names
+			(offset 1.016)
+		)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "J"
+			(at -5.08 5.08 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "noknok_UART_debug_1x3_pogo"
+			(at 0.635 -5.08 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "noknok:noknok_UART_debug_1x3_pogo"
+			(at 0 0 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "noknok UART debug pogo pads (1=GND, 2=TX, 3=RX) on 2.54mm pitch, bottom-side, copper+mask only. TX=USART1 TX (e.g. CH32V003 PD5), RX=USART1 RX (PD6). Dev-only, unpopulated; contacted by a 2.54mm pogo clamp. No mounting hole (no power-reversal risk)."
+			(at 0 0 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "noknok UART debug serial testpad pogo"
+			(at 0 0 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_fp_filters" "noknok_UART_debug*"
+			(at 0 0 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "noknok_UART_debug_1x3_pogo_0_1"
+			(rectangle
+				(start -5.08 3.81)
+				(end 6.35 -3.81)
+				(stroke
+					(width 0.254)
+					(type default)
+				)
+				(fill
+					(type background)
+				)
+			)
+		)
+		(symbol "noknok_UART_debug_1x3_pogo_1_1"
+			(pin passive line
+				(at -10.16 2.54 0)
+				(length 5.08)
+				(name "GND" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+			(pin passive line
+				(at -10.16 0 0)
+				(length 5.08)
+				(name "TX" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+			(pin passive line
+				(at -10.16 -2.54 0)
+				(length 5.08)
+				(name "RX" (effects (font (size 1.27 1.27))))
+				(number "3" (effects (font (size 1.27 1.27))))
+			)
+		)
+		(embedded_fonts no)
+	)
 )
