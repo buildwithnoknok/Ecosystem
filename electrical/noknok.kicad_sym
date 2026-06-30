@@ -722,4 +722,169 @@
 		)
 		(embedded_fonts no)
 	)
+	(symbol "noknok_ER-TFT1.42-1"
+		(pin_names
+			(offset 1.016)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "DS"
+			(at -8.89 10.16 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "noknok_ER-TFT1.42-1"
+			(at 8.89 10.16 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "noknok:noknok_ER-TFT1.42-1_13pin_solder"
+			(at 0 0 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "https://www.buydisplay.com/download/manual/ER-TFT1.42-1_Datasheet.pdf"
+			(at 0 0 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "1.42in 80x160 IPS TFT, NV3022B controller, 13-pin 0.70mm solder FPC. 4-wire SPI (fixed, no IM strap): SDA=MOSI, SCL=SCK, RS=D/C, RES=reset, CS. Single VCC 2.8-3.3V (internal power). Backlight LEDA/LEDK = 3 parallel LEDs ~3.0V/45-60mA -> needs boost+CC. 80x160 is a window in the NV3022B 132x162 RAM -> set column/row OFFSET in init. Pins 1,2 (touch) + 9 = NC, leave open."
+			(at 0 0 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "noknok TFT NV3022B display ER-TFT1.42 80x160 IPS FPC SPI"
+			(at 0 0 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_fp_filters" "noknok_ER-TFT1.42*"
+			(at 0 0 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "noknok_ER-TFT1.42-1_0_1"
+			(rectangle
+				(start -8.89 8.89)
+				(end 8.89 -8.89)
+				(stroke
+					(width 0.254)
+					(type default)
+				)
+				(fill
+					(type background)
+				)
+			)
+		)
+		(symbol "noknok_ER-TFT1.42-1_1_1"
+			(pin passive line
+				(at -12.7 7.62 0)
+				(length 3.81)
+				(name "NC_TOUCH1" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+			(pin passive line
+				(at -12.7 5.08 0)
+				(length 3.81)
+				(name "NC_TOUCH2" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+			(pin bidirectional line
+				(at -12.7 2.54 0)
+				(length 3.81)
+				(name "SDA/MOSI" (effects (font (size 1.27 1.27))))
+				(number "3" (effects (font (size 1.27 1.27))))
+			)
+			(pin input line
+				(at -12.7 0 0)
+				(length 3.81)
+				(name "SCL/SCK" (effects (font (size 1.27 1.27))))
+				(number "4" (effects (font (size 1.27 1.27))))
+			)
+			(pin input line
+				(at -12.7 -2.54 0)
+				(length 3.81)
+				(name "RS/DC" (effects (font (size 1.27 1.27))))
+				(number "5" (effects (font (size 1.27 1.27))))
+			)
+			(pin input line
+				(at -12.7 -5.08 0)
+				(length 3.81)
+				(name "RES" (effects (font (size 1.27 1.27))))
+				(number "6" (effects (font (size 1.27 1.27))))
+			)
+			(pin input line
+				(at -12.7 -7.62 0)
+				(length 3.81)
+				(name "CS" (effects (font (size 1.27 1.27))))
+				(number "7" (effects (font (size 1.27 1.27))))
+			)
+			(pin power_in line
+				(at 12.7 6.35 180)
+				(length 3.81)
+				(name "GND" (effects (font (size 1.27 1.27))))
+				(number "8" (effects (font (size 1.27 1.27))))
+			)
+			(pin passive line
+				(at 12.7 3.81 180)
+				(length 3.81)
+				(name "NC" (effects (font (size 1.27 1.27))))
+				(number "9" (effects (font (size 1.27 1.27))))
+			)
+			(pin power_in line
+				(at 12.7 1.27 180)
+				(length 3.81)
+				(name "VCC" (effects (font (size 1.27 1.27))))
+				(number "10" (effects (font (size 1.27 1.27))))
+			)
+			(pin passive line
+				(at 12.7 -1.27 180)
+				(length 3.81)
+				(name "LEDK" (effects (font (size 1.27 1.27))))
+				(number "11" (effects (font (size 1.27 1.27))))
+			)
+			(pin passive line
+				(at 12.7 -3.81 180)
+				(length 3.81)
+				(name "LEDA" (effects (font (size 1.27 1.27))))
+				(number "12" (effects (font (size 1.27 1.27))))
+			)
+			(pin power_in line
+				(at 12.7 -6.35 180)
+				(length 3.81)
+				(name "GND" (effects (font (size 1.27 1.27))))
+				(number "13" (effects (font (size 1.27 1.27))))
+			)
+		)
+		(embedded_fonts no)
+	)
 )
