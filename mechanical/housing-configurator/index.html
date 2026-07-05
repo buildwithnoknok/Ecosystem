@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<!--
+  noknok Housing Configurator — PROOF OF CONCEPT (buzzer only)
+  ------------------------------------------------------------
+  Runs 100% in the browser. No server, no install. This is the seed of the
+  eventual GitHub-Pages configurator.
+
+  Pipeline:
+    1. JSCAD (@jscad/modeling) builds the housing with real boolean geometry.
+    2. @jscad/stl-serializer turns that solid into a binary STL.
+    3. three.js loads THAT SAME STL for the on-screen preview, so what you see
+       is exactly what you download.
+
+  Tool-less retention: the PCB is held by MUSHROOM SNAP PINS that pass up through
+  the module's M2.5 mounting holes — no screws. A shoulder sets the standoff gap;
+  a barb lightly holds the board down.
+
+  Target print profile (Ecosystem/mechanical/3D_printed.md): 0.4 mm nozzle,
+  0.2 mm layer, 1.2 mm walls (3 perimeters), PLA.
+
+  License: MIT (code).  SPDX-License-Identifier: MIT
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>noknok Housing Configurator — buzzer POC</title>
+
+<!-- importmap keeps a SINGLE three.js instance shared by three + its addons -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://esm.sh/three@0.160.0",
+    "three/addons/": "https://esm.sh/three@0.160.0/examples/jsm/",
+    "@jscad/modeling": "https://esm.sh/@jscad/modeling@2.12.0",
+    "@jscad/stl-serializer": "https://esm.sh/@jscad/stl-serializer@2.1.0"
+  }
+}
+</script>
+
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --ink:#e7e9ee; --muted:#9aa3b2; --accent:#59d3a4; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+         background:var(--bg); color:var(--ink); display:flex; height:100vh; overflow:hidden; }
+  #sidebar { width:300px; background:var(--panel); padding:20px; display:flex; flex-direction:column; gap:18px; overflow-y:auto; }
+  #view { flex:1; position:relative; }
+  h1 { font-size:16px; margin:0 0 4px; }
+  h1 small { display:block; color:var(--muted); font-weight:400; font-size:12px; margin-top:4px; }
+  label { font-size:13px; color:var(--muted); display:block; margin-bottom:6px; }
+  .row { display:flex; align-items:center; gap:10px; }
+  input[type=range] { width:100%; }
+  input[type=number] { width:70px; background:#0d0f13; color:var(--ink); border:1px solid #2a2f3a; border-radius:6px; padding:6px; }
+  .val { font-variant-numeric:tabular-nums; color:var(--ink); font-size:13px; min-width:48px; text-align:right; }
+  button { background:var(--accent); color:#04150f; border:0; border-radius:8px; padding:12px; font-weight:700; cursor:pointer; font-size:14px; }
+  button:disabled { opacity:.5; cursor:default; }
+  .note { font-size:11px; color:var(--muted); line-height:1.5; }
+  .todo { color:#e0b15a; }
+  #status { position:absolute; top:12px; left:12px; background:#000a; padding:6px 10px; border-radius:6px; font-size:12px; }
+  hr { border:0; border-top:1px solid #262b35; margin:4px 0; }
+</style>
+</head>
+<body>
+  <div id="sidebar">
+    <div>
+      <h1>noknok housing configurator
+        <small>proof of concept · buzzer module</small>
+      </h1>
+    </div>
+
+    <div>
+      <label>Number of buzzers (row)</label>
+      <div class="row">
+        <input id="count" type="range" min="1" max="8" value="3" />
+        <span class="val" id="countVal">3</span>
+      </div>
+    </div>
+
+    <div>
+      <label>Internal height above PCB (mm) <span class="todo">— TODO: measure</span></label>
+      <div class="row">
+        <input id="clearance" type="number" min="4" max="25" step="0.5" value="9" />
+        <span class="note">buzzer component height — placeholder until measured with a caliper</span>
+      </div>
+    </div>
+
+    <hr/>
+    <button id="download" disabled>Download STL</button>
+    <div class="note">
+      Generates <b>one shell</b> with a bay per buzzer (shared dividers, tool-less
+      mushroom snap-pins into the PCB's M2.5 holes, JST-SH connector notches) plus
+      a matching lid with sound grilles.
+      <br/><br/>
+      <span class="todo">v1 TODO:</span> real clearance height, exact grille &amp;
+      connector positions, snap-pin tuning on a sample print, internal daisy-chain
+      pass-throughs.
+    </div>
+  </div>
+
+  <div id="view">
+    <div id="status">loading libraries…</div>
+  </div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+import jscad from '@jscad/modeling';
+import stlSerializer from '@jscad/stl-serializer';
+
+const { primitives, booleans, transforms } = jscad;
+const { cuboid, cylinder, cylinderElliptic } = primitives;
+const { subtract, union } = booleans;
+const { translate } = transforms;
+
+const statusEl = document.getElementById('status');
+const setStatus = (t) => { statusEl.textContent = t; };
+
+// ---- Buzzer housing profile (mirrors module-I2C-buzzer/mechanical/housing.json) ----
+const PROFILE = {
+  module: 'noknok-buzzer',
+  footprint: { w: 20, h: 20 },
+  pcb_thickness: 1.6,
+  mounting: { holes: [ { x:2.25, y:2.25 }, { x:17.75, y:17.75 } ] },
+  connectors: [
+    { edge:'W', x:3.1,  y:4.5  },
+    { edge:'E', x:16.9, y:15.5 }
+  ],
+  top_feature: { type:'grille', x:10, y:10, dia:12 }
+};
+
+// ---- Fixed design parameters (housing standard) ----
+const P = {
+  wallT: 1.2,      // perimeter + divider wall thickness (3 perimeters @ 0.4 nozzle)
+  floorT: 1.2,
+  lidT: 1.2,
+  tol: 0.25,       // clearance around the PCB on each side
+  standoffH: 2.0,  // gap under the PCB (bottom components / connector bodies)
+  // Tool-less mushroom snap-pin (replaces screw bosses). Sized for a 0.4 mm nozzle:
+  shoulderR: 2.8,  // ring the PCB rests on
+  pinR: 1.15,      // shaft through the Ø2.5 mm PCB hole (Ø2.3 -> ~0.1 mm/side locate)
+  barbR: 1.7,      // mushroom base overhang (Ø3.4 -> 0.45 mm barb, > 0.4 nozzle min)
+  barbTopR: 1.0,   // tapers to a lead-in point for easy push-in
+  barbH: 1.0,
+  connW: 6.0,      // JST-SH notch width (along the edge)
+  connH: 3.2       // JST-SH notch height (Z)
+};
+
+// Build the housing solids for N buzzers. Returns { base, lid }.
+function buildHousing(profile, count, clearanceTop) {
+  const fw = profile.footprint.w, fd = profile.footprint.h;
+  const bayW = fw + 2 * P.tol;          // inner cavity width per module
+  const bayD = fd + 2 * P.tol;          // inner cavity depth
+  const innerH = P.standoffH + profile.pcb_thickness + clearanceTop;
+  const baseH = P.floorT + innerH;      // wall height of the tray
+
+  const outerW = count * bayW + (count + 1) * P.wallT;
+  const outerD = bayD + 2 * P.wallT;
+
+  // helper: inner-left X of bay i (where the PCB corner sits)
+  const bayX = (i) => P.wallT + i * (bayW + P.wallT);
+
+  // 1) solid outer block, corner at origin
+  let base = cuboid({ size:[outerW, outerD, baseH], center:[outerW/2, outerD/2, baseH/2] });
+
+  // 2) subtract a cavity per bay (open top)
+  for (let i = 0; i < count; i++) {
+    const cx = bayX(i) + bayW/2;
+    const cav = cuboid({ size:[bayW, bayD, innerH + 0.1],
+      center:[cx, P.wallT + bayD/2, P.floorT + innerH/2 + 0.05] });
+    base = subtract(base, cav);
+  }
+
+  // 3) mushroom snap-pins — locate + retain the PCB through its M2.5 holes (no screws)
+  for (let i = 0; i < count; i++) {
+    const ox = bayX(i) + P.tol;          // PCB origin inside the bay
+    const oy = P.wallT + P.tol;
+    for (const h of profile.mounting.holes) {
+      const wx = ox + h.x, wy = oy + h.y;
+      const shoulder = cylinder({ radius:P.shoulderR, height:P.standoffH, segments:32,
+        center:[wx, wy, P.floorT + P.standoffH/2] });
+      const shaft = cylinder({ radius:P.pinR, height:profile.pcb_thickness + 0.05, segments:24,
+        center:[wx, wy, P.floorT + P.standoffH + profile.pcb_thickness/2] });
+      const barb = cylinderElliptic({ height:P.barbH,
+        startRadius:[P.barbR, P.barbR], endRadius:[P.barbTopR, P.barbTopR], segments:24,
+        center:[wx, wy, P.floorT + P.standoffH + profile.pcb_thickness + P.barbH/2] });
+      base = union(base, shoulder, shaft, barb);
+    }
+  }
+
+  // 4) connector notches — external on the first bay's W wall and last bay's E wall
+  const notchZ = P.floorT + P.standoffH + profile.pcb_thickness + P.connH/2; // sits at PCB top
+  {
+    const c = profile.connectors.find(c => c.edge==='W');
+    const wy = P.wallT + P.tol + c.y;
+    base = subtract(base, cuboid({ size:[P.wallT+0.4, P.connW, P.connH], center:[P.wallT/2, wy, notchZ] }));
+  }
+  {
+    const c = profile.connectors.find(c => c.edge==='E');
+    const wy = P.wallT + P.tol + c.y;
+    base = subtract(base, cuboid({ size:[P.wallT+0.4, P.connW, P.connH], center:[outerW - P.wallT/2, wy, notchZ] }));
+  }
+  //   internal divider pass-throughs (generous slot) between adjacent bays
+  for (let i = 1; i < count; i++) {
+    const dividerX = bayX(i) - P.wallT/2;
+    for (const c of profile.connectors) {
+      const wy = P.wallT + P.tol + c.y;
+      base = subtract(base, cuboid({ size:[P.wallT+0.4, P.connW, P.connH], center:[dividerX, wy, notchZ] }));
+    }
+  }
+
+  // 5) lid: a flat plate with a sound grille over each bay
+  let lid = cuboid({ size:[outerW, outerD, P.lidT], center:[outerW/2, outerD/2, P.lidT/2] });
+  const gf = profile.top_feature;
+  for (let i = 0; i < count; i++) {
+    const gx = bayX(i) + P.tol + gf.x;
+    const gy = P.wallT + P.tol + gf.y;
+    const ringR = gf.dia/2 - 1.5, nHoles = 8, holeR = 1.0;
+    for (let k = 0; k < nHoles; k++) {
+      const a = (k/nHoles) * Math.PI * 2;
+      lid = subtract(lid, cylinder({ radius:holeR, height:P.lidT+0.2, segments:16,
+        center:[gx + Math.cos(a)*ringR, gy + Math.sin(a)*ringR, P.lidT/2] }));
+    }
+    lid = subtract(lid, cylinder({ radius:holeR, height:P.lidT+0.2, segments:16, center:[gx, gy, P.lidT/2] }));
+  }
+  // place the lid beside the base so both print flat and don't overlap
+  lid = translate([0, outerD + 5, 0], lid);
+
+  return { base, lid, outerW, outerD };
+}
+
+// ---------- three.js scene ----------
+const view = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(view.clientWidth, view.clientHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+view.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f1115);
+const camera = new THREE.PerspectiveCamera(45, view.clientWidth/view.clientHeight, 0.1, 2000);
+camera.position.set(60, -90, 80);
+camera.up.set(0,0,1);
+const controls = new OrbitControls(camera, renderer.domElement);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const dl = new THREE.DirectionalLight(0xffffff, 0.9); dl.position.set(50,-80,120); scene.add(dl);
+const grid = new THREE.GridHelper(200, 20, 0x2a2f3a, 0x20242c);
+grid.rotation.x = Math.PI/2; scene.add(grid);
+
+const stlLoader = new STLLoader();
+const material = new THREE.MeshStandardMaterial({ color:0x59d3a4, metalness:0.1, roughness:0.7 });
+let currentMesh = null;
+let currentSTL = null; // ArrayBuffer for download
+
+function regenerate() {
+  const count = +document.getElementById('count').value;
+  const clearance = +document.getElementById('clearance').value;
+  setStatus('generating geometry…');
+  try {
+    const { base, lid, outerW, outerD } = buildHousing(PROFILE, count, clearance);
+    // serialize BOTH solids to one binary STL. For binary, stl-serializer returns
+    // MULTIPLE chunks (header + triangle body) — concatenate them all into one buffer.
+    const raw = stlSerializer.serialize({ binary:true }, base, lid);
+    const parts = raw.map(p =>
+      p instanceof ArrayBuffer ? new Uint8Array(p)
+      : ArrayBuffer.isView(p)  ? new Uint8Array(p.buffer, p.byteOffset, p.byteLength)
+      : new Uint8Array(p));
+    const total = parts.reduce((s,a) => s + a.length, 0);
+    const merged = new Uint8Array(total);
+    let off = 0; for (const a of parts) { merged.set(a, off); off += a.length; }
+    const buf = merged.buffer;
+    currentSTL = buf;
+
+    if (currentMesh) { scene.remove(currentMesh); currentMesh.geometry.dispose(); }
+    const geo = stlLoader.parse(buf);
+    geo.computeVertexNormals();
+    currentMesh = new THREE.Mesh(geo, material);
+    scene.add(currentMesh);
+    controls.target.set(outerW/2, outerD, 8);
+    controls.update();
+
+    document.getElementById('download').disabled = false;
+    setStatus(`${count} buzzer bay${count>1?'s':''} · STL ready (${(buf.byteLength/1024).toFixed(0)} KB)`);
+  } catch (e) {
+    console.error(e);
+    setStatus('error: ' + e.message);
+  }
+}
+
+document.getElementById('count').addEventListener('input', (e) => {
+  document.getElementById('countVal').textContent = e.target.value; regenerate();
+});
+document.getElementById('clearance').addEventListener('change', regenerate);
+document.getElementById('download').addEventListener('click', () => {
+  const blob = new Blob([currentSTL], { type:'model/stl' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `noknok_buzzer_housing_${document.getElementById('count').value}x.stl`;
+  a.click();
+});
+
+window.addEventListener('resize', () => {
+  renderer.setSize(view.clientWidth, view.clientHeight);
+  camera.aspect = view.clientWidth/view.clientHeight; camera.updateProjectionMatrix();
+});
+(function animate(){ requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); })();
+
+setStatus('libraries loaded');
+regenerate();
+</script>
+</body>
+</html>
