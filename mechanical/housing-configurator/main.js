@@ -38,10 +38,10 @@ const PROFILE = {
 const P = {
   wallT: 1.2, topT: 1.2, botFloorT: 1.2,
   lidGap: 0.4,       // buzzer-to-grille air gap
-  tol: 0.25,         // PCB-to-wall clearance
+  tol: 0.3,          // PCB-to-wall clearance (generous for prototypes)
   ledgeDepth: 1.5, ledgeH: 1.5,   // top-cover PCB stop ledge (N/S)
   ribDepth: 1.5,                  // bottom-cover push-rib depth (N/S)
-  connW: 8.0,        // widened cable notch
+  connW: 9.0,        // widened cable notch
   grilleHoleR: 0.8, grilleRing: 2.6, grilleN: 4,   // clean, well-spaced grille (no island)
   // bottom-cover -> top-cover snap (beads on the ribs / inner N-S walls):
   snapClear: 0.5, snapProj: 0.4, snapH: 1.0, snapCatchZ: 3.0
@@ -81,9 +81,11 @@ function buildHousing(profile, count, clearTop, clearBot) {
     top = subtract(top, cuboid({ size:[bayW, bayD, plateBotZ + 0.1],
       center:[cx, P.wallT + bayD/2, plateBotZ/2 + 0.05] }));
   }
-  // clear the lower interior (below the seam) so ONE bottom cover can span all bays
-  top = subtract(top, cuboid({ size:[outerW - 2*P.wallT, outerD - 2*P.wallT, seamZ + 0.05],
-    center:[outerW/2, outerD/2, seamZ/2] }));
+  // open the whole space BELOW the PCBs into one continuous cable plenum: dividers remain
+  // only above pcbBotZ (to separate the boards), everything below is a shared routing channel
+  // + the bay for the single bottom cover.
+  top = subtract(top, cuboid({ size:[outerW - 2*P.wallT, outerD - 2*P.wallT, pcbBotZ + 0.05],
+    center:[outerW/2, outerD/2, pcbBotZ/2] }));
   // PCB-stop ledges on N/S of each bay (the pushed-up PCB butts against these)
   for (let i = 0; i < count; i++) {
     const cxC = bayX(i) + bayW/2, yS = P.wallT, yN = P.wallT + bayD;
@@ -98,14 +100,14 @@ function buildHousing(profile, count, clearTop, clearBot) {
     const gy = P.wallT + P.tol + profile.top_feature.y;
     top = subtract(top, grille(gx, gy, plateBotZ + P.topT/2));
   }
-  // wide cable notches on W/E, OPEN at the bottom (lay the cable in)
-  { const c = profile.connectors.find(c => c.edge==='W'); const wy = P.wallT + P.tol + c.y;
+  // wide cable notches on the OUTER W/E walls, open at the bottom. NB: the module inserts
+  // from below (flipped vs. the old top-load design), so the connector Y is MIRRORED here
+  // -> W socket exits near South, E near North. (Verify orientation on the next print.)
+  // Inter-bay routing needs no divider notches now: the plenum below the PCBs is open.
+  { const c = profile.connectors.find(c => c.edge==='W'); const wy = P.wallT + P.tol + (fd - c.y);
     top = subtract(top, cuboid({ size:[P.wallT+0.4, P.connW, pcbBotZ + 0.1], center:[P.wallT/2, wy, pcbBotZ/2] })); }
-  { const c = profile.connectors.find(c => c.edge==='E'); const wy = P.wallT + P.tol + c.y;
+  { const c = profile.connectors.find(c => c.edge==='E'); const wy = P.wallT + P.tol + (fd - c.y);
     top = subtract(top, cuboid({ size:[P.wallT+0.4, P.connW, pcbBotZ + 0.1], center:[outerW - P.wallT/2, wy, pcbBotZ/2] })); }
-  for (let i = 1; i < count; i++) { const dx = bayX(i) - P.wallT/2;
-    for (const c of profile.connectors) { const wy = P.wallT + P.tol + c.y;
-      top = subtract(top, cuboid({ size:[P.wallT+0.4, P.connW, pcbBotZ + 0.1], center:[dx, wy, pcbBotZ/2] })); } }
   // inner N/S snap CATCHES (inward) that hold the bottom cover's rib beads
   top = union(top,
     cuboid({ size:[outerW - 2*P.wallT, P.snapProj, P.snapH], center:[outerW/2, P.wallT + P.snapProj/2, snapZ] }),
