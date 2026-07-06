@@ -108,11 +108,17 @@ function buildHousing(profile, count, clearTop, clearBot) {
     top = subtract(top, cuboid({ size:[P.wallT+0.4, P.connW, pcbBotZ + 0.1], center:[P.wallT/2, wy, pcbBotZ/2] })); }
   { const c = profile.connectors.find(c => c.edge==='E'); const wy = P.wallT + P.tol + (fd - c.y);
     top = subtract(top, cuboid({ size:[P.wallT+0.4, P.connW, pcbBotZ + 0.1], center:[outerW - P.wallT/2, wy, pcbBotZ/2] })); }
-  // inner N/S snap CATCHES (inward) that hold the bottom cover's rib beads
-  top = union(top,
-    cuboid({ size:[outerW - 2*P.wallT, P.snapProj, P.snapH], center:[outerW/2, P.wallT + P.snapProj/2, snapZ] }),
-    cuboid({ size:[outerW - 2*P.wallT, P.snapProj, P.snapH], center:[outerW/2, outerD - P.wallT - P.snapProj/2, snapZ] })
-  );
+  // inner N/S snap CATCHES (inward) that hold the bottom cover's rib beads.
+  // Segmented per bay (same span as the ribs) so every catch is backed by wall and
+  // aligns with a bead - no floating, printable bars.
+  const snapLen = bayW - 2*P.ribXInset;
+  for (let i = 0; i < count; i++) {
+    const cxC = bayX(i) + bayW/2;
+    top = union(top,
+      cuboid({ size:[snapLen, P.snapProj, P.snapH], center:[cxC, P.wallT + P.snapProj/2, snapZ] }),
+      cuboid({ size:[snapLen, P.snapProj, P.snapH], center:[cxC, outerD - P.wallT - P.snapProj/2, snapZ] })
+    );
+  }
 
   // ---------------- BOTTOM COVER (plate + N/S push-ribs; plugs up into the top cover) --------
   const inW = outerW - 2*(P.wallT + P.snapClear), inD = outerD - 2*(P.wallT + P.snapClear);
@@ -127,12 +133,15 @@ function buildHousing(profile, count, clearTop, clearBot) {
       cuboid({ size:[ribLen, P.ribDepth, ribH], center:[cxC, yN0 - P.ribDepth/2, P.botFloorT + ribH/2] })
     );
   }
-  // outward snap beads on the rib outer faces, seating just ABOVE the top-cover catches
+  // outward snap beads — one per bay, sitting ON the ribs (same span) so none float
   const beadZ = snapZ + P.snapH;
-  bot = union(bot,
-    cuboid({ size:[inW, P.snapProj, P.snapH], center:[outerW/2, yS0 - P.snapProj/2, beadZ] }),
-    cuboid({ size:[inW, P.snapProj, P.snapH], center:[outerW/2, yN0 + P.snapProj/2, beadZ] })
-  );
+  for (let i = 0; i < count; i++) {
+    const cxC = bayX(i) + bayW/2;
+    bot = union(bot,
+      cuboid({ size:[ribLen, P.snapProj, P.snapH], center:[cxC, yS0 - P.snapProj/2, beadZ] }),
+      cuboid({ size:[ribLen, P.snapProj, P.snapH], center:[cxC, yN0 + P.snapProj/2, beadZ] })
+    );
+  }
 
   // ---------------- print layout: both parts flat on the bed, side by side ----------------
   top = mirror({ normal:[0,0,1], origin:[0,0,0] }, top);   // flip grille-down (support-free print)
