@@ -1,0 +1,20 @@
+{
+  "name": "noknok-housing-configurator",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "Browser-based 3D-printable housing generator for noknok modules (buzzer POC).",
+  "scripts": {
+    "build": "esbuild main.js --bundle --format=esm --outfile=app.js --minify",
+    "dev": "esbuild main.js --bundle --format=esm --outfile=app.js --servedir=. --watch"
+  },
+  "dependencies": {
+    "@jscad/modeling": "2.12.0",
+    "@jscad/stl-serializer": "2.1.0",
+    "three": "0.160.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}
