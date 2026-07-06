@@ -2,22 +2,21 @@
 <!--
   noknok Housing Configurator — PROOF OF CONCEPT (buzzer only)
   ------------------------------------------------------------
-  Runs 100% in the browser. No server, no install. This is the seed of the
-  eventual GitHub-Pages configurator.
+  Runs 100% in the browser. No server, no install. Seed of the GitHub-Pages tool.
 
-  Pipeline:
-    1. JSCAD (@jscad/modeling) builds the housing with real boolean geometry.
-    2. @jscad/stl-serializer turns that solid into a binary STL.
-    3. three.js loads THAT SAME STL for the on-screen preview.
+  Pipeline: JSCAD (@jscad/modeling) builds real boolean geometry -> @jscad/stl-serializer
+  -> binary STL -> three.js previews that same STL.
 
-  Buzzer module layout (confirmed 2026-07-07): the 8.5x8.7x3.0 mm buzzer is the
-  ONLY top-side component (sound port up -> lid grille). Everything else — MCU,
-  transistor, passives AND the JST-SH connectors — is on the BOTTOM. So:
-    * PCB seats buzzer-up on the standoffs,
-    * bottom components hang into the standoff gap (height = "clearance below"),
-    * cables route UNDER the PCB and exit through notches in that bottom gap.
+  Buzzer layout (confirmed 2026-07-07): the 8.5x8.7x3.0 mm buzzer is the ONLY top-side
+  component (sound port up -> lid grille). MCU, passives AND the side-entry JST-SH sockets
+  (SM04B-SRSS-TB, 2.9 mm) are BOTTOM-side, on the W + E edges. So the PCB seats buzzer-up
+  and the cables exit horizontally through notches in the bottom standoff gap.
 
-  Tool-less retention: mushroom SNAP-PINS up through the PCB's M2.5 holes.
+  Retention (revised): NO corner posts (their fat shoulder blocked the cable path). Instead
+  the PCB rests on SUPPORT LEDGES along the connector-free N + S edges and is held by thin
+  SNAP-LIPS on those ledges — W + E stay clear for cables. A push-out hole in the floor lets
+  you poke the PCB back out the top.
+
   Print target: 0.4 mm nozzle, 0.2 mm layer, 1.2 mm walls (3 perimeters), PLA.
   License: MIT (code).  SPDX-License-Identifier: MIT
 -->
@@ -27,7 +26,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>noknok Housing Configurator — buzzer POC</title>
 
-<!-- importmap keeps a SINGLE three.js instance shared by three + its addons -->
 <script type="importmap">
 {
   "imports": {
@@ -96,12 +94,13 @@
     <hr/>
     <button id="download" disabled>Download STL</button>
     <div class="note">
-      <b>One shell</b>, a bay per buzzer: shared dividers, tool-less mushroom
-      snap-pins into the PCB's M2.5 holes, JST-SH cable notches in the
-      <b>bottom</b> gap, and a lid with sound grilles over each buzzer.
+      <b>One shell</b>, a bay per buzzer. PCB rests on <b>ledges along the front/back
+      edges</b> and is held by thin <b>snap-lips</b> — the W/E edges stay clear for the
+      JST-SH cables (notched in the bottom gap). A <b>push-out hole</b> in the floor lets
+      you pop each module out. Lid has a sound grille per buzzer.
       <br/><br/>
-      <span class="todo">v1 TODO:</span> confirm bottom clearance, exact grille &amp;
-      connector positions from KiCad, snap-pin tuning on a sample print.
+      <span class="todo">v1 TODO:</span> align ledges/notches/grille to the real component
+      positions (from KiCad), tune snap-lip fit on a sample print.
     </div>
   </div>
 
@@ -117,7 +116,7 @@ import jscad from '@jscad/modeling';
 import stlSerializer from '@jscad/stl-serializer';
 
 const { primitives, booleans, transforms } = jscad;
-const { cuboid, cylinder, cylinderElliptic } = primitives;
+const { cuboid, cylinder } = primitives;
 const { subtract, union } = booleans;
 const { translate } = transforms;
 
@@ -129,8 +128,7 @@ const PROFILE = {
   module: 'noknok-buzzer',
   footprint: { w: 20, h: 20 },
   pcb_thickness: 1.6,
-  mounting: { holes: [ { x:2.25, y:2.25 }, { x:17.75, y:17.75 } ] },
-  // JST-SH connectors are BOTTOM-side; edges used for routing the cable notches.
+  // JST-SH sockets are BOTTOM-side on the W + E edges; used to route the cable notches.
   connectors: [
     { edge:'W', x:3.1,  y:4.5  },
     { edge:'E', x:16.9, y:15.5 }
@@ -145,12 +143,11 @@ const P = {
   lidT: 1.2,
   lidGap: 0.4,     // air gap so the lid never presses on the 3 mm buzzer
   tol: 0.25,       // clearance around the PCB on each side
-  // Tool-less mushroom snap-pin (replaces screw bosses). Sized for a 0.4 mm nozzle:
-  shoulderR: 2.8,  // ring the PCB rests on
-  pinR: 1.15,      // shaft through the Ø2.5 mm PCB hole (Ø2.3 -> ~0.1 mm/side locate)
-  barbR: 1.7,      // mushroom base overhang (Ø3.4 -> 0.45 mm barb, > 0.4 nozzle min)
-  barbTopR: 1.0,   // tapers to a lead-in point for easy push-in
-  barbH: 1.0,
+  // PCB support + retention on the connector-FREE N/S edges (keeps W/E clear for cables):
+  ledgeDepth: 1.5, // how far the support shelf reaches in from the N/S walls
+  lipOverhang: 0.6,// how far the retention lip catches over the PCB top edge
+  lipH: 0.8,       // lip height above the PCB
+  pushHoleR: 3.0,  // Ø6 push-out hole in the floor to poke the PCB out
   connW: 6.0       // JST-SH cable notch width (along the edge)
 };
 
@@ -158,8 +155,8 @@ const P = {
 // clearTop = buzzer height above PCB; clearBot = standoff gap below PCB.
 function buildHousing(profile, count, clearTop, clearBot) {
   const fw = profile.footprint.w, fd = profile.footprint.h;
-  const bayW = fw + 2 * P.tol;          // inner cavity width per module
-  const bayD = fd + 2 * P.tol;          // inner cavity depth
+  const bayW = fw + 2 * P.tol;          // inner cavity width per module (X)
+  const bayD = fd + 2 * P.tol;          // inner cavity depth (Y)
   const standoffH = clearBot;           // PCB sits this high; bottom parts hang here
   const innerH = standoffH + profile.pcb_thickness + clearTop + P.lidGap;
   const baseH = P.floorT + innerH;      // wall height of the tray
@@ -168,8 +165,7 @@ function buildHousing(profile, count, clearTop, clearBot) {
   const outerD = bayD + 2 * P.wallT;
   const pcbTopZ = P.floorT + standoffH + profile.pcb_thickness;
 
-  // helper: inner-left X of bay i (where the PCB corner sits)
-  const bayX = (i) => P.wallT + i * (bayW + P.wallT);
+  const bayX = (i) => P.wallT + i * (bayW + P.wallT);  // inner-left X of bay i
 
   // 1) solid outer block, corner at origin
   let base = cuboid({ size:[outerW, outerD, baseH], center:[outerW/2, outerD/2, baseH/2] });
@@ -181,27 +177,28 @@ function buildHousing(profile, count, clearTop, clearBot) {
       center:[cx, P.wallT + bayD/2, P.floorT + innerH/2 + 0.05] }));
   }
 
-  // 3) mushroom snap-pins — locate + retain the PCB through its M2.5 holes (no screws)
+  // 3) support ledges + snap-lips on the connector-FREE N/S edges; push-out hole in floor
   for (let i = 0; i < count; i++) {
-    const ox = bayX(i) + P.tol, oy = P.wallT + P.tol;
-    for (const h of profile.mounting.holes) {
-      const wx = ox + h.x, wy = oy + h.y;
-      const shoulder = cylinder({ radius:P.shoulderR, height:standoffH, segments:32,
-        center:[wx, wy, P.floorT + standoffH/2] });
-      const shaft = cylinder({ radius:P.pinR, height:profile.pcb_thickness + 0.05, segments:24,
-        center:[wx, wy, P.floorT + standoffH + profile.pcb_thickness/2] });
-      const barb = cylinderElliptic({ height:P.barbH,
-        startRadius:[P.barbR, P.barbR], endRadius:[P.barbTopR, P.barbTopR], segments:24,
-        center:[wx, wy, pcbTopZ + P.barbH/2] });
-      base = union(base, shoulder, shaft, barb);
-    }
+    const cxC = bayX(i) + bayW/2;
+    const yS = P.wallT, yN = P.wallT + bayD;          // S (low y) / N (high y) cavity faces
+    // support shelves: floor -> PCB bottom, full bay length in X, PCB rests on top
+    const sLedge = cuboid({ size:[bayW, P.ledgeDepth, standoffH],
+      center:[cxC, yS + P.ledgeDepth/2, P.floorT + standoffH/2] });
+    const nLedge = cuboid({ size:[bayW, P.ledgeDepth, standoffH],
+      center:[cxC, yN - P.ledgeDepth/2, P.floorT + standoffH/2] });
+    // retention lips: thin overhangs just above the PCB top edge
+    const lipZ = pcbTopZ + P.lipH/2;
+    const sLip = cuboid({ size:[bayW, P.lipOverhang, P.lipH], center:[cxC, yS + P.lipOverhang/2, lipZ] });
+    const nLip = cuboid({ size:[bayW, P.lipOverhang, P.lipH], center:[cxC, yN - P.lipOverhang/2, lipZ] });
+    base = union(base, sLedge, nLedge, sLip, nLip);
+    // push-out hole through the floor at bay centre
+    base = subtract(base, cylinder({ radius:P.pushHoleR, height:P.floorT + 0.4, segments:32,
+      center:[cxC, P.wallT + bayD/2, P.floorT/2] }));
   }
 
-  // 4) cable notches in the BOTTOM gap (connectors are bottom-side).
-  //    Full-gap-height slot so the JST-SH cable can exit under the PCB.
-  const slotZc = P.floorT + standoffH/2;          // centered in the standoff gap
+  // 4) cable notches in the BOTTOM gap (connectors are bottom-side, side-entry).
+  const slotZc = P.floorT + standoffH/2;   // centered in the standoff gap
   const slotH  = standoffH + 0.02;
-  //    external notch on the first bay's W wall and last bay's E wall
   {
     const c = profile.connectors.find(c => c.edge==='W');
     const wy = P.wallT + P.tol + c.y;
@@ -212,8 +209,7 @@ function buildHousing(profile, count, clearTop, clearBot) {
     const wy = P.wallT + P.tol + c.y;
     base = subtract(base, cuboid({ size:[P.wallT+0.4, P.connW, slotH], center:[outerW - P.wallT/2, wy, slotZc] }));
   }
-  //    internal divider pass-throughs between adjacent bays (daisy-chain)
-  for (let i = 1; i < count; i++) {
+  for (let i = 1; i < count; i++) {   // divider pass-throughs (daisy-chain)
     const dividerX = bayX(i) - P.wallT/2;
     for (const c of profile.connectors) {
       const wy = P.wallT + P.tol + c.y;
@@ -235,8 +231,7 @@ function buildHousing(profile, count, clearTop, clearBot) {
     }
     lid = subtract(lid, cylinder({ radius:holeR, height:P.lidT+0.2, segments:16, center:[gx, gy, P.lidT/2] }));
   }
-  // place the lid beside the base so both print flat and don't overlap
-  lid = translate([0, outerD + 5, 0], lid);
+  lid = translate([0, outerD + 5, 0], lid);  // beside the base so both print flat
 
   return { base, lid, outerW, outerD };
 }
@@ -263,7 +258,7 @@ grid.rotation.x = Math.PI/2; scene.add(grid);
 const stlLoader = new STLLoader();
 const material = new THREE.MeshStandardMaterial({ color:0x59d3a4, metalness:0.1, roughness:0.7 });
 let currentMesh = null;
-let currentSTL = null; // ArrayBuffer for download
+let currentSTL = null;
 
 function regenerate() {
   const count = +document.getElementById('count').value;
@@ -272,8 +267,7 @@ function regenerate() {
   setStatus('generating geometry…');
   try {
     const { base, lid, outerW, outerD } = buildHousing(PROFILE, count, clearTop, clearBot);
-    // serialize BOTH solids to one binary STL. For binary, stl-serializer returns
-    // MULTIPLE chunks (header + triangle body) — concatenate them all into one buffer.
+    // binary STL comes back as MULTIPLE chunks — concatenate before parsing/downloading.
     const raw = stlSerializer.serialize({ binary:true }, base, lid);
     const parts = raw.map(p =>
       p instanceof ArrayBuffer ? new Uint8Array(p)
