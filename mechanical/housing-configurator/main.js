@@ -2,12 +2,13 @@
 // Build: npm run build  ->  app.js  (committed, served statically / GitHub Pages).
 // SPDX-License-Identifier: MIT
 //
-// TWO-COVER SANDWICH design:
-//   * Module is assembled + cabled OUTSIDE the housing, then inserted from below into the
-//     TOP COVER (buzzer up, toward the grille); the PCB butts against N/S stop-ledges.
-//   * The BOTTOM COVER snaps on and its N/S ribs press the PCB up -> module clamped between
-//     the two covers (no PCB snap-lips). Pop the bottom cover to remove the module.
-//   * Cables exit W/E through notches OPEN at the seam, so the cable lays in (no threading).
+// TWO-COVER SANDWICH:
+//   * Module is cabled + assembled OUTSIDE, inserted from below into the TOP COVER
+//     (buzzer up, against N/S stop-ledges).
+//   * BOTTOM COVER = a flush full-footprint base plate that BUTTS the top-cover walls at
+//     the seam (no side gap). Its N/S ribs press the PCB up (clamp, no PCB snap-lips); its
+//     W/E locating walls plug in so it can't slide; snap beads on the ribs hold it.
+//   * Cables exit W/E through notches open at the seam; they route in the plenum below the PCBs.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
@@ -28,8 +29,8 @@ const PROFILE = {
   footprint: { w: 20, h: 20 },
   pcb_thickness: 1.6,
   connectors: [
-    { edge:'W', x:3.1,  y:15.5 },  // W socket near North
-    { edge:'E', x:16.9, y:4.5  }   // E socket near South
+    { edge:'W', x:3.1,  y:15.5 },
+    { edge:'E', x:16.9, y:4.5  }
   ],
   top_feature: { type:'grille', x:10, y:10, dia:8.5 }
 };
@@ -39,54 +40,53 @@ const P = {
   wallT: 1.2, topT: 1.2, botFloorT: 1.2,
   lidGap: 0.4,       // buzzer-to-grille air gap
   tol: 0.3,          // PCB-to-wall clearance (generous for prototypes)
-  ledgeDepth: 1.5, ledgeH: 1.5,   // top-cover PCB stop ledge (N/S)
-  ribDepth: 1.5, ribXInset: 6.0,  // bottom-cover push-rib (N/S); inset in X to clear the sockets
+  ledgeDepth: 1.5, ledgeH: 1.5,      // top-cover PCB stop ledge (N/S)
+  ribDepth: 1.5, ribXInset: 6.0,     // bottom-cover push-rib (N/S), inset in X to clear the sockets
   connW: 9.0,        // widened cable notch
-  grilleHoleR: 0.8, grilleRing: 2.6, grilleN: 4,   // clean, well-spaced grille (no island)
-  // bottom-cover -> top-cover snap (beads on the ribs / inner N-S walls):
-  snapClear: 0.5, snapProj: 0.4, snapH: 1.0, snapCatchZ: 3.0
+  // sound grille — 5x5 matrix of holes:
+  grilleCols: 5, grilleSpacing: 2.5, grilleHoleR: 0.85,
+  // bottom-cover -> top-cover snap (beads on ribs, catches on N/S inner walls):
+  snapClear: 0.5, snapProj: 0.4, snapH: 1.0, snapCatchZ: 3.0,
+  // bottom-cover W/E locating walls (stop it sliding) + their fit into the top cover:
+  fitClear: 0.2, weWallT: 1.2, weWallH: 1.6
 };
 
-// clean sound grille: centre hole + a few well-spaced holes (>=0.9 mm walls, no thin island)
+// sound grille: a 5x5 matrix of holes centered on the buzzer
 function grille(cx, cy, cz) {
-  const h = P.topT + 0.4, r = P.grilleHoleR;
-  let cutters = [ cylinder({ radius:r, height:h, segments:20, center:[cx, cy, cz] }) ];
-  for (let k = 0; k < P.grilleN; k++) {
-    const a = k / P.grilleN * 2 * Math.PI;
-    cutters.push(cylinder({ radius:r, height:h, segments:20,
-      center:[cx + Math.cos(a)*P.grilleRing, cy + Math.sin(a)*P.grilleRing, cz] }));
-  }
+  const h = P.topT + 0.4, r = P.grilleHoleR, s = P.grilleSpacing, n = P.grilleCols, off = (n-1)/2;
+  const cutters = [];
+  for (let ix = 0; ix < n; ix++) for (let iy = 0; iy < n; iy++)
+    cutters.push(cylinder({ radius:r, height:h, segments:20, center:[cx + (ix-off)*s, cy + (iy-off)*s, cz] }));
   return union(...cutters);
 }
 
 // Build the two covers for N buzzers. Returns { top, bot, outerW, outerD }.
 function buildHousing(profile, count, clearTop, clearBot) {
   const fw = profile.footprint.w, fd = profile.footprint.h;
-  const bayW = fw + 2 * P.tol, bayD = fd + 2 * P.tol;
-  const outerW = count * bayW + (count + 1) * P.wallT;
-  const outerD = bayD + 2 * P.wallT;
-  const seamZ    = P.botFloorT;                 // bottom-cover plate top / start of covers overlap
-  const pcbBotZ  = seamZ + clearBot;            // PCB underside (ribs push to here)
+  const bayW = fw + 2*P.tol, bayD = fd + 2*P.tol;
+  const outerW = count*bayW + (count+1)*P.wallT;
+  const outerD = bayD + 2*P.wallT;
+  const seamZ    = P.botFloorT;                 // base-plate top = top-cover wall bottom (flush butt)
+  const pcbBotZ  = seamZ + clearBot;
   const pcbTopZ  = pcbBotZ + profile.pcb_thickness;
   const plateBotZ = pcbTopZ + clearTop + P.lidGap;
   const plateTopZ = plateBotZ + P.topT;
-  const bayX = (i) => P.wallT + i * (bayW + P.wallT);
-  const snapZ = P.snapCatchZ;
+  const bayX = (i) => P.wallT + i*(bayW + P.wallT);
+  const snapZ = P.snapCatchZ, beadZ = P.snapCatchZ + P.snapH;
+  const ribLen = bayW - 2*P.ribXInset;
 
-  // ---------------- TOP COVER (assembled orientation: grille up, open bottom) ----------------
-  let top = cuboid({ size:[outerW, outerD, plateTopZ], center:[outerW/2, outerD/2, plateTopZ/2] });
-  // hollow each bay from the bottom up to the grille plate -> outer walls + dividers + plate
+  // ===================== TOP COVER (shell from the seam up; open bottom) =====================
+  let top = cuboid({ size:[outerW, outerD, plateTopZ - seamZ], center:[outerW/2, outerD/2, (seamZ+plateTopZ)/2] });
+  // hollow each bay (seam -> grille plate) => outer walls + upper dividers + grille plate
   for (let i = 0; i < count; i++) {
     const cx = bayX(i) + bayW/2;
-    top = subtract(top, cuboid({ size:[bayW, bayD, plateBotZ + 0.1],
-      center:[cx, P.wallT + bayD/2, plateBotZ/2 + 0.05] }));
+    top = subtract(top, cuboid({ size:[bayW, bayD, plateBotZ - seamZ + 0.1],
+      center:[cx, P.wallT + bayD/2, (seamZ+plateBotZ)/2 + 0.05] }));
   }
-  // open the whole space BELOW the PCBs into one continuous cable plenum: dividers remain
-  // only above pcbBotZ (to separate the boards), everything below is a shared routing channel
-  // + the bay for the single bottom cover.
-  top = subtract(top, cuboid({ size:[outerW - 2*P.wallT, outerD - 2*P.wallT, pcbBotZ + 0.05],
-    center:[outerW/2, outerD/2, pcbBotZ/2] }));
-  // PCB-stop ledges on N/S of each bay (the pushed-up PCB butts against these)
+  // open the cable plenum below the PCBs (dividers remain only above pcbBotZ)
+  top = subtract(top, cuboid({ size:[outerW - 2*P.wallT, outerD - 2*P.wallT, pcbBotZ - seamZ + 0.05],
+    center:[outerW/2, outerD/2, (seamZ+pcbBotZ)/2] }));
+  // PCB-stop ledges (N/S per bay)
   for (let i = 0; i < count; i++) {
     const cxC = bayX(i) + bayW/2, yS = P.wallT, yN = P.wallT + bayD;
     top = union(top,
@@ -94,23 +94,18 @@ function buildHousing(profile, count, clearTop, clearBot) {
       cuboid({ size:[bayW, P.ledgeDepth, P.ledgeH], center:[cxC, yN - P.ledgeDepth/2, pcbTopZ + P.ledgeH/2] })
     );
   }
-  // sound grilles in the plate
+  // sound grilles (5x5)
   for (let i = 0; i < count; i++) {
-    const gx = bayX(i) + P.tol + profile.top_feature.x;
-    const gy = P.wallT + P.tol + profile.top_feature.y;
+    const gx = bayX(i) + P.tol + profile.top_feature.x, gy = P.wallT + P.tol + profile.top_feature.y;
     top = subtract(top, grille(gx, gy, plateBotZ + P.topT/2));
   }
-  // wide cable notches on the OUTER W/E walls, open at the bottom. NB: the module inserts
-  // from below (flipped vs. the old top-load design), so the connector Y is MIRRORED here
-  // -> W socket exits near South, E near North. (Verify orientation on the next print.)
-  // Inter-bay routing needs no divider notches now: the plenum below the PCBs is open.
+  // cable notches on the OUTER W/E walls, open at the seam. Connector Y is MIRRORED (module
+  // inserts from below). Inter-bay routing uses the open plenum, so no divider notches needed.
   { const c = profile.connectors.find(c => c.edge==='W'); const wy = P.wallT + P.tol + (fd - c.y);
-    top = subtract(top, cuboid({ size:[P.wallT+0.4, P.connW, pcbBotZ + 0.1], center:[P.wallT/2, wy, pcbBotZ/2] })); }
+    top = subtract(top, cuboid({ size:[P.wallT+0.4, P.connW, pcbBotZ - seamZ + 0.1], center:[P.wallT/2, wy, (seamZ+pcbBotZ)/2] })); }
   { const c = profile.connectors.find(c => c.edge==='E'); const wy = P.wallT + P.tol + (fd - c.y);
-    top = subtract(top, cuboid({ size:[P.wallT+0.4, P.connW, pcbBotZ + 0.1], center:[outerW - P.wallT/2, wy, pcbBotZ/2] })); }
-  // inner N/S snap CATCHES (inward) that hold the bottom cover's rib beads.
-  // Segmented per bay (same span as the ribs) so every catch is backed by wall and
-  // aligns with a bead - no floating, printable bars.
+    top = subtract(top, cuboid({ size:[P.wallT+0.4, P.connW, pcbBotZ - seamZ + 0.1], center:[outerW - P.wallT/2, wy, (seamZ+pcbBotZ)/2] })); }
+  // snap CATCHES (inner N/S), one segment per bay so each is backed by wall
   const snapLen = bayW - 2*P.ribXInset;
   for (let i = 0; i < count; i++) {
     const cxC = bayX(i) + bayW/2;
@@ -120,33 +115,38 @@ function buildHousing(profile, count, clearTop, clearBot) {
     );
   }
 
-  // ---------------- BOTTOM COVER (plate + N/S push-ribs; plugs up into the top cover) --------
-  const inW = outerW - 2*(P.wallT + P.snapClear), inD = outerD - 2*(P.wallT + P.snapClear);
-  let bot = cuboid({ size:[inW, inD, P.botFloorT], center:[outerW/2, outerD/2, P.botFloorT/2] });
-  const ribH = pcbBotZ - P.botFloorT;
-  const yS0 = outerD/2 - inD/2, yN0 = outerD/2 + inD/2;    // plate S / N edges
-  const ribLen = bayW - 2*P.ribXInset;   // center-only so the ribs clear the W/E sockets
+  // ===================== BOTTOM COVER (flush base + W/E locators + ribs) =====================
+  let bot = cuboid({ size:[outerW, outerD, seamZ], center:[outerW/2, outerD/2, seamZ/2] });   // full-footprint flush base
+  // W/E locating walls: rise into the top cover, snug against its W/E inner walls (no W/E slide).
+  // Kept below the sockets (which sit at the W/E), so they clear.
+  const weZc = seamZ + P.weWallH/2, weYlen = outerD - 2*(P.wallT + P.fitClear);
+  bot = union(bot,
+    cuboid({ size:[P.weWallT, weYlen, P.weWallH], center:[P.wallT + P.fitClear + P.weWallT/2, outerD/2, weZc] }),
+    cuboid({ size:[P.weWallT, weYlen, P.weWallH], center:[outerW - P.wallT - P.fitClear - P.weWallT/2, outerD/2, weZc] })
+  );
+  // N/S push-ribs (center only, clear the sockets), rise to the PCB bottom
+  const ribH = pcbBotZ - seamZ;
+  const yS = P.wallT + P.snapClear, yN = outerD - P.wallT - P.snapClear;
   for (let i = 0; i < count; i++) {
     const cxC = bayX(i) + bayW/2;
     bot = union(bot,
-      cuboid({ size:[ribLen, P.ribDepth, ribH], center:[cxC, yS0 + P.ribDepth/2, P.botFloorT + ribH/2] }),
-      cuboid({ size:[ribLen, P.ribDepth, ribH], center:[cxC, yN0 - P.ribDepth/2, P.botFloorT + ribH/2] })
+      cuboid({ size:[ribLen, P.ribDepth, ribH], center:[cxC, yS + P.ribDepth/2, seamZ + ribH/2] }),
+      cuboid({ size:[ribLen, P.ribDepth, ribH], center:[cxC, yN - P.ribDepth/2, seamZ + ribH/2] })
     );
   }
-  // outward snap beads — one per bay, sitting ON the ribs (same span) so none float
-  const beadZ = snapZ + P.snapH;
+  // snap beads on the ribs (one segment per bay, backed by the rib)
   for (let i = 0; i < count; i++) {
     const cxC = bayX(i) + bayW/2;
     bot = union(bot,
-      cuboid({ size:[ribLen, P.snapProj, P.snapH], center:[cxC, yS0 - P.snapProj/2, beadZ] }),
-      cuboid({ size:[ribLen, P.snapProj, P.snapH], center:[cxC, yN0 + P.snapProj/2, beadZ] })
+      cuboid({ size:[ribLen, P.snapProj, P.snapH], center:[cxC, yS - P.snapProj/2, beadZ] }),
+      cuboid({ size:[ribLen, P.snapProj, P.snapH], center:[cxC, yN + P.snapProj/2, beadZ] })
     );
   }
 
-  // ---------------- print layout: both parts flat on the bed, side by side ----------------
+  // ===================== print layout: both parts flat, side by side =====================
   top = mirror({ normal:[0,0,1], origin:[0,0,0] }, top);   // flip grille-down (support-free print)
   top = translate([0, 0, plateTopZ], top);                 // grille on the bed, opening up
-  bot = translate([0, outerD + 14, 0], bot);               // beside, plate on the bed
+  bot = translate([0, outerD + 14, 0], bot);               // beside, base on the bed
 
   return { top, bot, outerW, outerD };
 }
