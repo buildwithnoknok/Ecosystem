@@ -1,6 +1,13 @@
 // noknok Housing Configurator — app entry (bundled with esbuild; no CDN at runtime).
 // Build: npm run build  ->  app.js  (committed, served statically / GitHub Pages).
 // SPDX-License-Identifier: MIT
+//
+// TWO-COVER SANDWICH design:
+//   * Module is assembled + cabled OUTSIDE the housing, then inserted from below into the
+//     TOP COVER (buzzer up, toward the grille); the PCB butts against N/S stop-ledges.
+//   * The BOTTOM COVER snaps on and its N/S ribs press the PCB up -> module clamped between
+//     the two covers (no PCB snap-lips). Pop the bottom cover to remove the module.
+//   * Cables exit W/E through notches OPEN at the seam, so the cable lays in (no threading).
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
@@ -20,116 +27,116 @@ const PROFILE = {
   module: 'noknok-buzzer',
   footprint: { w: 20, h: 20 },
   pcb_thickness: 1.6,
-  // JST-SH sockets are BOTTOM-side on the W + E edges. Positions from the production
-  // CSV, converted to TOP (buzzer) view: W socket sits near NORTH, E near SOUTH.
   connectors: [
-    { edge:'W', x:3.1,  y:15.5 },
-    { edge:'E', x:16.9, y:4.5  }
+    { edge:'W', x:3.1,  y:15.5 },  // W socket near North
+    { edge:'E', x:16.9, y:4.5  }   // E socket near South
   ],
-  top_feature: { type:'grille', x:10, y:10, dia:8.5 }  // buzzer is 8.5 mm, centered
+  top_feature: { type:'grille', x:10, y:10, dia:8.5 }
 };
 
-// ---- Fixed design parameters (housing standard) ----
+// ---- Fixed design parameters ----
 const P = {
-  wallT: 1.2, floorT: 1.2, lidT: 1.2,
-  lidGap: 0.4,     // air gap so the lid never presses on the 3 mm buzzer
-  tol: 0.25,       // clearance around the PCB on each side
-  ledgeDepth: 1.5, // how far the support shelf reaches in from the N/S walls
-  lipOverhang: 0.6,// how far the retention lip catches over the PCB top edge
-  lipH: 0.8,       // lip height above the PCB
-  pushHoleR: 3.0,  // Ø6 push-out hole in the floor to poke the PCB out
-  connW: 6.0,      // JST-SH cable notch width (along the edge)
-  // Lid snap-fit — the lid caps OVER the base, detent on the N/S walls:
-  skirtT: 1.0, skirtH: 5.0, skirtClear: 0.9,
-  baseBeadProj: 0.6, lidBeadProj: 0.5, snapH: 1.0, skirtEngage: 2.5
+  wallT: 1.2, topT: 1.2, botFloorT: 1.2,
+  lidGap: 0.4,       // buzzer-to-grille air gap
+  tol: 0.25,         // PCB-to-wall clearance
+  ledgeDepth: 1.5, ledgeH: 1.5,   // top-cover PCB stop ledge (N/S)
+  ribDepth: 1.5,                  // bottom-cover push-rib depth (N/S)
+  connW: 8.0,        // widened cable notch
+  grilleHoleR: 0.8, grilleRing: 2.6, grilleN: 4,   // clean, well-spaced grille (no island)
+  // bottom-cover -> top-cover snap (beads on the ribs / inner N-S walls):
+  snapClear: 0.5, snapProj: 0.4, snapH: 1.0, snapCatchZ: 3.0
 };
 
-// Build the housing solids for N buzzers. Returns { base, lid }.
+// clean sound grille: centre hole + a few well-spaced holes (>=0.9 mm walls, no thin island)
+function grille(cx, cy, cz) {
+  const h = P.topT + 0.4, r = P.grilleHoleR;
+  let cutters = [ cylinder({ radius:r, height:h, segments:20, center:[cx, cy, cz] }) ];
+  for (let k = 0; k < P.grilleN; k++) {
+    const a = k / P.grilleN * 2 * Math.PI;
+    cutters.push(cylinder({ radius:r, height:h, segments:20,
+      center:[cx + Math.cos(a)*P.grilleRing, cy + Math.sin(a)*P.grilleRing, cz] }));
+  }
+  return union(...cutters);
+}
+
+// Build the two covers for N buzzers. Returns { top, bot, outerW, outerD }.
 function buildHousing(profile, count, clearTop, clearBot) {
   const fw = profile.footprint.w, fd = profile.footprint.h;
-  const bayW = fw + 2 * P.tol;
-  const bayD = fd + 2 * P.tol;
-  const standoffH = clearBot;
-  const innerH = standoffH + profile.pcb_thickness + clearTop + P.lidGap;
-  const baseH = P.floorT + innerH;
+  const bayW = fw + 2 * P.tol, bayD = fd + 2 * P.tol;
   const outerW = count * bayW + (count + 1) * P.wallT;
   const outerD = bayD + 2 * P.wallT;
-  const pcbTopZ = P.floorT + standoffH + profile.pcb_thickness;
+  const seamZ    = P.botFloorT;                 // bottom-cover plate top / start of covers overlap
+  const pcbBotZ  = seamZ + clearBot;            // PCB underside (ribs push to here)
+  const pcbTopZ  = pcbBotZ + profile.pcb_thickness;
+  const plateBotZ = pcbTopZ + clearTop + P.lidGap;
+  const plateTopZ = plateBotZ + P.topT;
   const bayX = (i) => P.wallT + i * (bayW + P.wallT);
+  const snapZ = P.snapCatchZ;
 
-  // 1) outer block
-  let base = cuboid({ size:[outerW, outerD, baseH], center:[outerW/2, outerD/2, baseH/2] });
-
-  // 2) bay cavities
+  // ---------------- TOP COVER (assembled orientation: grille up, open bottom) ----------------
+  let top = cuboid({ size:[outerW, outerD, plateTopZ], center:[outerW/2, outerD/2, plateTopZ/2] });
+  // hollow each bay from the bottom up to the grille plate -> outer walls + dividers + plate
   for (let i = 0; i < count; i++) {
     const cx = bayX(i) + bayW/2;
-    base = subtract(base, cuboid({ size:[bayW, bayD, innerH + 0.1],
-      center:[cx, P.wallT + bayD/2, P.floorT + innerH/2 + 0.05] }));
+    top = subtract(top, cuboid({ size:[bayW, bayD, plateBotZ + 0.1],
+      center:[cx, P.wallT + bayD/2, plateBotZ/2 + 0.05] }));
   }
+  // clear the lower interior (below the seam) so ONE bottom cover can span all bays
+  top = subtract(top, cuboid({ size:[outerW - 2*P.wallT, outerD - 2*P.wallT, seamZ + 0.05],
+    center:[outerW/2, outerD/2, seamZ/2] }));
+  // PCB-stop ledges on N/S of each bay (the pushed-up PCB butts against these)
+  for (let i = 0; i < count; i++) {
+    const cxC = bayX(i) + bayW/2, yS = P.wallT, yN = P.wallT + bayD;
+    top = union(top,
+      cuboid({ size:[bayW, P.ledgeDepth, P.ledgeH], center:[cxC, yS + P.ledgeDepth/2, pcbTopZ + P.ledgeH/2] }),
+      cuboid({ size:[bayW, P.ledgeDepth, P.ledgeH], center:[cxC, yN - P.ledgeDepth/2, pcbTopZ + P.ledgeH/2] })
+    );
+  }
+  // sound grilles in the plate
+  for (let i = 0; i < count; i++) {
+    const gx = bayX(i) + P.tol + profile.top_feature.x;
+    const gy = P.wallT + P.tol + profile.top_feature.y;
+    top = subtract(top, grille(gx, gy, plateBotZ + P.topT/2));
+  }
+  // wide cable notches on W/E, OPEN at the bottom (lay the cable in)
+  { const c = profile.connectors.find(c => c.edge==='W'); const wy = P.wallT + P.tol + c.y;
+    top = subtract(top, cuboid({ size:[P.wallT+0.4, P.connW, pcbBotZ + 0.1], center:[P.wallT/2, wy, pcbBotZ/2] })); }
+  { const c = profile.connectors.find(c => c.edge==='E'); const wy = P.wallT + P.tol + c.y;
+    top = subtract(top, cuboid({ size:[P.wallT+0.4, P.connW, pcbBotZ + 0.1], center:[outerW - P.wallT/2, wy, pcbBotZ/2] })); }
+  for (let i = 1; i < count; i++) { const dx = bayX(i) - P.wallT/2;
+    for (const c of profile.connectors) { const wy = P.wallT + P.tol + c.y;
+      top = subtract(top, cuboid({ size:[P.wallT+0.4, P.connW, pcbBotZ + 0.1], center:[dx, wy, pcbBotZ/2] })); } }
+  // inner N/S snap CATCHES (inward) that hold the bottom cover's rib beads
+  top = union(top,
+    cuboid({ size:[outerW - 2*P.wallT, P.snapProj, P.snapH], center:[outerW/2, P.wallT + P.snapProj/2, snapZ] }),
+    cuboid({ size:[outerW - 2*P.wallT, P.snapProj, P.snapH], center:[outerW/2, outerD - P.wallT - P.snapProj/2, snapZ] })
+  );
 
-  // 3) support ledges + snap-lips on N/S edges; push-out hole in floor
+  // ---------------- BOTTOM COVER (plate + N/S push-ribs; plugs up into the top cover) --------
+  const inW = outerW - 2*(P.wallT + P.snapClear), inD = outerD - 2*(P.wallT + P.snapClear);
+  let bot = cuboid({ size:[inW, inD, P.botFloorT], center:[outerW/2, outerD/2, P.botFloorT/2] });
+  const ribH = pcbBotZ - P.botFloorT;
+  const yS0 = outerD/2 - inD/2, yN0 = outerD/2 + inD/2;    // plate S / N edges
   for (let i = 0; i < count; i++) {
     const cxC = bayX(i) + bayW/2;
-    const yS = P.wallT, yN = P.wallT + bayD;
-    const sLedge = cuboid({ size:[bayW, P.ledgeDepth, standoffH], center:[cxC, yS + P.ledgeDepth/2, P.floorT + standoffH/2] });
-    const nLedge = cuboid({ size:[bayW, P.ledgeDepth, standoffH], center:[cxC, yN - P.ledgeDepth/2, P.floorT + standoffH/2] });
-    const lipZ = pcbTopZ + P.lipH/2;
-    const sLip = cuboid({ size:[bayW, P.lipOverhang, P.lipH], center:[cxC, yS + P.lipOverhang/2, lipZ] });
-    const nLip = cuboid({ size:[bayW, P.lipOverhang, P.lipH], center:[cxC, yN - P.lipOverhang/2, lipZ] });
-    base = union(base, sLedge, nLedge, sLip, nLip);
-    base = subtract(base, cylinder({ radius:P.pushHoleR, height:P.floorT + 0.4, segments:32, center:[cxC, P.wallT + bayD/2, P.floorT/2] }));
+    bot = union(bot,
+      cuboid({ size:[bayW, P.ribDepth, ribH], center:[cxC, yS0 + P.ribDepth/2, P.botFloorT + ribH/2] }),
+      cuboid({ size:[bayW, P.ribDepth, ribH], center:[cxC, yN0 - P.ribDepth/2, P.botFloorT + ribH/2] })
+    );
   }
-
-  // 4) cable notches in the bottom gap (bottom-side, side-entry sockets)
-  const slotZc = P.floorT + standoffH/2, slotH = standoffH + 0.02;
-  { const c = profile.connectors.find(c => c.edge==='W'); const wy = P.wallT + P.tol + c.y;
-    base = subtract(base, cuboid({ size:[P.wallT+0.4, P.connW, slotH], center:[P.wallT/2, wy, slotZc] })); }
-  { const c = profile.connectors.find(c => c.edge==='E'); const wy = P.wallT + P.tol + c.y;
-    base = subtract(base, cuboid({ size:[P.wallT+0.4, P.connW, slotH], center:[outerW - P.wallT/2, wy, slotZc] })); }
-  for (let i = 1; i < count; i++) {
-    const dividerX = bayX(i) - P.wallT/2;
-    for (const c of profile.connectors) { const wy = P.wallT + P.tol + c.y;
-      base = subtract(base, cuboid({ size:[P.wallT+0.4, P.connW, slotH], center:[dividerX, wy, slotZc] })); }
-  }
-
-  // 4b) snap beads on the base N/S outer walls
-  const baseBeadZ = baseH - P.skirtEngage;
-  base = union(base,
-    cuboid({ size:[outerW, P.baseBeadProj, P.snapH], center:[outerW/2, -P.baseBeadProj/2, baseBeadZ] }),
-    cuboid({ size:[outerW, P.baseBeadProj, P.snapH], center:[outerW/2, outerD + P.baseBeadProj/2, baseBeadZ] })
+  // outward snap beads on the rib outer faces, seating just ABOVE the top-cover catches
+  const beadZ = snapZ + P.snapH;
+  bot = union(bot,
+    cuboid({ size:[inW, P.snapProj, P.snapH], center:[outerW/2, yS0 - P.snapProj/2, beadZ] }),
+    cuboid({ size:[inW, P.snapProj, P.snapH], center:[outerW/2, yN0 + P.snapProj/2, beadZ] })
   );
 
-  // 5) lid — built in the SEATED position, then flipped skirt-up and placed beside the base.
-  const gf = profile.top_feature;
-  // plate is sized to the full SKIRT footprint so it caps the skirt (no floating walls)
-  const plateW = outerW + 2*(P.skirtClear + P.skirtT);
-  const plateD = outerD + 2*(P.skirtClear + P.skirtT);
-  let lid = cuboid({ size:[plateW, plateD, P.lidT], center:[outerW/2, outerD/2, baseH + P.lidT/2] });
-  for (let i = 0; i < count; i++) {
-    const gx = bayX(i) + P.tol + gf.x, gy = P.wallT + P.tol + gf.y;
-    const ringR = gf.dia/2 - 1.5, nHoles = 8, holeR = 1.0, gz = baseH + P.lidT/2;
-    for (let k = 0; k < nHoles; k++) { const a = (k/nHoles) * Math.PI * 2;
-      lid = subtract(lid, cylinder({ radius:holeR, height:P.lidT+0.2, segments:16, center:[gx + Math.cos(a)*ringR, gy + Math.sin(a)*ringR, gz] })); }
-    lid = subtract(lid, cylinder({ radius:holeR, height:P.lidT+0.2, segments:16, center:[gx, gy, gz] }));
-  }
-  // skirt: hollow frame wrapping the outside of the base, hanging down from the plate
-  const skZc = baseH - P.skirtH/2;
-  const skirt = subtract(
-    cuboid({ size:[plateW, plateD, P.skirtH], center:[outerW/2, outerD/2, skZc] }),
-    cuboid({ size:[outerW + 2*P.skirtClear, outerD + 2*P.skirtClear, P.skirtH + 0.2], center:[outerW/2, outerD/2, skZc] })
-  );
-  lid = union(lid, skirt);
-  // inward snap beads on BOTH N and S skirt faces, just below the base beads when seated
-  const lidBeadZ = baseBeadZ - P.snapH;
-  lid = union(lid,
-    cuboid({ size:[outerW, P.lidBeadProj, P.snapH], center:[outerW/2, -P.skirtClear + P.lidBeadProj/2, lidBeadZ] }),
-    cuboid({ size:[outerW, P.lidBeadProj, P.snapH], center:[outerW/2, outerD + P.skirtClear - P.lidBeadProj/2, lidBeadZ] })
-  );
-  // flip skirt-up (print orientation) and place beside the base, both flat on the bed
-  lid = mirror({ normal:[0,0,1], origin:[0,0,0] }, lid);
-  lid = translate([0, outerD + 12, baseH + P.lidT], lid);
+  // ---------------- print layout: both parts flat on the bed, side by side ----------------
+  top = mirror({ normal:[0,0,1], origin:[0,0,0] }, top);   // flip grille-down (support-free print)
+  top = translate([0, 0, plateTopZ], top);                 // grille on the bed, opening up
+  bot = translate([0, outerD + 14, 0], bot);               // beside, plate on the bed
 
-  return { base, lid, outerW, outerD };
+  return { top, bot, outerW, outerD };
 }
 
 // ---------- three.js scene ----------
@@ -142,13 +149,13 @@ view.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0f1115);
 const camera = new THREE.PerspectiveCamera(45, view.clientWidth/view.clientHeight, 0.1, 2000);
-camera.position.set(70, -110, 90);
+camera.position.set(80, -120, 95);
 camera.up.set(0,0,1);
 const controls = new OrbitControls(camera, renderer.domElement);
 
 scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 const dl = new THREE.DirectionalLight(0xffffff, 0.9); dl.position.set(50,-80,120); scene.add(dl);
-const grid = new THREE.GridHelper(240, 24, 0x2a2f3a, 0x20242c);
+const grid = new THREE.GridHelper(260, 26, 0x2a2f3a, 0x20242c);
 grid.rotation.x = Math.PI/2; scene.add(grid);
 
 const stlLoader = new STLLoader();
@@ -161,8 +168,8 @@ function regenerate() {
   const clearBot = +document.getElementById('clearBot').value;
   setStatus('generating geometry…');
   try {
-    const { base, lid, outerW, outerD } = buildHousing(PROFILE, count, clearTop, clearBot);
-    const raw = stlSerializer.serialize({ binary:true }, base, lid);
+    const { top, bot, outerW, outerD } = buildHousing(PROFILE, count, clearTop, clearBot);
+    const raw = stlSerializer.serialize({ binary:true }, top, bot);
     const parts = raw.map(p =>
       p instanceof ArrayBuffer ? new Uint8Array(p)
       : ArrayBuffer.isView(p)  ? new Uint8Array(p.buffer, p.byteOffset, p.byteLength)
@@ -177,11 +184,11 @@ function regenerate() {
     geo.computeVertexNormals();
     currentMesh = new THREE.Mesh(geo, material);
     scene.add(currentMesh);
-    controls.target.set(outerW/2, outerD, 6);
+    controls.target.set(outerW/2, outerD, 4);
     controls.update();
 
     document.getElementById('download').disabled = false;
-    setStatus(`${count} buzzer bay${count>1?'s':''} · STL ready (${(currentSTL.byteLength/1024).toFixed(0)} KB)`);
+    setStatus(`${count} buzzer bay${count>1?'s':''} · top + bottom cover · STL ready (${(currentSTL.byteLength/1024).toFixed(0)} KB)`);
   } catch (e) {
     console.error(e);
     setStatus('error: ' + e.message);
