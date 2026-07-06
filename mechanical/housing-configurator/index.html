@@ -128,12 +128,13 @@ const PROFILE = {
   module: 'noknok-buzzer',
   footprint: { w: 20, h: 20 },
   pcb_thickness: 1.6,
-  // JST-SH sockets are BOTTOM-side on the W + E edges; used to route the cable notches.
+  // JST-SH sockets are BOTTOM-side on the W + E edges. Positions from the production
+  // CSV, converted to TOP (buzzer) view: W socket sits near NORTH, E near SOUTH.
   connectors: [
-    { edge:'W', x:3.1,  y:4.5  },
-    { edge:'E', x:16.9, y:15.5 }
+    { edge:'W', x:3.1,  y:15.5 },
+    { edge:'E', x:16.9, y:4.5  }
   ],
-  top_feature: { type:'grille', x:10, y:10, dia:12 }
+  top_feature: { type:'grille', x:10, y:10, dia:8.5 }  // buzzer is 8.5 mm, centered
 };
 
 // ---- Fixed design parameters (housing standard) ----
