@@ -40,7 +40,7 @@ const P = {
   lidGap: 0.4,       // buzzer-to-grille air gap
   tol: 0.3,          // PCB-to-wall clearance (generous for prototypes)
   ledgeDepth: 1.5, ledgeH: 1.5,   // top-cover PCB stop ledge (N/S)
-  ribDepth: 1.5,                  // bottom-cover push-rib depth (N/S)
+  ribDepth: 1.5, ribXInset: 6.0,  // bottom-cover push-rib (N/S); inset in X to clear the sockets
   connW: 9.0,        // widened cable notch
   grilleHoleR: 0.8, grilleRing: 2.6, grilleN: 4,   // clean, well-spaced grille (no island)
   // bottom-cover -> top-cover snap (beads on the ribs / inner N-S walls):
@@ -119,11 +119,12 @@ function buildHousing(profile, count, clearTop, clearBot) {
   let bot = cuboid({ size:[inW, inD, P.botFloorT], center:[outerW/2, outerD/2, P.botFloorT/2] });
   const ribH = pcbBotZ - P.botFloorT;
   const yS0 = outerD/2 - inD/2, yN0 = outerD/2 + inD/2;    // plate S / N edges
+  const ribLen = bayW - 2*P.ribXInset;   // center-only so the ribs clear the W/E sockets
   for (let i = 0; i < count; i++) {
     const cxC = bayX(i) + bayW/2;
     bot = union(bot,
-      cuboid({ size:[bayW, P.ribDepth, ribH], center:[cxC, yS0 + P.ribDepth/2, P.botFloorT + ribH/2] }),
-      cuboid({ size:[bayW, P.ribDepth, ribH], center:[cxC, yN0 - P.ribDepth/2, P.botFloorT + ribH/2] })
+      cuboid({ size:[ribLen, P.ribDepth, ribH], center:[cxC, yS0 + P.ribDepth/2, P.botFloorT + ribH/2] }),
+      cuboid({ size:[ribLen, P.ribDepth, ribH], center:[cxC, yN0 - P.ribDepth/2, P.botFloorT + ribH/2] })
     );
   }
   // outward snap beads on the rib outer faces, seating just ABOVE the top-cover catches
