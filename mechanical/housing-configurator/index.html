@@ -97,10 +97,11 @@
       <b>One shell</b>, a bay per buzzer. PCB rests on <b>ledges along the front/back
       edges</b> and is held by thin <b>snap-lips</b> — the W/E edges stay clear for the
       JST-SH cables (notched in the bottom gap). A <b>push-out hole</b> in the floor lets
-      you pop each module out. Lid has a sound grille per buzzer.
+      you pop each module out. The <b>lid caps over the base and snap-fits</b> on the N/S
+      edges (shown floating above). Sound grille per buzzer.
       <br/><br/>
-      <span class="todo">v1 TODO:</span> align ledges/notches/grille to the real component
-      positions (from KiCad), tune snap-lip fit on a sample print.
+      <span class="todo">v1 TODO:</span> tune the snap-fit + snap-lip clearances on a
+      sample print (first-guess dimensions).
     </div>
   </div>
 
@@ -149,7 +150,15 @@ const P = {
   lipOverhang: 0.6,// how far the retention lip catches over the PCB top edge
   lipH: 0.8,       // lip height above the PCB
   pushHoleR: 3.0,  // Ø6 push-out hole in the floor to poke the PCB out
-  connW: 6.0       // JST-SH cable notch width (along the edge)
+  connW: 6.0,      // JST-SH cable notch width (along the edge)
+  // Lid snap-fit — the lid caps OVER the base, detent on the N/S walls:
+  skirtT: 1.0,       // lid skirt wall thickness
+  skirtH: 5.0,       // how far the skirt drops over the base
+  skirtClear: 0.9,   // gap from base outer wall to skirt inner face (clears the base bead)
+  baseBeadProj: 0.6, // base outward bead projection
+  lidBeadProj: 0.5,  // lid inward bead projection (engagement ~0.2 mm)
+  snapH: 1.0,        // bead height
+  skirtEngage: 2.5   // base bead centre, measured below the top rim
 };
 
 // Build the housing solids for N buzzers. Returns { base, lid }.
@@ -218,21 +227,45 @@ function buildHousing(profile, count, clearTop, clearBot) {
     }
   }
 
-  // 5) lid: a flat plate with a sound grille over each buzzer (centered on the module)
-  let lid = cuboid({ size:[outerW, outerD, P.lidT], center:[outerW/2, outerD/2, P.lidT/2] });
+  // 4b) snap beads on the base N/S outer walls — the catch for the lid skirt
+  const baseBeadZ = baseH - P.skirtEngage;
+  base = union(base,
+    cuboid({ size:[outerW, P.baseBeadProj, P.snapH], center:[outerW/2, -P.baseBeadProj/2, baseBeadZ] }),          // south
+    cuboid({ size:[outerW, P.baseBeadProj, P.snapH], center:[outerW/2, outerD + P.baseBeadProj/2, baseBeadZ] })   // north
+  );
+
+  // 5) lid: plate + sound grilles, a skirt that caps OVER the base, and snap beads that
+  //    click UNDER the base beads. Built in the seated position, then floated up for a
+  //    clear assembled preview (base + lid are two separate solids for printing).
   const gf = profile.top_feature;
+  let lid = cuboid({ size:[outerW, outerD, P.lidT], center:[outerW/2, outerD/2, baseH + P.lidT/2] });
   for (let i = 0; i < count; i++) {
     const gx = bayX(i) + P.tol + gf.x;
     const gy = P.wallT + P.tol + gf.y;
-    const ringR = gf.dia/2 - 1.5, nHoles = 8, holeR = 1.0;
+    const ringR = gf.dia/2 - 1.5, nHoles = 8, holeR = 1.0, gz = baseH + P.lidT/2;
     for (let k = 0; k < nHoles; k++) {
       const a = (k/nHoles) * Math.PI * 2;
       lid = subtract(lid, cylinder({ radius:holeR, height:P.lidT+0.2, segments:16,
-        center:[gx + Math.cos(a)*ringR, gy + Math.sin(a)*ringR, P.lidT/2] }));
+        center:[gx + Math.cos(a)*ringR, gy + Math.sin(a)*ringR, gz] }));
     }
-    lid = subtract(lid, cylinder({ radius:holeR, height:P.lidT+0.2, segments:16, center:[gx, gy, P.lidT/2] }));
+    lid = subtract(lid, cylinder({ radius:holeR, height:P.lidT+0.2, segments:16, center:[gx, gy, gz] }));
   }
-  lid = translate([0, outerD + 5, 0], lid);  // beside the base so both print flat
+  // skirt: hollow frame wrapping the outside of the base, hanging down from the plate
+  const skZc = baseH - P.skirtH/2;
+  const skirt = subtract(
+    cuboid({ size:[outerW + 2*(P.skirtClear+P.skirtT), outerD + 2*(P.skirtClear+P.skirtT), P.skirtH],
+      center:[outerW/2, outerD/2, skZc] }),
+    cuboid({ size:[outerW + 2*P.skirtClear, outerD + 2*P.skirtClear, P.skirtH + 0.2],
+      center:[outerW/2, outerD/2, skZc] })
+  );
+  lid = union(lid, skirt);
+  // inward snap beads on the N/S skirt, sitting just BELOW the base beads when seated
+  const lidBeadZ = baseBeadZ - P.snapH;
+  lid = union(lid,
+    cuboid({ size:[outerW, P.lidBeadProj, P.snapH], center:[outerW/2, -P.skirtClear + P.lidBeadProj/2, lidBeadZ] }),        // south
+    cuboid({ size:[outerW, P.lidBeadProj, P.snapH], center:[outerW/2, outerD + P.skirtClear - P.lidBeadProj/2, lidBeadZ] }) // north
+  );
+  lid = translate([0, 0, P.lidT + 12], lid);  // float above the base for an assembled preview
 
   return { base, lid, outerW, outerD };
 }
