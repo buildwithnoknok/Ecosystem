@@ -8,16 +8,17 @@
   Pipeline:
     1. JSCAD (@jscad/modeling) builds the housing with real boolean geometry.
     2. @jscad/stl-serializer turns that solid into a binary STL.
-    3. three.js loads THAT SAME STL for the on-screen preview, so what you see
-       is exactly what you download.
+    3. three.js loads THAT SAME STL for the on-screen preview.
 
-  Tool-less retention: the PCB is held by MUSHROOM SNAP PINS that pass up through
-  the module's M2.5 mounting holes — no screws. A shoulder sets the standoff gap;
-  a barb lightly holds the board down.
+  Buzzer module layout (confirmed 2026-07-07): the 8.5x8.7x3.0 mm buzzer is the
+  ONLY top-side component (sound port up -> lid grille). Everything else — MCU,
+  transistor, passives AND the JST-SH connectors — is on the BOTTOM. So:
+    * PCB seats buzzer-up on the standoffs,
+    * bottom components hang into the standoff gap (height = "clearance below"),
+    * cables route UNDER the PCB and exit through notches in that bottom gap.
 
-  Target print profile (Ecosystem/mechanical/3D_printed.md): 0.4 mm nozzle,
-  0.2 mm layer, 1.2 mm walls (3 perimeters), PLA.
-
+  Tool-less retention: mushroom SNAP-PINS up through the PCB's M2.5 holes.
+  Print target: 0.4 mm nozzle, 0.2 mm layer, 1.2 mm walls (3 perimeters), PLA.
   License: MIT (code).  SPDX-License-Identifier: MIT
 -->
 <html lang="en">
@@ -43,7 +44,7 @@
   * { box-sizing:border-box; }
   body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
          background:var(--bg); color:var(--ink); display:flex; height:100vh; overflow:hidden; }
-  #sidebar { width:300px; background:var(--panel); padding:20px; display:flex; flex-direction:column; gap:18px; overflow-y:auto; }
+  #sidebar { width:310px; background:var(--panel); padding:20px; display:flex; flex-direction:column; gap:16px; overflow-y:auto; }
   #view { flex:1; position:relative; }
   h1 { font-size:16px; margin:0 0 4px; }
   h1 small { display:block; color:var(--muted); font-weight:400; font-size:12px; margin-top:4px; }
@@ -77,23 +78,30 @@
     </div>
 
     <div>
-      <label>Internal height above PCB (mm) <span class="todo">— TODO: measure</span></label>
+      <label>Buzzer height above PCB (mm)</label>
       <div class="row">
-        <input id="clearance" type="number" min="4" max="25" step="0.5" value="9" />
-        <span class="note">buzzer component height — placeholder until measured with a caliper</span>
+        <input id="clearTop" type="number" min="1" max="25" step="0.1" value="3" />
+        <span class="note">3.0 mm — the buzzer is the only top-side component</span>
+      </div>
+    </div>
+
+    <div>
+      <label>Clearance below PCB / standoff (mm)</label>
+      <div class="row">
+        <input id="clearBot" type="number" min="1" max="10" step="0.1" value="3" />
+        <span class="note">JST-SH socket SM04B-SRSS-TB is 2.9 mm (tallest bottom part) + 0.1 mm seating</span>
       </div>
     </div>
 
     <hr/>
     <button id="download" disabled>Download STL</button>
     <div class="note">
-      Generates <b>one shell</b> with a bay per buzzer (shared dividers, tool-less
-      mushroom snap-pins into the PCB's M2.5 holes, JST-SH connector notches) plus
-      a matching lid with sound grilles.
+      <b>One shell</b>, a bay per buzzer: shared dividers, tool-less mushroom
+      snap-pins into the PCB's M2.5 holes, JST-SH cable notches in the
+      <b>bottom</b> gap, and a lid with sound grilles over each buzzer.
       <br/><br/>
-      <span class="todo">v1 TODO:</span> real clearance height, exact grille &amp;
-      connector positions, snap-pin tuning on a sample print, internal daisy-chain
-      pass-throughs.
+      <span class="todo">v1 TODO:</span> confirm bottom clearance, exact grille &amp;
+      connector positions from KiCad, snap-pin tuning on a sample print.
     </div>
   </div>
 
@@ -122,6 +130,7 @@ const PROFILE = {
   footprint: { w: 20, h: 20 },
   pcb_thickness: 1.6,
   mounting: { holes: [ { x:2.25, y:2.25 }, { x:17.75, y:17.75 } ] },
+  // JST-SH connectors are BOTTOM-side; edges used for routing the cable notches.
   connectors: [
     { edge:'W', x:3.1,  y:4.5  },
     { edge:'E', x:16.9, y:15.5 }
@@ -134,28 +143,30 @@ const P = {
   wallT: 1.2,      // perimeter + divider wall thickness (3 perimeters @ 0.4 nozzle)
   floorT: 1.2,
   lidT: 1.2,
+  lidGap: 0.4,     // air gap so the lid never presses on the 3 mm buzzer
   tol: 0.25,       // clearance around the PCB on each side
-  standoffH: 2.0,  // gap under the PCB (bottom components / connector bodies)
   // Tool-less mushroom snap-pin (replaces screw bosses). Sized for a 0.4 mm nozzle:
   shoulderR: 2.8,  // ring the PCB rests on
   pinR: 1.15,      // shaft through the Ø2.5 mm PCB hole (Ø2.3 -> ~0.1 mm/side locate)
   barbR: 1.7,      // mushroom base overhang (Ø3.4 -> 0.45 mm barb, > 0.4 nozzle min)
   barbTopR: 1.0,   // tapers to a lead-in point for easy push-in
   barbH: 1.0,
-  connW: 6.0,      // JST-SH notch width (along the edge)
-  connH: 3.2       // JST-SH notch height (Z)
+  connW: 6.0       // JST-SH cable notch width (along the edge)
 };
 
 // Build the housing solids for N buzzers. Returns { base, lid }.
-function buildHousing(profile, count, clearanceTop) {
+// clearTop = buzzer height above PCB; clearBot = standoff gap below PCB.
+function buildHousing(profile, count, clearTop, clearBot) {
   const fw = profile.footprint.w, fd = profile.footprint.h;
   const bayW = fw + 2 * P.tol;          // inner cavity width per module
   const bayD = fd + 2 * P.tol;          // inner cavity depth
-  const innerH = P.standoffH + profile.pcb_thickness + clearanceTop;
+  const standoffH = clearBot;           // PCB sits this high; bottom parts hang here
+  const innerH = standoffH + profile.pcb_thickness + clearTop + P.lidGap;
   const baseH = P.floorT + innerH;      // wall height of the tray
 
   const outerW = count * bayW + (count + 1) * P.wallT;
   const outerD = bayD + 2 * P.wallT;
+  const pcbTopZ = P.floorT + standoffH + profile.pcb_thickness;
 
   // helper: inner-left X of bay i (where the PCB corner sits)
   const bayX = (i) => P.wallT + i * (bayW + P.wallT);
@@ -166,50 +177,51 @@ function buildHousing(profile, count, clearanceTop) {
   // 2) subtract a cavity per bay (open top)
   for (let i = 0; i < count; i++) {
     const cx = bayX(i) + bayW/2;
-    const cav = cuboid({ size:[bayW, bayD, innerH + 0.1],
-      center:[cx, P.wallT + bayD/2, P.floorT + innerH/2 + 0.05] });
-    base = subtract(base, cav);
+    base = subtract(base, cuboid({ size:[bayW, bayD, innerH + 0.1],
+      center:[cx, P.wallT + bayD/2, P.floorT + innerH/2 + 0.05] }));
   }
 
   // 3) mushroom snap-pins — locate + retain the PCB through its M2.5 holes (no screws)
   for (let i = 0; i < count; i++) {
-    const ox = bayX(i) + P.tol;          // PCB origin inside the bay
-    const oy = P.wallT + P.tol;
+    const ox = bayX(i) + P.tol, oy = P.wallT + P.tol;
     for (const h of profile.mounting.holes) {
       const wx = ox + h.x, wy = oy + h.y;
-      const shoulder = cylinder({ radius:P.shoulderR, height:P.standoffH, segments:32,
-        center:[wx, wy, P.floorT + P.standoffH/2] });
+      const shoulder = cylinder({ radius:P.shoulderR, height:standoffH, segments:32,
+        center:[wx, wy, P.floorT + standoffH/2] });
       const shaft = cylinder({ radius:P.pinR, height:profile.pcb_thickness + 0.05, segments:24,
-        center:[wx, wy, P.floorT + P.standoffH + profile.pcb_thickness/2] });
+        center:[wx, wy, P.floorT + standoffH + profile.pcb_thickness/2] });
       const barb = cylinderElliptic({ height:P.barbH,
         startRadius:[P.barbR, P.barbR], endRadius:[P.barbTopR, P.barbTopR], segments:24,
-        center:[wx, wy, P.floorT + P.standoffH + profile.pcb_thickness + P.barbH/2] });
+        center:[wx, wy, pcbTopZ + P.barbH/2] });
       base = union(base, shoulder, shaft, barb);
     }
   }
 
-  // 4) connector notches — external on the first bay's W wall and last bay's E wall
-  const notchZ = P.floorT + P.standoffH + profile.pcb_thickness + P.connH/2; // sits at PCB top
+  // 4) cable notches in the BOTTOM gap (connectors are bottom-side).
+  //    Full-gap-height slot so the JST-SH cable can exit under the PCB.
+  const slotZc = P.floorT + standoffH/2;          // centered in the standoff gap
+  const slotH  = standoffH + 0.02;
+  //    external notch on the first bay's W wall and last bay's E wall
   {
     const c = profile.connectors.find(c => c.edge==='W');
     const wy = P.wallT + P.tol + c.y;
-    base = subtract(base, cuboid({ size:[P.wallT+0.4, P.connW, P.connH], center:[P.wallT/2, wy, notchZ] }));
+    base = subtract(base, cuboid({ size:[P.wallT+0.4, P.connW, slotH], center:[P.wallT/2, wy, slotZc] }));
   }
   {
     const c = profile.connectors.find(c => c.edge==='E');
     const wy = P.wallT + P.tol + c.y;
-    base = subtract(base, cuboid({ size:[P.wallT+0.4, P.connW, P.connH], center:[outerW - P.wallT/2, wy, notchZ] }));
+    base = subtract(base, cuboid({ size:[P.wallT+0.4, P.connW, slotH], center:[outerW - P.wallT/2, wy, slotZc] }));
   }
-  //   internal divider pass-throughs (generous slot) between adjacent bays
+  //    internal divider pass-throughs between adjacent bays (daisy-chain)
   for (let i = 1; i < count; i++) {
     const dividerX = bayX(i) - P.wallT/2;
     for (const c of profile.connectors) {
       const wy = P.wallT + P.tol + c.y;
-      base = subtract(base, cuboid({ size:[P.wallT+0.4, P.connW, P.connH], center:[dividerX, wy, notchZ] }));
+      base = subtract(base, cuboid({ size:[P.wallT+0.4, P.connW, slotH], center:[dividerX, wy, slotZc] }));
     }
   }
 
-  // 5) lid: a flat plate with a sound grille over each bay
+  // 5) lid: a flat plate with a sound grille over each buzzer (centered on the module)
   let lid = cuboid({ size:[outerW, outerD, P.lidT], center:[outerW/2, outerD/2, P.lidT/2] });
   const gf = profile.top_feature;
   for (let i = 0; i < count; i++) {
@@ -255,10 +267,11 @@ let currentSTL = null; // ArrayBuffer for download
 
 function regenerate() {
   const count = +document.getElementById('count').value;
-  const clearance = +document.getElementById('clearance').value;
+  const clearTop = +document.getElementById('clearTop').value;
+  const clearBot = +document.getElementById('clearBot').value;
   setStatus('generating geometry…');
   try {
-    const { base, lid, outerW, outerD } = buildHousing(PROFILE, count, clearance);
+    const { base, lid, outerW, outerD } = buildHousing(PROFILE, count, clearTop, clearBot);
     // serialize BOTH solids to one binary STL. For binary, stl-serializer returns
     // MULTIPLE chunks (header + triangle body) — concatenate them all into one buffer.
     const raw = stlSerializer.serialize({ binary:true }, base, lid);
@@ -291,7 +304,8 @@ function regenerate() {
 document.getElementById('count').addEventListener('input', (e) => {
   document.getElementById('countVal').textContent = e.target.value; regenerate();
 });
-document.getElementById('clearance').addEventListener('change', regenerate);
+document.getElementById('clearTop').addEventListener('change', regenerate);
+document.getElementById('clearBot').addEventListener('change', regenerate);
 document.getElementById('download').addEventListener('click', () => {
   const blob = new Blob([currentSTL], { type:'model/stl' });
   const a = document.createElement('a');
