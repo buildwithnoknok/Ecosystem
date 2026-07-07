@@ -40,14 +40,17 @@ const P = {
   lidGap: 0.4, tol: 0.3,
   ledgeDepth: 1.5, ledgeH: 1.5,      // top-cover PCB stop ledge (N/S)
   ribDepth: 1.5, ribXInset: 6.0,     // bottom-cover push-rib (N/S), inset to clear the sockets
-  connW: 5.0,
+  connW: 8.0,
   grilleCols: 5, grilleSpacing: 2.5, grilleHoleR: 0.85,
   // V2 ramped module retention — rounded bump under the PCB N/S edges (cams in AND out):
   retNibR: 0.6, retNibInset: 6.0,
   // V2 flexing cantilever cover latch (arm + round detent into a top-cover window).
-  // Latch sits at the CENTRE of each W/E edge (between the S+N sockets): socket-free AND
-  // flip-symmetric, so it lands right no matter how the bottom cover is flipped.
-  armT: 1.0, hookW: 4.0, hookClear: 0.35, hookR: 0.6, latchZc: 3.6,
+  // BIG latches in the socket-free zones (W window NORTH, E window SOUTH), placed
+  // SYMMETRICALLY (latchYw = outerD - latchYe). The bottom-cover arms are printed at the
+  // SWAPPED positions, so that EITHER way you flip the bottom cover to close it, the arms
+  // land in the windows and stay clear of the cable holes. latchInset = distance from the
+  // far edge.
+  armT: 1.0, hookW: 7.0, hookClear: 0.35, hookR: 0.7, latchZc: 3.6, latchInset: 7.0,
   fitClear: 0.3
 };
 
@@ -74,7 +77,9 @@ function buildHousing(profile, count, clearTop, clearBot, fit, assembled) {
   const plateTopZ = plateBotZ + P.topT;
   const bayX = (i) => P.wallT + i*(bayW + P.wallT);
   const latchZc = seamZ + P.latchZc, armTopZ = latchZc + P.hookR + 0.8;
-  const latchY = outerD/2;   // centre of the W/E edges — flip-symmetric, between the sockets
+  const latchYw = outerD - P.latchInset, latchYe = P.latchInset;  // W window NORTH, E window SOUTH
+  const armYw = assembled ? latchYw : latchYe;   // arms PRINTED swapped -> EITHER flip lands them right
+  const armYe = assembled ? latchYe : latchYw;
 
   // ===================== TOP COVER (shell from the seam up; open bottom) =====================
   let top = cuboid({ size:[outerW, outerD, plateTopZ - seamZ], center:[outerW/2, outerD/2, (seamZ+plateTopZ)/2] });
@@ -112,8 +117,8 @@ function buildHousing(profile, count, clearTop, clearBot, fit, assembled) {
   // latch windows in the W/E walls (the detent seats + can be pressed for release)
   const winW = P.hookW + 0.5, winH = 2*P.hookR + 1.2;
   top = subtract(top,
-    cuboid({ size:[P.wallT+0.4, winW, winH], center:[P.wallT/2, latchY, latchZc] }),
-    cuboid({ size:[P.wallT+0.4, winW, winH], center:[outerW - P.wallT/2, latchY, latchZc] })
+    cuboid({ size:[P.wallT+0.4, winW, winH], center:[P.wallT/2, latchYw, latchZc] }),
+    cuboid({ size:[P.wallT+0.4, winW, winH], center:[outerW - P.wallT/2, latchYe, latchZc] })
   );
 
   // ===================== BOTTOM COVER (flush base + ribs + flexing latch arms) ================
@@ -132,10 +137,10 @@ function buildHousing(profile, count, clearTop, clearBot, fit, assembled) {
   const armH = armTopZ - seamZ;
   const armXW = P.wallT + hookClear, armXE = outerW - P.wallT - hookClear;
   bot = union(bot,
-    cuboid({ size:[P.armT, P.hookW, armH], center:[armXW + P.armT/2, latchY, seamZ + armH/2] }),
-    translate([armXW, latchY, latchZc], rotate([Math.PI/2,0,0], cylinder({ radius:P.hookR, height:P.hookW, segments:20 }))),
-    cuboid({ size:[P.armT, P.hookW, armH], center:[armXE - P.armT/2, latchY, seamZ + armH/2] }),
-    translate([armXE, latchY, latchZc], rotate([Math.PI/2,0,0], cylinder({ radius:P.hookR, height:P.hookW, segments:20 })))
+    cuboid({ size:[P.armT, P.hookW, armH], center:[armXW + P.armT/2, armYw, seamZ + armH/2] }),
+    translate([armXW, armYw, latchZc], rotate([Math.PI/2,0,0], cylinder({ radius:P.hookR, height:P.hookW, segments:20 }))),
+    cuboid({ size:[P.armT, P.hookW, armH], center:[armXE - P.armT/2, armYe, seamZ + armH/2] }),
+    translate([armXE, armYe, latchZc], rotate([Math.PI/2,0,0], cylinder({ radius:P.hookR, height:P.hookW, segments:20 })))
   );
 
   // ===================== layout =====================
