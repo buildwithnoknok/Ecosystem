@@ -42,15 +42,15 @@ const P = {
   ribDepth: 1.5, ribXInset: 6.0,     // bottom-cover push-rib (N/S), inset to clear the sockets
   connW: 8.0,
   grilleCols: 5, grilleSpacing: 2.5, grilleHoleR: 0.85,
-  // V2 ramped module retention — rounded bump under the PCB N/S edges (cams in AND out):
-  retNibR: 0.6, retNibInset: 6.0,
-  // V2 flexing cantilever cover latch (arm + round detent into a top-cover window).
-  // BIG latches in the socket-free zones (W window NORTH, E window SOUTH), placed
-  // SYMMETRICALLY (latchYw = outerD - latchYe). The bottom-cover arms are printed at the
-  // SWAPPED positions, so that EITHER way you flip the bottom cover to close it, the arms
-  // land in the windows and stay clear of the cable holes. latchInset = distance from the
-  // far edge.
+  // V2 flexing cantilever cover latches (arm + round detent into a top-cover window).
+  // W/E: BIG flexing arms in the socket-free zones, placed SYMMETRICALLY (latchYw = outerD -
+  // latchYe) with the bottom-cover arms printed at the SWAPPED positions, so EITHER way you flip
+  // the bottom cover the arms land in the windows and clear the cable holes. latchInset = distance
+  // from the far edge.
   armT: 1.0, hookW: 7.0, hookClear: 0.35, hookR: 0.7, latchZc: 3.6, latchInset: 7.0,
+  // N/S: the latch detent is built onto the EXISTING PCB-hold ribs (at each bay centre, which is
+  // flip-symmetric on its own -> no swap trick). Snug in X -> also cuts the E/W shift.
+  hookWns: 6.0, hookRns: 0.55,
   fitClear: 0.3
 };
 
@@ -90,19 +90,13 @@ function buildHousing(profile, count, clearTop, clearBot, fit, assembled) {
   }
   top = subtract(top, cuboid({ size:[outerW - 2*P.wallT, outerD - 2*P.wallT, pcbBotZ - seamZ + 0.05],
     center:[outerW/2, outerD/2, (seamZ+pcbBotZ)/2] }));
-  // PCB-stop ledges (N/S) + ramped retention bumps under the PCB edges
-  const nibLen = bayW - 2*P.retNibInset;
+  // PCB-stop ledges (N/S per bay). No retention nibs — the closed walls hold the board.
   for (let i = 0; i < count; i++) {
     const cxC = bayX(i) + bayW/2, yS = P.wallT, yN = P.wallT + bayD;
     top = union(top,
       cuboid({ size:[bayW, P.ledgeDepth, P.ledgeH], center:[cxC, yS + P.ledgeDepth/2, pcbTopZ + P.ledgeH/2] }),
       cuboid({ size:[bayW, P.ledgeDepth, P.ledgeH], center:[cxC, yN - P.ledgeDepth/2, pcbTopZ + P.ledgeH/2] })
     );
-    // rounded retention bumps (axis X), top at the PCB bottom -> board cams over them
-    const nibZc = pcbBotZ - P.retNibR;
-    const nibS = translate([cxC, yS, nibZc], rotate([0, Math.PI/2, 0], cylinder({ radius:P.retNibR, height:nibLen, segments:16 })));
-    const nibN = translate([cxC, yN, nibZc], rotate([0, Math.PI/2, 0], cylinder({ radius:P.retNibR, height:nibLen, segments:16 })));
-    top = union(top, nibS, nibN);
   }
   // sound grilles (5x5)
   for (let i = 0; i < count; i++) {
@@ -116,10 +110,20 @@ function buildHousing(profile, count, clearTop, clearBot, fit, assembled) {
     top = subtract(top, cuboid({ size:[P.wallT+0.4, P.connW, pcbBotZ - seamZ + 0.1], center:[outerW - P.wallT/2, wy, (seamZ+pcbBotZ)/2] })); }
   // latch windows in the W/E walls (the detent seats + can be pressed for release)
   const winW = P.hookW + 0.5, winH = 2*P.hookR + 1.2;
+  const winWns = P.hookWns + 0.2, winHns = 2*P.hookRns + 1.0;   // N/S windows snug in X -> cut the E/W shift
   top = subtract(top,
-    cuboid({ size:[P.wallT+0.4, winW, winH], center:[P.wallT/2, latchYw, latchZc] }),
-    cuboid({ size:[P.wallT+0.4, winW, winH], center:[outerW - P.wallT/2, latchYe, latchZc] })
+    cuboid({ size:[P.wallT+0.4, winW, winH], center:[P.wallT/2, latchYw, latchZc] }),          // W wall
+    cuboid({ size:[P.wallT+0.4, winW, winH], center:[outerW - P.wallT/2, latchYe, latchZc] })  // E wall
   );
+  // N/S latch windows: one per bay, centred on the bay's PCB-hold rib (the rib carries the
+  // detent). Bay centre is flip-symmetric, so no swap trick is needed here.
+  for (let i = 0; i < count; i++) {
+    const cxC = bayX(i) + bayW/2;
+    top = subtract(top,
+      cuboid({ size:[winWns, P.wallT+0.4, winHns], center:[cxC, outerD - P.wallT/2, latchZc] }), // N wall
+      cuboid({ size:[winWns, P.wallT+0.4, winHns], center:[cxC, P.wallT/2, latchZc] })           // S wall
+    );
+  }
 
   // ===================== BOTTOM COVER (flush base + ribs + flexing latch arms) ================
   let bot = cuboid({ size:[outerW, outerD, seamZ], center:[outerW/2, outerD/2, seamZ/2] });
@@ -130,7 +134,11 @@ function buildHousing(profile, count, clearTop, clearBot, fit, assembled) {
     const cxC = bayX(i) + bayW/2;
     bot = union(bot,
       cuboid({ size:[ribLen, P.ribDepth, ribH], center:[cxC, yS + P.ribDepth/2, seamZ + ribH/2] }),
-      cuboid({ size:[ribLen, P.ribDepth, ribH], center:[cxC, yN - P.ribDepth/2, seamZ + ribH/2] })
+      cuboid({ size:[ribLen, P.ribDepth, ribH], center:[cxC, yN - P.ribDepth/2, seamZ + ribH/2] }),
+      // the PCB-hold ribs ALSO carry the N/S latch: a round detent on the rib's outer face
+      // clicks into the N/S wall window, tying the covers on N/S and constraining the E/W shift.
+      translate([cxC, yS, latchZc], rotate([0, Math.PI/2, 0], cylinder({ radius:P.hookRns, height:P.hookWns, segments:20 }))),
+      translate([cxC, yN, latchZc], rotate([0, Math.PI/2, 0], cylinder({ radius:P.hookRns, height:P.hookWns, segments:20 })))
     );
   }
   // two flexing cantilever latch arms (W north, E south), round detent into the wall windows
