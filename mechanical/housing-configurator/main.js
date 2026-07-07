@@ -46,9 +46,11 @@ const P = {
   // sound grille — 5x5 matrix of holes:
   grilleCols: 5, grilleSpacing: 2.5, grilleHoleR: 0.85,
   // bottom-cover -> top-cover snap (beads on ribs, catches on N/S inner walls):
-  snapClear: 0.5, snapProj: 0.4, snapH: 1.0, snapCatchZ: 3.0,
+  snapClear: 0.65, snapProj: 0.4, snapH: 1.0, snapCatchZ: 3.0,  // 0.65 -> ~0.15 mm engagement (easier push)
   // bottom-cover W/E locating walls (stop it sliding) + their fit into the top cover:
-  fitClear: 0.2, weWallT: 1.2, weWallH: 1.6
+  fitClear: 0.35, weWallT: 1.2, weWallH: 1.6,                   // 0.35 = looser insertion (was 0.2 = too tight)
+  // light retention nibs: hold the PCB in the top cover before the bottom cover goes on:
+  retNibProj: 0.5, retNibH: 1.0
 };
 
 // sound grille: a 5x5 matrix of holes centered on the buzzer
@@ -86,12 +88,17 @@ function buildHousing(profile, count, clearTop, clearBot) {
   // open the cable plenum below the PCBs (dividers remain only above pcbBotZ)
   top = subtract(top, cuboid({ size:[outerW - 2*P.wallT, outerD - 2*P.wallT, pcbBotZ - seamZ + 0.05],
     center:[outerW/2, outerD/2, (seamZ+pcbBotZ)/2] }));
-  // PCB-stop ledges (N/S per bay)
+  // PCB-stop ledges (N/S per bay) + light retention nibs just under the PCB edges.
+  // The board clicks past the nibs and is trapped against the ledges -> it stays in the
+  // top cover before the bottom cover is fitted (no more falling out when flipped).
+  const nibLen = bayW - 2*P.ribXInset, retNibZc = pcbBotZ - P.retNibH/2;
   for (let i = 0; i < count; i++) {
     const cxC = bayX(i) + bayW/2, yS = P.wallT, yN = P.wallT + bayD;
     top = union(top,
       cuboid({ size:[bayW, P.ledgeDepth, P.ledgeH], center:[cxC, yS + P.ledgeDepth/2, pcbTopZ + P.ledgeH/2] }),
-      cuboid({ size:[bayW, P.ledgeDepth, P.ledgeH], center:[cxC, yN - P.ledgeDepth/2, pcbTopZ + P.ledgeH/2] })
+      cuboid({ size:[bayW, P.ledgeDepth, P.ledgeH], center:[cxC, yN - P.ledgeDepth/2, pcbTopZ + P.ledgeH/2] }),
+      cuboid({ size:[nibLen, P.retNibProj, P.retNibH], center:[cxC, yS + P.retNibProj/2, retNibZc] }),
+      cuboid({ size:[nibLen, P.retNibProj, P.retNibH], center:[cxC, yN - P.retNibProj/2, retNibZc] })
     );
   }
   // sound grilles (5x5)
