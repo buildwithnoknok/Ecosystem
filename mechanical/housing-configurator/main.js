@@ -48,9 +48,9 @@ const P = {
   // bottom-cover -> top-cover snap (beads on ribs, catches on N/S inner walls):
   snapClear: 0.65, snapProj: 0.4, snapH: 1.0, snapCatchZ: 3.0,  // 0.65 -> ~0.15 mm engagement (easier push)
   // bottom-cover W/E locating walls (stop it sliding) + their fit into the top cover:
-  fitClear: 0.35, weWallT: 1.2, weWallH: 1.6,                   // 0.35 = looser insertion (was 0.2 = too tight)
+  fitClear: 0.3, weWallT: 1.2, weWallH: 1.6,                    // 0.3 = insertion still easy, a touch less E/W slide
   // light retention nibs: hold the PCB in the top cover before the bottom cover goes on:
-  retNibProj: 0.5, retNibH: 1.0
+  retNibProj: 0.4, retNibH: 1.0                                 // 0.4 -> ~0.1 mm catch: holds but releases by hand
 };
 
 // sound grille: a 5x5 matrix of holes centered on the buzzer
