@@ -60,7 +60,7 @@ function grille(cx, cy, cz) {
 }
 
 // Build the two covers. Returns { top, bot, outerW, outerD }.  fit = clearance offset (mm).
-function buildHousing(profile, count, clearTop, clearBot, fit) {
+function buildHousing(profile, count, clearTop, clearBot, fit, assembled) {
   const tol = P.tol + fit, fitClear = P.fitClear + fit, hookClear = P.hookClear + fit;
   const fw = profile.footprint.w, fd = profile.footprint.h;
   const bayW = fw + 2*tol, bayD = fd + 2*tol;
@@ -136,11 +136,29 @@ function buildHousing(profile, count, clearTop, clearBot, fit) {
     translate([armXE, P.eLatchY, latchZc], rotate([Math.PI/2,0,0], cylinder({ radius:P.hookR, height:P.hookW, segments:20 })))
   );
 
-  // ===================== print layout: both flat, side by side =====================
+  // ===================== layout =====================
+  if (assembled) {
+    // ASSEMBLED preview: top grille-up at origin, bottom mated in place (overlap = shows the fit)
+    return { top, bot, outerW, outerD };
+  }
+  // print layout: both flat, side by side (this is what the STL exports)
   top = mirror({ normal:[0,0,1], origin:[0,0,0] }, top);
   top = translate([0, 0, plateTopZ], top);
   bot = translate([0, outerD + 14, 0], bot);
   return { top, bot, outerW, outerD };
+}
+
+// serialize one or more JSCAD solids to a single binary-STL ArrayBuffer
+function toSTL(...solids) {
+  const raw = stlSerializer.serialize({ binary:true }, ...solids);
+  const parts = raw.map(p =>
+    p instanceof ArrayBuffer ? new Uint8Array(p)
+    : ArrayBuffer.isView(p)  ? new Uint8Array(p.buffer, p.byteOffset, p.byteLength)
+    : new Uint8Array(p));
+  const total = parts.reduce((s,a) => s + a.length, 0);
+  const merged = new Uint8Array(total);
+  let off = 0; for (const a of parts) { merged.set(a, off); off += a.length; }
+  return merged.buffer;
 }
 
 // ---------- three.js scene ----------
@@ -171,29 +189,26 @@ function regenerate() {
   const clearTop = +document.getElementById('clearTop').value;
   const clearBot = +document.getElementById('clearBot').value;
   const fit = +document.getElementById('fit').value;
+  const assembled = document.getElementById('assembled').checked;
   setStatus('generating geometry…');
   try {
-    const { top, bot, outerW, outerD } = buildHousing(PROFILE, count, clearTop, clearBot, fit);
-    const raw = stlSerializer.serialize({ binary:true }, top, bot);
-    const parts = raw.map(p =>
-      p instanceof ArrayBuffer ? new Uint8Array(p)
-      : ArrayBuffer.isView(p)  ? new Uint8Array(p.buffer, p.byteOffset, p.byteLength)
-      : new Uint8Array(p));
-    const total = parts.reduce((s,a) => s + a.length, 0);
-    const merged = new Uint8Array(total);
-    let off = 0; for (const a of parts) { merged.set(a, off); off += a.length; }
-    currentSTL = merged.buffer;
+    // the STL download is ALWAYS the flat print layout
+    const pr = buildHousing(PROFILE, count, clearTop, clearBot, fit, false);
+    currentSTL = toSTL(pr.top, pr.bot);
+    // the preview is either print layout or the assembled (mated) view
+    const show = assembled ? buildHousing(PROFILE, count, clearTop, clearBot, fit, true) : pr;
+    const showBuf = assembled ? toSTL(show.top, show.bot) : currentSTL;
 
     if (currentMesh) { scene.remove(currentMesh); currentMesh.geometry.dispose(); }
-    const geo = stlLoader.parse(currentSTL);
+    const geo = stlLoader.parse(showBuf);
     geo.computeVertexNormals();
     currentMesh = new THREE.Mesh(geo, material);
     scene.add(currentMesh);
-    controls.target.set(outerW/2, outerD, 4);
+    controls.target.set(pr.outerW/2, assembled ? pr.outerD/2 : pr.outerD, assembled ? 5 : 4);
     controls.update();
 
     document.getElementById('download').disabled = false;
-    setStatus(`${count} buzzer bay${count>1?'s':''} · top + bottom cover · fit ${fit>=0?'+':''}${fit} · STL ready (${(currentSTL.byteLength/1024).toFixed(0)} KB)`);
+    setStatus(`${count} buzzer bay${count>1?'s':''} · fit ${fit>=0?'+':''}${fit}${assembled?' · ASSEMBLED preview (STL still prints flat)':''} · STL ready (${(currentSTL.byteLength/1024).toFixed(0)} KB)`);
   } catch (e) {
     console.error(e);
     setStatus('error: ' + e.message);
@@ -206,6 +221,7 @@ document.getElementById('count').addEventListener('input', (e) => {
 document.getElementById('clearTop').addEventListener('change', regenerate);
 document.getElementById('clearBot').addEventListener('change', regenerate);
 document.getElementById('fit').addEventListener('change', regenerate);
+document.getElementById('assembled').addEventListener('change', regenerate);
 document.getElementById('download').addEventListener('click', () => {
   const blob = new Blob([currentSTL], { type:'model/stl' });
   const a = document.createElement('a');
