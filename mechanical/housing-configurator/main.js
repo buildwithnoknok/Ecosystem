@@ -22,17 +22,28 @@ const { translate, mirror, rotate } = transforms;
 const statusEl = document.getElementById('status');
 const setStatus = (t) => { statusEl.textContent = t; };
 
-// ---- Buzzer housing profile (mirrors module-I2C-buzzer/mechanical/housing.json) ----
-const PROFILE = {
-  module: 'noknok-buzzer',
-  footprint: { w: 20, h: 20 },
-  pcb_thickness: 1.6,
-  connectors: [
-    { edge:'W', x:3.1,  y:15.5 },
-    { edge:'E', x:16.9, y:4.5  }
-  ],
-  top_feature: { type:'grille', x:10, y:10, dia:8.5 }
+// ---- Module housing profiles (mirror each module repo's mechanical/housing.json) ----
+// These three share the 20x20 footprint + identical W/E JST-SH connectors, so the SAME
+// two-cover template applies — only the top opening and the payload height differ.
+// (The display is not here yet: 40x30 + connectors on W/S needs the notch/latch rework.)
+const PROFILES = {
+  buzzer: {
+    module:'noknok-buzzer', name:'buzzer', footprint:{ w:20, h:20 }, pcb_thickness:1.6, clearance_top:3.0,
+    connectors:[ { edge:'W', x:3.1, y:15.5 }, { edge:'E', x:16.9, y:4.5 } ],
+    top_feature:{ type:'grille', x:10, y:10, dia:8.5 }
+  },
+  knob: {
+    module:'noknok-knob', name:'knob', footprint:{ w:20, h:20 }, pcb_thickness:1.6, clearance_top:7.5,
+    connectors:[ { edge:'W', x:3.1, y:15.5 }, { edge:'E', x:16.9, y:4.5 } ],
+    top_feature:{ type:'round_hole', x:10, y:10.25, dia:7.0 }   // O7 shaft clearance (shaft O6)
+  },
+  ledbutton: {
+    module:'noknok-ledbutton', name:'LED button', footprint:{ w:20, h:20 }, pcb_thickness:1.6, clearance_top:11.6,
+    connectors:[ { edge:'W', x:3.1, y:15.5 }, { edge:'E', x:16.9, y:4.5 } ],
+    top_feature:{ type:'button', x:10, y:10, w:14, h:14 }       // 14x14 opening, keycap presses through
+  }
 };
+let PROFILE = PROFILES.buzzer;
 
 // ---- Fixed design parameters ----
 const P = {
@@ -64,6 +75,15 @@ function grille(cx, cy, cz) {
   for (let ix = 0; ix < n; ix++) for (let iy = 0; iy < n; iy++)
     cutters.push(cylinder({ radius:r, height:h, segments:20, center:[cx + (ix-off)*s, cy + (iy-off)*s, cz] }));
   return union(...cutters);
+}
+
+// top-cover opening for one bay, per the module's top_feature. Cuts fully through the top plate.
+function topFeatureCut(profile, gx, gy, cz) {
+  const f = profile.top_feature, h = P.topT + 0.4;
+  if (f.type === 'grille')     return grille(gx, gy, cz);
+  if (f.type === 'round_hole') return cylinder({ radius:f.dia/2, height:h, segments:48, center:[gx, gy, cz] });
+  // rect openings: 'button' (keycap) or 'window' (display)
+  return cuboid({ size:[f.w, f.h, h], center:[gx, gy, cz] });
 }
 
 // Build the two covers. Returns { top, bot, outerW, outerD }.  fit = clearance offset (mm).
@@ -101,10 +121,10 @@ function buildHousing(profile, count, clearTop, clearBot, fit, assembled) {
       cuboid({ size:[bayW, P.ledgeDepth, P.ledgeH], center:[cxC, yN - P.ledgeDepth/2, pcbTopZ + P.ledgeH/2] })
     );
   }
-  // sound grilles (5x5)
+  // top-cover openings (grille / round hole / button / window), one per bay
   for (let i = 0; i < count; i++) {
     const gx = bayX(i) + tol + profile.top_feature.x, gy = P.wallT + tol + profile.top_feature.y;
-    top = subtract(top, grille(gx, gy, plateBotZ + P.topT/2));
+    top = subtract(top, topFeatureCut(profile, gx, gy, plateBotZ + P.topT/2));
   }
   // cable notches: EACH bay's W (left wall) + E (right wall) connector, open at the seam.
   // Per-bay is what makes multi-bay work: on the INTERIOR walls these openings become the
@@ -255,13 +275,18 @@ function regenerate() {
     controls.update();
 
     document.getElementById('download').disabled = false;
-    setStatus(`${count} buzzer bay${count>1?'s':''} · fit ${fit>=0?'+':''}${fit}${assembled?' · ASSEMBLED preview (STL still prints flat)':''} · STL ready (${(currentSTL.byteLength/1024).toFixed(0)} KB)`);
+    setStatus(`${count} ${PROFILE.name} bay${count>1?'s':''} · fit ${fit>=0?'+':''}${fit}${assembled?' · ASSEMBLED preview (STL still prints flat)':''} · STL ready (${(currentSTL.byteLength/1024).toFixed(0)} KB)`);
   } catch (e) {
     console.error(e);
     setStatus('error: ' + e.message);
   }
 }
 
+document.getElementById('module').addEventListener('change', (e) => {
+  PROFILE = PROFILES[e.target.value] || PROFILES.buzzer;
+  document.getElementById('clearTop').value = PROFILE.clearance_top;  // sensible default per module
+  regenerate();
+});
 document.getElementById('count').addEventListener('input', (e) => {
   document.getElementById('countVal').textContent = e.target.value; regenerate();
 });
@@ -273,7 +298,7 @@ document.getElementById('download').addEventListener('click', () => {
   const blob = new Blob([currentSTL], { type:'model/stl' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `noknok_buzzer_housing_${document.getElementById('count').value}x.stl`;
+  a.download = `${PROFILE.module.replace(/-/g,'_')}_housing_${document.getElementById('count').value}x.stl`;
   a.click();
 });
 

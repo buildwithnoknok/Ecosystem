@@ -31,6 +31,7 @@
   .row { display:flex; align-items:center; gap:10px; }
   input[type=range] { width:100%; }
   input[type=number] { width:70px; background:#0d0f13; color:var(--ink); border:1px solid #2a2f3a; border-radius:6px; padding:6px; }
+  select { width:100%; background:#0d0f13; color:var(--ink); border:1px solid #2a2f3a; border-radius:6px; padding:8px; font-size:13px; }
   .val { font-variant-numeric:tabular-nums; color:var(--ink); font-size:13px; min-width:48px; text-align:right; }
   button { background:var(--accent); color:#04150f; border:0; border-radius:8px; padding:12px; font-weight:700; cursor:pointer; font-size:14px; }
   button:disabled { opacity:.5; cursor:default; }
@@ -44,12 +45,22 @@
   <div id="sidebar">
     <div>
       <h1>noknok housing configurator
-        <small>proof of concept · buzzer module</small>
+        <small>proof of concept · I2C modules (20×20)</small>
       </h1>
     </div>
 
     <div>
-      <label>Number of buzzers (row)</label>
+      <label>Module</label>
+      <select id="module">
+        <option value="buzzer">buzzer — sound grille</option>
+        <option value="knob">knob — ⌀7 shaft hole</option>
+        <option value="ledbutton">LED button — 14×14 opening</option>
+      </select>
+      <span class="note">same 20×20 template + W/E connectors — only the top opening &amp; payload height change. Display (40×30, W/S) is next.</span>
+    </div>
+
+    <div>
+      <label>Number of modules (row)</label>
       <div class="row">
         <input id="count" type="range" min="1" max="8" value="3" />
         <span class="val" id="countVal">3</span>
@@ -57,10 +68,10 @@
     </div>
 
     <div>
-      <label>Buzzer height above PCB (mm)</label>
+      <label>Payload height above PCB (mm)</label>
       <div class="row">
         <input id="clearTop" type="number" min="1" max="25" step="0.1" value="3" />
-        <span class="note">3.0 mm — the buzzer is the only top-side component</span>
+        <span class="note">top-side component height (set from the module; edit to taste)</span>
       </div>
     </div>
 
