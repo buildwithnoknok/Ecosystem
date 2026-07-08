@@ -51,6 +51,9 @@ const P = {
   // N/S: the latch detent is built onto the EXISTING PCB-hold ribs (at each bay centre, which is
   // flip-symmetric on its own -> no swap trick). Snug in X -> also cuts the E/W shift.
   hookWns: 6.0, hookRns: 0.55,
+  // cable management (V3): tuck clips (N/S inner walls) + a wall-edge relief at the seam.
+  clipReach: 1.6, clipW: 5.0, clipT: 1.1, clipZoff: 0.9, clipXoff: 5.5,
+  reliefH: 1.6, reliefStep: 0.8,
   fitClear: 0.3
 };
 
@@ -103,11 +106,20 @@ function buildHousing(profile, count, clearTop, clearBot, fit, assembled) {
     const gx = bayX(i) + tol + profile.top_feature.x, gy = P.wallT + tol + profile.top_feature.y;
     top = subtract(top, grille(gx, gy, plateBotZ + P.topT/2));
   }
-  // cable notches (outer W/E walls, open at the seam, mirrored connector Y)
-  { const c = profile.connectors.find(c => c.edge==='W'); const wy = P.wallT + tol + (fd - c.y);
-    top = subtract(top, cuboid({ size:[P.wallT+0.4, P.connW, pcbBotZ - seamZ + 0.1], center:[P.wallT/2, wy, (seamZ+pcbBotZ)/2] })); }
-  { const c = profile.connectors.find(c => c.edge==='E'); const wy = P.wallT + tol + (fd - c.y);
-    top = subtract(top, cuboid({ size:[P.wallT+0.4, P.connW, pcbBotZ - seamZ + 0.1], center:[outerW - P.wallT/2, wy, (seamZ+pcbBotZ)/2] })); }
+  // cable notches: EACH bay's W (left wall) + E (right wall) connector, open at the seam.
+  // Per-bay is what makes multi-bay work: on the INTERIOR walls these openings become the
+  // chain pass-throughs so daisy-chained modules can be cabled bay-to-bay.
+  { const wC = profile.connectors.find(c => c.edge==='W'), eC = profile.connectors.find(c => c.edge==='E');
+    const wyW = P.wallT + tol + (fd - wC.y), wyE = P.wallT + tol + (fd - eC.y);
+    const notchZc = (seamZ+pcbBotZ)/2, notchH = pcbBotZ - seamZ + 0.1;
+    for (let i = 0; i < count; i++) {
+      const xL = bayX(i) - P.wallT/2, xR = bayX(i) + bayW + P.wallT/2;
+      top = subtract(top,
+        cuboid({ size:[P.wallT+0.4, P.connW, notchH], center:[xL, wyW, notchZc] }),
+        cuboid({ size:[P.wallT+0.4, P.connW, notchH], center:[xR, wyE, notchZc] })
+      );
+    }
+  }
   // latch windows in the W/E walls (the detent seats + can be pressed for release)
   const winW = P.hookW + 0.5, winH = 2*P.hookR + 1.2;
   const winWns = P.hookWns + 0.2, winHns = 2*P.hookRns + 1.0;   // N/S windows snug in X -> cut the E/W shift
@@ -122,6 +134,26 @@ function buildHousing(profile, count, clearTop, clearBot, fit, assembled) {
     top = subtract(top,
       cuboid({ size:[winWns, P.wallT+0.4, winHns], center:[cxC, outerD - P.wallT/2, latchZc] }), // N wall
       cuboid({ size:[winWns, P.wallT+0.4, winHns], center:[cxC, P.wallT/2, latchZc] })           // S wall
+    );
+  }
+
+  // ---- cable management (V3) ----
+  // (a) wall-edge relief: set the wall inner faces back for the bottom reliefH at the seam, so a
+  //     stray strand isn't sheared as the covers close. This band is ~5 mm BELOW the PCB (which is
+  //     clamped rib<->ledge on the N/S edges), so it can't affect board retention.
+  top = subtract(top, cuboid({
+    size:[outerW - 2*P.wallT + 2*P.reliefStep, outerD - 2*P.wallT + 2*P.reliefStep, P.reliefH + 0.05],
+    center:[outerW/2, outerD/2, seamZ + P.reliefH/2] }));
+  // (b) tuck clips: a shelf on each bay's N and S inner wall, just under the PCB. With the top
+  //     cover grille-down the cavity is open and the module sits on the ledges by gravity, so you
+  //     press the excess cable loop under these shelves; the loop then stays up off the seam and
+  //     the flat bottom cover closes over nothing. Offset in X to clear the centre rib.
+  const clipTopZ = pcbBotZ - P.clipZoff;
+  for (let i = 0; i < count; i++) {
+    const cxC = bayX(i) + bayW/2;
+    top = union(top,
+      cuboid({ size:[P.clipW, P.clipReach, P.clipT], center:[cxC - P.clipXoff, outerD - P.wallT - P.clipReach/2, clipTopZ - P.clipT/2] }), // N wall
+      cuboid({ size:[P.clipW, P.clipReach, P.clipT], center:[cxC + P.clipXoff, P.wallT + P.clipReach/2, clipTopZ - P.clipT/2] })           // S wall
     );
   }
 
