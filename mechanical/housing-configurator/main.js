@@ -1,153 +1,167 @@
 // noknok Housing Configurator — V5 app entry.  SPDX-License-Identifier: MIT
-// STEP 1: 2D bird's-eye placement of modules on a 10 mm grid (place / drag / rotate / remove).
-// STEP 2 (next): generate the monolithic box (front + back covers, per-module M2.5 columns).
-// Bundled with esbuild -> app.js.  Build: npm run build.
+// STEP 1: 2D bird's-eye placement + user-drawn box outline (click cells to shape, click a wall
+// for a USB-C power hole). STEP 2 (next): the monolithic box (front+back covers, M2.5 columns).
+// Bundled with esbuild -> app.js.
 
-// ---- Module library (mm). footprint w×h, payload height, plenum, M2.5 holes, top opening. ----
-// These mirror each module repo's mechanical/housing.json (used for the box in step 2; step 1
-// only needs footprint + name). Origin = module's own bottom-left corner, X→right, Y→up.
+// ---- Module library (mm). footprint w×h, payload height, plenum, M2.5 holes, JST/USB sockets,
+// top opening. Mirrors each module repo's mechanical/housing.json. Origin = module bottom-left. ----
 const MODULES = {
   buzzer:    { name:'buzzer',     w:20, h:20, clearance_top:3.0,  pcb:1.6, clearance_bottom:3.0,
     holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'grille', x:10, y:10, dia:8.5} },
   knob:      { name:'knob',       w:20, h:20, clearance_top:9.0,  pcb:1.6, clearance_bottom:3.0,
-    holes:[[2,18],[18,2]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'round_hole', x:10, y:10.25, dia:7.4} },
+    holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'round_hole', x:10, y:10.25, dia:7.4} },
   ledbutton: { name:'LED button', w:20, h:20, clearance_top:11.6, pcb:1.6, clearance_bottom:3.0,
-    holes:[[2.25,17.75],[17.75,2.25]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'button', x:10, y:10, w:16.4, h:16.2} },
+    holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'button', x:10, y:10, w:16.4, h:16.2} },
   usbled:    { name:'USB LEDs',   w:40, h:40, clearance_top:1.6,  pcb:1.6, clearance_bottom:9.0,
     holes:[[4,4],[36,4],[4,36],[36,36]], conn:[['W',3,20,'usb'],['E',36.5,20]], top:{type:'round_hole', x:20, y:20, dia:36} },
   display:   { name:'display',    w:40, h:30, clearance_top:2.0,  pcb:1.6, clearance_bottom:3.0,
     holes:[[2.25,2.25],[2.25,27.75],[37.75,2.25],[37.75,27.75]], conn:[['W',3.1,15],['S',20,3.1]], top:{type:'window', x:19.8, y:15, w:32.35, h:16.18} },
-  // VIRTUAL module (not a PCB): a 1x1 tile marking a USB-C power-cable hole in ONE box wall.
-  // The hole faces the tile's marked edge (rotate to choose the side). MANDATORY (>=1); multiple OK.
-  power:     { name:'Power hole', w:10, h:10, virtual:true, hole:14 },
 };
-// Box height (step 2) = max(tallest module's clearance_top+pcb+clearance_bottom,
-//                           thinnest module's same sum + 5)  — the +5 guarantees cable space.
+const USBC_HOLE = 14;    // Ø of a USB-C power hole (placed by clicking a box wall)
+const GRID = 10;         // mm per cell
 
-const GRID = 10;                       // mm per cell
 const statusEl = document.getElementById('status');
 const setStatus = (t) => { statusEl.textContent = t; };
 
 // ---- state ----
-let placed = [];       // { id, key, x, y, rot }  x,y = bottom-left in mm (grid-snapped); rot 0/90/180/270
-let nextId = 1;
-let selId = null;
-let shape = 'outline';
+let placed = [];          // { id, key, x, y, rot }  x,y = bottom-left in mm (grid-snapped)
+let nextId = 1, selId = null;
+let region = new Set();   // "gx,gy" cells INSIDE the box
+let autoBox = true;       // region auto = bounding box of the modules, until the user edits a cell
+let holes = new Set();    // "gx,gy,side" boundary wall segments carrying a USB-C hole
 
-// footprint of a placed module accounting for rotation (90/270 swaps w/h)
-function footprint(p) {
-  const m = MODULES[p.key];
-  return (p.rot % 180 === 0) ? { w:m.w, h:m.h } : { w:m.h, h:m.w };
-}
+// footprint accounting for rotation (90/270 swaps w/h)
+function footprint(p) { const m = MODULES[p.key]; return (p.rot % 180 === 0) ? { w:m.w, h:m.h } : { w:m.h, h:m.w }; }
 // a module-local point (mx,my) -> world (bottom-left origin), applying rotation + placement
 function loc(p, mx, my) {
   const m = MODULES[p.key]; let rx, ry;
-  switch (p.rot) {
-    case 90:  rx = m.h - my; ry = mx;        break;
-    case 180: rx = m.w - mx; ry = m.h - my;  break;
-    case 270: rx = my;       ry = m.w - mx;  break;
-    default:  rx = mx;       ry = my;
-  }
+  switch (p.rot) { case 90: rx=m.h-my; ry=mx; break; case 180: rx=m.w-mx; ry=m.h-my; break;
+    case 270: rx=my; ry=m.w-mx; break; default: rx=mx; ry=my; }
   return { x: p.x + rx, y: p.y + ry };
 }
-// which world edge the power hole faces, from rotation: 0=E, 90=N, 180=W, 270=S
-const HOLE_SIDE = { 0:'E', 90:'N', 180:'W', 270:'S' };
 
-// ---- SVG grid ----
+// ---- grid cells + box region ----
+const ck = (gx, gy) => gx + ',' + gy;
+function moduleCells() {
+  const s = new Set();
+  for (const p of placed) { const fp = footprint(p);
+    for (let cx = p.x/GRID; cx < (p.x+fp.w)/GRID; cx++)
+      for (let cy = p.y/GRID; cy < (p.y+fp.h)/GRID; cy++) s.add(ck(cx,cy)); }
+  return s;
+}
+function recomputeBox() {          // auto box = bounding rectangle of the module cells
+  const mc = [...moduleCells()].map(c => c.split(',').map(Number));
+  region = new Set(); if (!mc.length) return;
+  const xs = mc.map(c=>c[0]), ys = mc.map(c=>c[1]);
+  const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
+  for (let gx=x0; gx<=x1; gx++) for (let gy=y0; gy<=y1; gy++) region.add(ck(gx,gy));
+}
+const update = () => { if (autoBox) recomputeBox(); render(); };
+const NB = { N:[0,1], S:[0,-1], E:[1,0], W:[-1,0] };
+function boundaryWalls() {          // edges where an in-region cell meets an out-region cell
+  const w = [];
+  for (const c of region) { const [gx,gy] = c.split(',').map(Number);
+    for (const s in NB) { const [dx,dy]=NB[s]; if (!region.has(ck(gx+dx,gy+dy))) w.push([gx,gy,s]); } }
+  return w;
+}
+function wallXY(gx,gy,s) {          // SVG endpoints of a wall segment (Y flipped)
+  const x0=gx*GRID, x1=(gx+1)*GRID, ya=VBH-(gy+1)*GRID, yb=VBH-gy*GRID;
+  return s==='N' ? [x0,ya,x1,ya] : s==='S' ? [x0,yb,x1,yb] : s==='E' ? [x1,ya,x1,yb] : [x0,ya,x0,yb];
+}
+
+// ---- SVG ----
 const svg = document.getElementById('grid');
-const VBW = 360, VBH = 240;            // design area in mm (36×24 cells)
+const VBW = 360, VBH = 240;        // design area in mm (36×24 cells)
 svg.setAttribute('viewBox', `0 0 ${VBW} ${VBH}`);
 svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
 const SVGNS = 'http://www.w3.org/2000/svg';
-
 function el(tag, attrs, parent) {
   const e = document.createElementNS(SVGNS, tag);
   for (const k in attrs) e.setAttribute(k, attrs[k]);
-  if (parent) parent.appendChild(e);
-  return e;
+  if (parent) parent.appendChild(e); return e;
 }
 
 function render() {
   svg.innerHTML = '';
   // grid lines
   const g = el('g', { stroke:'var(--grid)', 'stroke-width':0.25 }, svg);
-  for (let x = 0; x <= VBW; x += GRID) el('line', { x1:x, y1:0, x2:x, y2:VBH }, g);
-  for (let y = 0; y <= VBH; y += GRID) el('line', { x1:0, y1:y, x2:VBW, y2:y }, g);
-  // placed modules (SVG Y is top-down, so flip: screenY = VBH - (y + h))
+  for (let x=0; x<=VBW; x+=GRID) el('line', {x1:x,y1:0,x2:x,y2:VBH}, g);
+  for (let y=0; y<=VBH; y+=GRID) el('line', {x1:0,y1:y,x2:VBW,y2:y}, g);
+  // box region fill
+  const rg = el('g', {}, svg);
+  for (const c of region) { const [gx,gy]=c.split(',').map(Number);
+    el('rect', {x:gx*GRID, y:VBH-(gy+1)*GRID, width:GRID, height:GRID,
+      fill:'var(--accent)', 'fill-opacity':0.07, 'pointer-events':'none'}, rg); }
+  // modules + markers
   for (const p of placed) {
     const fp = footprint(p), m = MODULES[p.key];
     const sx = p.x, sy = VBH - (p.y + fp.h);
     const grp = el('g', { 'data-id':p.id, style:'cursor:grab' }, svg);
     const sel = p.id === selId;
-    if (m.virtual) {
-      // solid 1x1 power tile (easy to grab) + a bold bar on the wall side the hole faces
-      el('rect', { x:sx, y:sy, width:fp.w, height:fp.h, rx:1,
-        fill:'var(--accent)', 'fill-opacity':0.9, stroke: sel?'#fff':'var(--accent)', 'stroke-width': sel?1:0.4 }, grp);
-      const side = HOLE_SIDE[p.rot] || 'E';
-      const bar = { E:[sx+fp.w-1,sy+1,1,fp.h-2], W:[sx,sy+1,1,fp.h-2], N:[sx+1,sy,fp.w-2,1], S:[sx+1,sy+fp.h-1,fp.w-2,1] }[side];
-      el('rect', { x:bar[0], y:bar[1], width:bar[2], height:bar[3], fill:'#04150f' }, grp);
-      el('text', { x:sx+fp.w/2, y:sy+fp.h/2, 'font-size':2.6, fill:'#04150f',
-        'text-anchor':'middle', 'dominant-baseline':'central', 'pointer-events':'none' }, grp).textContent = 'USB-C';
-    } else {
-      el('rect', { x:sx, y:sy, width:fp.w, height:fp.h, rx:1.5, fill:'var(--mod)',
-        stroke: sel ? 'var(--sel)' : 'var(--modEdge)', 'stroke-width': sel ? 1.4 : 0.6 }, grp);
-      el('text', { x:sx+fp.w/2, y:sy+fp.h/2, 'font-size':4.2, fill:'#1a1205',
-        'text-anchor':'middle', 'dominant-baseline':'central', 'pointer-events':'none' }, grp).textContent = m.name;
-      // M2.5 holes (small rings) + JST/USB sockets (small dark/blue tabs) — rotate with the module
-      for (const [hx,hy] of m.holes) { const w = loc(p,hx,hy);
-        el('circle', { cx:w.x, cy:VBH-w.y, r:1.25, fill:'none', stroke:'#5c3d08', 'stroke-width':0.45, 'pointer-events':'none' }, grp); }
-      for (const [ , cx, cy, kind] of m.conn || []) { const w = loc(p,cx,cy);
-        el('rect', { x:w.x-2, y:VBH-w.y-1.3, width:4, height:2.6, rx:0.4,
-          fill: kind==='usb' ? '#2b7fd0' : '#241a05', 'pointer-events':'none' }, grp); }
-    }
+    el('rect', { x:sx, y:sy, width:fp.w, height:fp.h, rx:1.5, fill:'var(--mod)',
+      stroke: sel ? 'var(--sel)' : 'var(--modEdge)', 'stroke-width': sel ? 1.4 : 0.6 }, grp);
+    el('text', { x:sx+fp.w/2, y:sy+fp.h/2, 'font-size':4.2, fill:'#1a1205',
+      'text-anchor':'middle', 'dominant-baseline':'central', 'pointer-events':'none' }, grp).textContent = m.name;
+    for (const [hx,hy] of m.holes) { const w = loc(p,hx,hy);
+      el('circle', { cx:w.x, cy:VBH-w.y, r:1.25, fill:'none', stroke:'#5c3d08', 'stroke-width':0.45, 'pointer-events':'none' }, grp); }
+    for (const [ , cx, cy, kind] of m.conn || []) { const w = loc(p,cx,cy);
+      el('rect', { x:w.x-2, y:VBH-w.y-1.3, width:4, height:2.6, rx:0.4,
+        fill: kind==='usb' ? '#2b7fd0' : '#241a05', 'pointer-events':'none' }, grp); }
   }
-  const mods = placed.filter(p => !MODULES[p.key].virtual).length;
-  const pwr = placed.filter(p => MODULES[p.key].virtual).length;
-  setStatus(!placed.length ? 'add a module from the left'
-    : mods && !pwr ? `${mods} module${mods>1?'s':''} · ⚠ add a Power hole (required)`
-    : `${mods} module${mods>1?'s':''} · ${pwr} power hole${pwr>1?'s':''}`);
-  document.getElementById('generate').disabled = !(mods && pwr);
-  document.getElementById('rotate').disabled = selId === null;
-  document.getElementById('remove').disabled = selId === null;
+  // box walls (clickable) + USB-C hole markers
+  const wg = el('g', {}, svg);
+  for (const [gx,gy,s] of boundaryWalls()) {
+    const [x1,y1,x2,y2] = wallXY(gx,gy,s), key = `${gx},${gy},${s}`, hole = holes.has(key);
+    el('line', { x1,y1,x2,y2, stroke:'transparent', 'stroke-width':3.5, 'data-wall':key, style:'cursor:pointer' }, wg);
+    el('line', { x1,y1,x2,y2, stroke: hole?'#2b7fd0':'var(--accent)', 'stroke-width': hole?1.8:0.9, 'pointer-events':'none' }, wg);
+    if (hole) { const mx=(x1+x2)/2, my=(y1+y2)/2;
+      el('circle', { cx:mx, cy:my, r:USBC_HOLE/2, fill:'#2b7fd0', 'fill-opacity':0.12, stroke:'#2b7fd0', 'stroke-width':0.7, 'pointer-events':'none' }, wg);
+      el('text', { x:mx, y:my, 'font-size':2.6, fill:'#2b7fd0', 'text-anchor':'middle', 'dominant-baseline':'central', 'pointer-events':'none' }, wg).textContent='USB-C'; }
+  }
+  // status + generate enable
+  const mods = placed.length, nh = holes.size;
+  const uncovered = [...moduleCells()].some(c => !region.has(c));
+  setStatus(!mods ? 'add a module from the left'
+    : uncovered ? `${mods} module${mods>1?'s':''} · ⚠ a module is outside the box — extend it (click cells) or reset`
+    : !nh ? `${mods} module${mods>1?'s':''} · ⚠ click a box wall to add the required USB-C hole`
+    : `${mods} module${mods>1?'s':''} · ${nh} USB-C hole${nh>1?'s':''} · box = ${region.size} cells`);
+  document.getElementById('generate').disabled = !(mods && nh && !uncovered);
+  document.getElementById('rotate').disabled = selId===null;
+  document.getElementById('remove').disabled = selId===null;
 }
 
-// screen point -> SVG mm coordinates
+// screen point -> SVG mm coordinates (bottom-left origin)
 function toMM(evt) {
   const pt = svg.createSVGPoint(); pt.x = evt.clientX; pt.y = evt.clientY;
   const p = pt.matrixTransform(svg.getScreenCTM().inverse());
-  return { x:p.x, y: VBH - p.y };       // flip back to bottom-left origin
+  return { x:p.x, y: VBH - p.y };
 }
 const snap = (v) => Math.round(v / GRID) * GRID;
 
-// place a new module at the first free-ish spot (staggered), then the user drags it
 function addModule(key) {
   const m = MODULES[key];
-  let x = 20 + (placed.length * 10) % 120, y = VBH - 40 - (Math.floor(placed.length/12)*30);
+  const x = 20 + (placed.length * 10) % 120, y = VBH - 60 - (Math.floor(placed.length/12)*30);
   placed.push({ id: nextId, key, x: snap(x), y: snap(y - m.h), rot: 0 });
-  selId = nextId; nextId++;
-  render();
+  selId = nextId; nextId++; update();
 }
 
-// ---- drag ----
+// ---- pointer: wall click -> hole; module click -> select+drag; empty click -> toggle box cell ----
 let drag = null;
 svg.addEventListener('pointerdown', (e) => {
+  const wl = e.target.closest('[data-wall]');
+  if (wl) { const k = wl.dataset.wall; holes.has(k) ? holes.delete(k) : holes.add(k); render(); return; }
   const grp = e.target.closest('g[data-id]');
-  if (!grp) { selId = null; render(); return; }
-  const id = +grp.dataset.id;
-  selId = id;
-  const p = placed.find(q => q.id === id);
-  const mm = toMM(e);
-  drag = { id, ox: mm.x - p.x, oy: mm.y - p.y };
-  svg.setPointerCapture(e.pointerId);
-  render();
+  if (grp) { const id = +grp.dataset.id; selId = id; const p = placed.find(q=>q.id===id);
+    const mm = toMM(e); drag = { id, ox: mm.x-p.x, oy: mm.y-p.y }; svg.setPointerCapture(e.pointerId); render(); return; }
+  const mm = toMM(e); const gx = Math.floor(mm.x/GRID), gy = Math.floor(mm.y/GRID); selId = null;
+  if (gx<0 || gy<0 || gx>=VBW/GRID || gy>=VBH/GRID) { render(); return; }
+  if (moduleCells().has(ck(gx,gy))) { render(); return; }   // never carve a module's own cell
+  autoBox = false; const k = ck(gx,gy); region.has(k) ? region.delete(k) : region.add(k); render();
 });
 svg.addEventListener('pointermove', (e) => {
   if (!drag) return;
-  const p = placed.find(q => q.id === drag.id);
-  const mm = toMM(e);
-  p.x = snap(mm.x - drag.ox);
-  p.y = snap(mm.y - drag.oy);
-  render();
+  const p = placed.find(q=>q.id===drag.id); const mm = toMM(e);
+  p.x = snap(mm.x-drag.ox); p.y = snap(mm.y-drag.oy); update();
 });
 svg.addEventListener('pointerup', (e) => { drag = null; try { svg.releasePointerCapture(e.pointerId); } catch(_){} });
 
@@ -156,29 +170,24 @@ function buildPalette() {
   const pal = document.getElementById('palette');
   for (const key in MODULES) {
     const m = MODULES[key];
-    if (m.virtual) { const hr = document.createElement('hr'); pal.appendChild(hr); }
     const b = document.createElement('button');
-    b.innerHTML = `${m.name}<span>${m.virtual ? 'required' : m.w+'×'+m.h}</span>`;
-    if (m.virtual) b.style.borderColor = 'var(--accent)';
+    b.innerHTML = `${m.name}<span>${m.w}×${m.h}</span>`;
     b.addEventListener('click', () => addModule(key));
     pal.appendChild(b);
   }
 }
 document.getElementById('rotate').addEventListener('click', () => {
-  const p = placed.find(q => q.id === selId); if (!p) return;
-  p.rot = (p.rot + 90) % 360; p.x = snap(p.x); p.y = snap(p.y); render();
+  const p = placed.find(q=>q.id===selId); if (!p) return;
+  p.rot = (p.rot + 90) % 360; p.x = snap(p.x); p.y = snap(p.y); update();
 });
 document.getElementById('remove').addEventListener('click', () => {
-  placed = placed.filter(q => q.id !== selId); selId = null; render();
+  placed = placed.filter(q=>q.id!==selId); selId = null; update();
 });
-document.querySelectorAll('#shapeSeg button').forEach(b => b.addEventListener('click', () => {
-  shape = b.dataset.shape;
-  document.querySelectorAll('#shapeSeg button').forEach(x => x.classList.toggle('on', x === b));
-}));
+document.getElementById('resetBox').addEventListener('click', () => { autoBox = true; holes = new Set(); update(); });
 document.getElementById('generate').addEventListener('click', () => {
-  setStatus(`${placed.length} modules · outer shape: ${shape} · 3D box generation is the next step`);
+  setStatus(`box = ${region.size} cells · ${placed.length} modules · ${holes.size} USB-C holes · 3D box is the next step`);
 });
 
 buildPalette();
-render();
+update();
 setStatus('add a module from the left');
