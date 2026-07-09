@@ -53,8 +53,8 @@
       <label>Module</label>
       <select id="module">
         <option value="buzzer">buzzer — sound grille</option>
-        <option value="knob">knob — ⌀7 shaft hole</option>
-        <option value="ledbutton">LED button — 14×14 opening</option>
+        <option value="knob">knob — ⌀7.4 shaft hole</option>
+        <option value="ledbutton">LED button — switch pokes through</option>
       </select>
       <span class="note">same 20×20 template + W/E connectors — only the top opening &amp; payload height change. Display (40×30, W/S) is next.</span>
     </div>
@@ -70,7 +70,7 @@
     <div>
       <label>Payload height above PCB (mm)</label>
       <div class="row">
-        <input id="clearTop" type="number" min="1" max="25" step="0.1" value="3" />
+        <input id="clearTop" type="number" min="0" max="25" step="0.1" value="3" />
         <span class="note">top-side component height (set from the module; edit to taste)</span>
       </div>
     </div>
@@ -114,6 +114,16 @@
     <div id="status">loading…</div>
   </div>
 
-  <script type="module" src="app.js"></script>
+  <script type="module" src="app.js"
+    onerror="document.getElementById('status').textContent='⚠ could not load app.js — open this page via the local server (http://localhost:8100), not by double-clicking the file.'"></script>
+  <script>
+    // If the app never runs (dead server, file:// module block, or a load error), don't hang
+    // on "loading…" forever — say what's wrong after a few seconds.
+    setTimeout(function(){
+      var s = document.getElementById('status');
+      if (s && /^(loading…)?$/.test(s.textContent.trim()))
+        s.textContent = '⚠ app didn’t start — make sure you opened http://localhost:8100 (not the file), then hard-refresh (Ctrl+F5).';
+    }, 5000);
+  </script>
 </body>
 </html>

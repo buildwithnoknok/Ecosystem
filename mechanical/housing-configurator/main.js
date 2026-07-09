@@ -33,14 +33,18 @@ const PROFILES = {
     top_feature:{ type:'grille', x:10, y:10, dia:8.5 }
   },
   knob: {
-    module:'noknok-knob', name:'knob', footprint:{ w:20, h:20 }, pcb_thickness:1.6, clearance_top:7.5,
+    module:'noknok-knob', name:'knob', footprint:{ w:20, h:20 }, pcb_thickness:1.6, clearance_top:9.0,
     connectors:[ { edge:'W', x:3.1, y:15.5 }, { edge:'E', x:16.9, y:4.5 } ],
-    top_feature:{ type:'round_hole', x:10, y:10.25, dia:7.0 }   // O7 shaft clearance (shaft O6)
+    // stack above PCB: 4.5 base + O7 bushing cylinder + O6 shaft. Plate at 9 mm wraps the
+    // bushing; hole O7.4 = O7 cylinder + 0.4 clearance so it isn't a press-fit.
+    top_feature:{ type:'round_hole', x:10, y:10.25, dia:7.4 }
   },
   ledbutton: {
-    module:'noknok-ledbutton', name:'LED button', footprint:{ w:20, h:20 }, pcb_thickness:1.6, clearance_top:11.6,
+    module:'noknok-ledbutton', name:'LED button', footprint:{ w:20, h:20 }, pcb_thickness:1.6, clearance_top:0.0,
     connectors:[ { edge:'W', x:3.1, y:15.5 }, { edge:'E', x:16.9, y:4.5 } ],
-    top_feature:{ type:'button', x:10, y:10, w:14, h:14 }       // 14x14 opening, keycap presses through
+    // cover sits at PCB level (no wall height); the WHOLE switch pokes through. Opening clears
+    // the switch body 15.9x15.7 (+~0.5), not the 14x14 plate-notch which is higher up.
+    top_feature:{ type:'button', x:10, y:10, w:16.4, h:16.2 }
   }
 };
 let PROFILE = PROFILES.buzzer;
