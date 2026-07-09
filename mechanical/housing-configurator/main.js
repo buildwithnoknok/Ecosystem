@@ -28,23 +28,31 @@ const setStatus = (t) => { statusEl.textContent = t; };
 // (The display is not here yet: 40x30 + connectors on W/S needs the notch/latch rework.)
 const PROFILES = {
   buzzer: {
-    module:'noknok-buzzer', name:'buzzer', footprint:{ w:20, h:20 }, pcb_thickness:1.6, clearance_top:3.0,
+    module:'noknok-buzzer', name:'buzzer', footprint:{ w:20, h:20 }, pcb_thickness:1.6, clearance_top:3.0, clearBot:5.0,
     connectors:[ { edge:'W', x:3.1, y:15.5 }, { edge:'E', x:16.9, y:4.5 } ],
     top_feature:{ type:'grille', x:10, y:10, dia:8.5 }
   },
   knob: {
-    module:'noknok-knob', name:'knob', footprint:{ w:20, h:20 }, pcb_thickness:1.6, clearance_top:9.0,
+    module:'noknok-knob', name:'knob', footprint:{ w:20, h:20 }, pcb_thickness:1.6, clearance_top:9.0, clearBot:5.0,
     connectors:[ { edge:'W', x:3.1, y:15.5 }, { edge:'E', x:16.9, y:4.5 } ],
     // stack above PCB: 4.5 base + O7 bushing cylinder + O6 shaft. Plate at 9 mm wraps the
     // bushing; hole O7.4 = O7 cylinder + 0.4 clearance so it isn't a press-fit.
     top_feature:{ type:'round_hole', x:10, y:10.25, dia:7.4 }
   },
   ledbutton: {
-    module:'noknok-ledbutton', name:'LED button', footprint:{ w:20, h:20 }, pcb_thickness:1.6, clearance_top:0.0,
+    module:'noknok-ledbutton', name:'LED button', footprint:{ w:20, h:20 }, pcb_thickness:1.6, clearance_top:0.0, clearBot:5.0,
     connectors:[ { edge:'W', x:3.1, y:15.5 }, { edge:'E', x:16.9, y:4.5 } ],
     // cover sits at PCB level (no wall height); the WHOLE switch pokes through. Opening clears
     // the switch body 15.9x15.7 (+~0.5), not the 14x14 plate-notch which is higher up.
     top_feature:{ type:'button', x:10, y:10, w:16.4, h:16.2 }
+  },
+  usbled: {
+    module:'noknok-usb-led', name:'USB LEDs', footprint:{ w:40, h:40 }, pcb_thickness:1.6, clearance_top:1.6, clearBot:9.0,
+    // clearBot 9 = the tallest MCU-side part (2-pin header 8.5) + clearance. USB-C on W (wider
+    // opening), JST-SH on E. J4 (vertical JST) + J2 (header) are interior on the MCU side and
+    // just live in the plenum. Payload = 8x WS2812b (1.6 mm) in a ring near the edges.
+    connectors:[ { edge:'W', x:3.0, y:20.0, w:10.0 }, { edge:'E', x:36.5, y:20.0 } ],
+    top_feature:{ type:'round_hole', x:20, y:20, dia:36 }   // fully-open LED face (add your own diffuser/shade)
   }
 };
 let PROFILE = PROFILES.buzzer;
@@ -129,11 +137,12 @@ function buildHousing(profile, count, clearTop, clearBot, fit, assembled) {
     const gx = bayX(i) + tol + profile.top_feature.x, gy = P.wallT + tol + profile.top_feature.y;
     top = subtract(top, topFeatureCut(profile, gx, gy, plateBotZ + P.topT/2));
   }
-  // cable notches (outer W/E walls, open at the seam, mirrored connector Y)
+  // cable notches (outer W/E walls, open at the seam, mirrored connector Y). A connector may
+  // set its own opening width `w` (e.g. USB-C is wider than a JST-SH); default = P.connW.
   { const c = profile.connectors.find(c => c.edge==='W'); const wy = P.wallT + tol + (fd - c.y);
-    top = subtract(top, cuboid({ size:[P.wallT+0.4, P.connW, pcbBotZ - seamZ + 0.1], center:[P.wallT/2, wy, (seamZ+pcbBotZ)/2] })); }
+    top = subtract(top, cuboid({ size:[P.wallT+0.4, c.w || P.connW, pcbBotZ - seamZ + 0.1], center:[P.wallT/2, wy, (seamZ+pcbBotZ)/2] })); }
   { const c = profile.connectors.find(c => c.edge==='E'); const wy = P.wallT + tol + (fd - c.y);
-    top = subtract(top, cuboid({ size:[P.wallT+0.4, P.connW, pcbBotZ - seamZ + 0.1], center:[outerW - P.wallT/2, wy, (seamZ+pcbBotZ)/2] })); }
+    top = subtract(top, cuboid({ size:[P.wallT+0.4, c.w || P.connW, pcbBotZ - seamZ + 0.1], center:[outerW - P.wallT/2, wy, (seamZ+pcbBotZ)/2] })); }
   // latch windows in the W/E walls (the detent seats + can be pressed for release)
   const winW = P.hookW + 0.5, winH = 2*P.hookR + 1.2;
   const winWns = P.hookWns + 0.2, winHns = 2*P.hookRns + 1.0;   // N/S windows snug in X -> cut the E/W shift
@@ -258,7 +267,8 @@ function regenerate() {
 
 document.getElementById('module').addEventListener('change', (e) => {
   PROFILE = PROFILES[e.target.value] || PROFILES.buzzer;
-  document.getElementById('clearTop').value = PROFILE.clearance_top;  // sensible default per module
+  document.getElementById('clearTop').value = PROFILE.clearance_top;  // sensible defaults per module
+  if (PROFILE.clearBot != null) document.getElementById('clearBot').value = PROFILE.clearBot;
   regenerate();
 });
 document.getElementById('count').addEventListener('input', (e) => {
