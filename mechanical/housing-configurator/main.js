@@ -223,23 +223,42 @@ function buildBox(assembled) {
   // BACK cover = back plate (0..backT)
   let back = extrudeLinear({ height: backT }, foot2d);
 
-  // per-module M2.5 columns: front presses the PCB front; back presses the back + locating peg.
-  // pcbFrontZ is set so the payload (clearance_top) reaches the front plate -> uniform box, no staircase.
+  // per-module M2.5 columns — these ONLY clamp the PCB (front post presses the front, back post
+  // presses the back, a peg locates the board through the hole). They do NOT join the covers, so
+  // nothing internal is trapped. pcbFrontZ is set so the payload reaches the front plate.
   for (const p of placed) { const m = MODULES[p.key];
     const pcbFrontZ = (H-frontT) - m.clearance_top, pcbBackZ = pcbFrontZ - m.pcb;
+    const frontLen = (H-frontT) - pcbFrontZ, backLen = Math.max(0.4, pcbBackZ - backT);
     for (const [hx,hy] of m.holes) { const w = loc(p,hx,hy);
-      front = union(front, cylinder({ radius:postR, height:(H-frontT)-pcbFrontZ + 0.01, segments:24,
-        center:[w.x, w.y, ((H-frontT)+pcbFrontZ)/2] }));
+      front = union(front, cylinder({ radius:postR, height:frontLen, segments:24, center:[w.x,w.y, pcbFrontZ + frontLen/2] }));
       back = union(back,
-        cylinder({ radius:postR, height: Math.max(0.2, pcbBackZ-backT), segments:24, center:[w.x, w.y, (backT+pcbBackZ)/2] }),
-        cylinder({ radius:pegR, height: m.pcb+0.6, segments:16, center:[w.x, w.y, (pcbBackZ+pcbFrontZ)/2] }));
+        cylinder({ radius:postR, height:backLen, segments:24, center:[w.x,w.y, backT + backLen/2] }),
+        cylinder({ radius:pegR, height:m.pcb+0.6, segments:16, center:[w.x,w.y, (pcbBackZ+pcbFrontZ)/2] }));   // locating peg
+    }
+  }
+
+  // cover-to-cover JOIN — flexing latches on a few PERIMETER walls: a spring arm on the back
+  // cover clicks a detent into a window in the front-cover wall. Press the detent through the
+  // window from OUTSIDE to release, so the box opens (nothing internal is trapped).
+  { const bw = boundaryWalls(), step = Math.max(1, Math.ceil(bw.length/6)), zDet = backT + 5.5;
+    const IN = { E:[-1,0], W:[1,0], N:[0,-1], S:[0,1] };
+    for (let i=0; i<bw.length && H > zDet + 2.5; i += step) {
+      const [gx,gy,side] = bw[i], mid = wallMid(+gx,+gy,side), [ix,iy] = IN[side], alongY = (side==='E'||side==='W');
+      const armT=1.1, armW=6, armH=7.5, off = wallT + 0.35 + armT/2, ax = mid.x + ix*off, ay = mid.y + iy*off;
+      back = union(back, cuboid({ size: alongY?[armT,armW,armH]:[armW,armT,armH], center:[ax,ay,backT+armH/2] }));
+      const det = alongY ? rotate([Math.PI/2,0,0], cylinder({radius:0.9,height:armW-1,segments:14}))
+                         : rotate([0,Math.PI/2,0], cylinder({radius:0.9,height:armW-1,segments:14}));
+      back = union(back, translate([ax - ix*(armT/2+0.3), ay - iy*(armT/2+0.3), zDet], det));
+      front = subtract(front, cuboid({ size: alongY?[wallT+1,armW+0.8,2.8]:[armW+0.8,wallT+1,2.8], center:[mid.x,mid.y,zDet] }));
     }
   }
 
   if (assembled) return { front, back, H };
+  // PRINT layout: front plate down; back laid out as a MIRROR IMAGE across the fold line to its
+  // right, so folding it over onto the front realigns every column (fixes the flip mismatch).
   const bb = jscad.measurements.measureBoundingBox(foot2d);
-  front = translate([0,0,H], mirror({ normal:[0,0,1] }, front));            // print: front plate down
-  back  = translate([bb[1][0]-bb[0][0] + 15, 0, 0], back);                  // back beside
+  front = translate([0,0,H], mirror({ normal:[0,0,1] }, front));
+  back  = mirror({ normal:[1,0,0], origin:[bb[1][0] + 8, 0, 0] }, back);
   return { front, back, H };
 }
 
@@ -265,30 +284,37 @@ scene.add(new THREE.AmbientLight(0xffffff, 0.65));
 const dl = new THREE.DirectionalLight(0xffffff, 0.9); dl.position.set(60,-90,140); scene.add(dl);
 const stlLoader = new STLLoader();
 const mat = new THREE.MeshStandardMaterial({ color:0x59d3a4, metalness:0.1, roughness:0.7 });
-let mesh3d = null, currentSTL = null;
+let mesh3d = null, currentSTL = null;          // currentSTL is ALWAYS the print layout (for download)
+let printBuf = null, asmBuf = null, previewMode = 'assembled', boxH = 0;
 (function animate(){ requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); })();
 
 function show3D(on) {
   document.getElementById('grid').style.display = on ? 'none' : 'block';
   renderer.domElement.style.display = on ? 'block' : 'none';
   document.getElementById('backTo2d').style.display = on ? 'inline-block' : 'none';
+  document.getElementById('viewToggle').style.display = on ? 'flex' : 'none';
   if (on) { renderer.setSize(viewEl.clientWidth, viewEl.clientHeight);
     camera.aspect = viewEl.clientWidth/viewEl.clientHeight; camera.updateProjectionMatrix(); }
+}
+function renderPreview() {
+  const buf = previewMode === 'print' ? printBuf : asmBuf;
+  if (!buf) return;
+  if (mesh3d) { scene.remove(mesh3d); mesh3d.geometry.dispose(); }
+  const geo = stlLoader.parse(buf); geo.computeVertexNormals();
+  mesh3d = new THREE.Mesh(geo, mat); scene.add(mesh3d);
+  geo.computeBoundingBox(); const c = geo.boundingBox.getCenter(new THREE.Vector3()), s = geo.boundingBox.getSize(new THREE.Vector3());
+  const r = Math.max(s.x,s.y,s.z);
+  camera.position.set(c.x + r, c.y - r*1.4, c.z + r*1.1); controls.target.copy(c); controls.update();
+  document.querySelectorAll('#viewToggle button').forEach(b => b.classList.toggle('on', b.dataset.mode === previewMode));
 }
 function generate() {
   try {
     setStatus('generating box…');
-    const pr = buildBox(false); currentSTL = toSTL(pr.front, pr.back);
-    const asm = buildBox(true); const buf = toSTL(asm.front, asm.back);
-    if (mesh3d) { scene.remove(mesh3d); mesh3d.geometry.dispose(); }
-    const geo = stlLoader.parse(buf); geo.computeVertexNormals();
-    mesh3d = new THREE.Mesh(geo, mat); scene.add(mesh3d);
-    geo.computeBoundingBox(); const c = geo.boundingBox.getCenter(new THREE.Vector3()), s = geo.boundingBox.getSize(new THREE.Vector3());
-    const r = Math.max(s.x,s.y,s.z);
-    camera.position.set(c.x + r, c.y - r*1.4, c.z + r*1.1); controls.target.copy(c); controls.update();
-    show3D(true);
+    const pr = buildBox(false); printBuf = toSTL(pr.front, pr.back); currentSTL = printBuf;
+    const asm = buildBox(true); asmBuf = toSTL(asm.front, asm.back); boxH = asm.H;
+    show3D(true); renderPreview();
     document.getElementById('download').disabled = false;
-    setStatus(`box ${asm.H.toFixed(1)} mm tall · ${placed.length} modules · STL ready (${(currentSTL.byteLength/1024).toFixed(0)} KB)`);
+    setStatus(`box ${boxH.toFixed(1)} mm tall · ${placed.length} modules · STL ready (${(currentSTL.byteLength/1024).toFixed(0)} KB)`);
   } catch(e) { console.error(e); setStatus('generate error: ' + e.message); }
 }
 window.addEventListener('resize', () => { if (renderer.domElement.style.display!=='none') {
