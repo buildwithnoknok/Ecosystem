@@ -14,10 +14,11 @@ import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import jscad from '@jscad/modeling';
 import stlSerializer from '@jscad/stl-serializer';
 
-const { primitives, booleans, transforms } = jscad;
-const { cuboid, cylinder } = primitives;
+const { primitives, booleans, transforms, extrusions } = jscad;
+const { cuboid, cylinder, polygon } = primitives;
 const { subtract, union } = booleans;
 const { translate, mirror, rotate } = transforms;
+const { extrudeLinear } = extrusions;
 
 const statusEl = document.getElementById('status');
 const setStatus = (t) => { statusEl.textContent = t; };
@@ -74,8 +75,20 @@ const P = {
   // N/S: the latch detent is built onto the EXISTING PCB-hold ribs (at each bay centre, which is
   // flip-symmetric on its own -> no swap trick). Snug in X -> also cuts the E/W shift.
   hookWns: 6.0, hookRns: 0.55,
+  // Phase B tile dovetail joint: N & S rail blocks (widen the tile) carry a vertical dovetail
+  // — tongue on E, groove on W — so a tile slides straight DOWN onto its west neighbour.
+  dtBand: 5.0, dtProj: 2.5, dtBase: 2.5, dtTip: 4.2,
   fitClear: 0.3
 };
+
+// vertical dovetail solid: a Z-extruded trapezoid that flares from dtBase (at x0) to dtTip
+// (at x0 + dir*dtProj), centred at y=cy. clr grows it all round (for the groove's slide fit).
+function dovetail(x0, dir, cy, z0, z1, clr) {
+  const b = P.dtBase/2 + clr, t = P.dtTip/2 + clr, pr = dir * (P.dtProj + clr);
+  // CCW winding (positive area) so extrudeLinear makes a solid with outward normals
+  const poly = polygon({ points: [ [x0, cy-b], [x0+pr, cy-t], [x0+pr, cy+t], [x0, cy+b] ] });
+  return translate([0, 0, z0], extrudeLinear({ height: z1 - z0 }, poly));
+}
 
 // sound grille: a 5x5 matrix of holes centered on the buzzer
 function grille(cx, cy, cz) {
@@ -96,7 +109,7 @@ function topFeatureCut(profile, gx, gy, cz) {
 }
 
 // Build the two covers. Returns { top, bot, outerW, outerD }.  fit = clearance offset (mm).
-function buildHousing(profile, count, clearTop, clearBot, fit, assembled) {
+function buildHousing(profile, count, clearTop, clearBot, fit, assembled, joints) {
   const tol = P.tol + fit, fitClear = P.fitClear + fit, hookClear = P.hookClear + fit;
   const fw = profile.footprint.w, fd = profile.footprint.h;
   const bayW = fw + 2*tol, bayD = fd + 2*tol;
@@ -160,6 +173,19 @@ function buildHousing(profile, count, clearTop, clearBot, fit, assembled) {
     );
   }
 
+  // ---- tile dovetail joints (Phase B) ---- on the TOP cover, on N & S rail blocks that widen
+  // the tile clear of the notch/latch. E = tongue (into the east neighbour), W = groove (receives
+  // the west neighbour's tongue). Slide a tile straight down to engage. Only added where a
+  // neighbour exists, so a lone tile stays clean.
+  if (joints && (joints.e || joints.w)) {
+    const dtZ0 = seamZ, dtZ1 = plateTopZ;
+    for (const cy of [-P.dtBand/2, outerD + P.dtBand/2]) {          // S rail, N rail
+      top = union(top, cuboid({ size:[outerW, P.dtBand, dtZ1-dtZ0], center:[outerW/2, cy, (dtZ0+dtZ1)/2] }));
+      if (joints.e) top = union(top, dovetail(outerW, +1, cy, dtZ0, dtZ1, 0));
+      if (joints.w) top = subtract(top, dovetail(0, +1, cy, dtZ0-0.1, dtZ1+0.1, fitClear));
+    }
+  }
+
   // ===================== BOTTOM COVER (flush base + ribs + flexing latch arms) ================
   let bot = cuboid({ size:[outerW, outerD, seamZ], center:[outerW/2, outerD/2, seamZ/2] });
   // N/S centre push-ribs (clear the sockets), rise to the PCB bottom
@@ -204,14 +230,15 @@ function buildHousing(profile, count, clearTop, clearBot, fit, assembled) {
 function buildLayout(seq, fit, assembled) {
   const solids = [];
   let xOff = 0, maxD = 0;
-  for (const key of seq) {
-    const prof = PROFILES[key]; if (!prof) continue;
-    const r = buildHousing(prof, 1, prof.clearance_top, prof.clearBot, fit, assembled);
+  seq.forEach((key, i) => {
+    const prof = PROFILES[key]; if (!prof) return;
+    const joints = { e: i < seq.length - 1, w: i > 0 };   // dovetail only toward a real neighbour
+    const r = buildHousing(prof, 1, prof.clearance_top, prof.clearBot, fit, assembled, joints);
     solids.push(translate([xOff, 0, 0], r.top), translate([xOff, 0, 0], r.bot));
-    xOff += r.outerW + 8;                 // tile + gap along the bed X
-    maxD = Math.max(maxD, r.outerD * (assembled ? 1 : 2) + 14);
-  }
-  return { solids, w: Math.max(0, xOff - 8), d: maxD };
+    xOff += r.outerW + (assembled ? 0 : 8);   // abut (dovetails engage) for preview; gap for printing
+    maxD = Math.max(maxD, r.outerD * (assembled ? 1 : 2) + 14 + 2*P.dtBand);
+  });
+  return { solids, w: Math.max(0, xOff - (assembled ? 0 : 8)), d: maxD };
 }
 
 // serialize one or more JSCAD solids to a single binary-STL ArrayBuffer
