@@ -1,7 +1,18 @@
 // noknok Housing Configurator — V5 app entry.  SPDX-License-Identifier: MIT
-// STEP 1: 2D bird's-eye placement + user-drawn box outline (click cells to shape, click a wall
-// for a USB-C power hole). STEP 2 (next): the monolithic box (front+back covers, M2.5 columns).
-// Bundled with esbuild -> app.js.
+// 2D bird's-eye placement + user-drawn box outline -> a single monolithic box: front + back
+// covers, per-module M2.5 holding columns (lengths set so every payload reaches the front),
+// payload openings, USB-C wall holes, uniform height. Bundled with esbuild -> app.js.
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
+import jscad from '@jscad/modeling';
+import stlSerializer from '@jscad/stl-serializer';
+const { primitives, booleans, transforms, extrusions, expansions } = jscad;
+const { cuboid, cylinder, rectangle } = primitives;
+const { union, subtract } = booleans;
+const { translate, rotate, mirror } = transforms;
+const { extrudeLinear } = extrusions;
+const { offset } = expansions;
 
 // ---- Module library (mm). footprint w×h, payload height, plenum, M2.5 holes, JST/USB sockets,
 // top opening. Mirrors each module repo's mechanical/housing.json. Origin = module bottom-left. ----
@@ -165,6 +176,124 @@ svg.addEventListener('pointermove', (e) => {
 });
 svg.addEventListener('pointerup', (e) => { drag = null; try { svg.releasePointerCapture(e.pointerId); } catch(_){} });
 
+// ================= 3D box generation =================
+const BOX = { frontT:1.2, backT:1.2, wallT:1.5, postR:2.0, pegR:1.15 };
+
+function grilleCut(cx, cy, z, hh) {
+  const parts = [];
+  for (let ix=0; ix<5; ix++) for (let iy=0; iy<5; iy++)
+    parts.push(cylinder({ radius:0.85, height:hh, segments:16, center:[cx+(ix-2)*2.5, cy+(iy-2)*2.5, z] }));
+  return union(...parts);
+}
+function topCut(p, H) {                                  // front-plate opening (rotates with the module)
+  const m = MODULES[p.key], f = m.top, w = loc(p, f.x, f.y);
+  const z = H - BOX.frontT/2, hh = BOX.frontT + 1.2;
+  if (f.type === 'grille')     return grilleCut(w.x, w.y, z, hh);
+  if (f.type === 'round_hole') return cylinder({ radius:f.dia/2, height:hh, segments:48, center:[w.x, w.y, z] });
+  const sw = (p.rot%180===0)? f.w : f.h, sh = (p.rot%180===0)? f.h : f.w;   // rect: swap if rotated
+  return cuboid({ size:[sw, sh, hh], center:[w.x, w.y, z] });
+}
+function wallMid(gx,gy,s) {                              // world midpoint of a wall segment
+  return s==='N' ? {x:(gx+0.5)*GRID, y:(gy+1)*GRID} : s==='S' ? {x:(gx+0.5)*GRID, y:gy*GRID}
+       : s==='E' ? {x:(gx+1)*GRID, y:(gy+0.5)*GRID} : {x:gx*GRID, y:(gy+0.5)*GRID};
+}
+
+// Build the box from the current layout. Returns { front, back, H }.
+function buildBox(assembled) {
+  const { frontT, backT, wallT, postR, pegR } = BOX;
+  const stacks = placed.map(p => { const m=MODULES[p.key]; return m.clearance_top + m.pcb + m.clearance_bottom; });
+  const interior = Math.max(Math.max(...stacks), Math.min(...stacks) + 5);   // +5 = cable space
+  const H = frontT + backT + interior;
+
+  const cells = [...region].map(c => c.split(',').map(Number));
+  const foot2d = union(...cells.map(([gx,gy]) => rectangle({ size:[GRID,GRID], center:[(gx+0.5)*GRID,(gy+0.5)*GRID] })));
+  const inner2d = offset({ delta:-wallT }, foot2d);
+
+  // FRONT cover = perimeter walls (backT..H) + front plate (H-frontT..H)
+  let front = subtract(
+    translate([0,0,backT], extrudeLinear({ height: H-backT }, foot2d)),
+    translate([0,0,backT], extrudeLinear({ height: (H-frontT)-backT }, inner2d)));
+  for (const p of placed) front = subtract(front, topCut(p, H));            // payload openings
+  for (const key of holes) {                                                // USB-C wall holes
+    const [gx,gy,s] = key.split(','); const mid = wallMid(+gx,+gy,s), zc = (backT + (H-frontT))/2;
+    let c = cylinder({ radius:USBC_HOLE/2, height: wallT+6, segments:32 });
+    c = (s==='E'||s==='W') ? rotate([0,Math.PI/2,0], c) : rotate([Math.PI/2,0,0], c);
+    front = subtract(front, translate([mid.x, mid.y, zc], c));
+  }
+  // BACK cover = back plate (0..backT)
+  let back = extrudeLinear({ height: backT }, foot2d);
+
+  // per-module M2.5 columns: front presses the PCB front; back presses the back + locating peg.
+  // pcbFrontZ is set so the payload (clearance_top) reaches the front plate -> uniform box, no staircase.
+  for (const p of placed) { const m = MODULES[p.key];
+    const pcbFrontZ = (H-frontT) - m.clearance_top, pcbBackZ = pcbFrontZ - m.pcb;
+    for (const [hx,hy] of m.holes) { const w = loc(p,hx,hy);
+      front = union(front, cylinder({ radius:postR, height:(H-frontT)-pcbFrontZ + 0.01, segments:24,
+        center:[w.x, w.y, ((H-frontT)+pcbFrontZ)/2] }));
+      back = union(back,
+        cylinder({ radius:postR, height: Math.max(0.2, pcbBackZ-backT), segments:24, center:[w.x, w.y, (backT+pcbBackZ)/2] }),
+        cylinder({ radius:pegR, height: m.pcb+0.6, segments:16, center:[w.x, w.y, (pcbBackZ+pcbFrontZ)/2] }));
+    }
+  }
+
+  if (assembled) return { front, back, H };
+  const bb = jscad.measurements.measureBoundingBox(foot2d);
+  front = translate([0,0,H], mirror({ normal:[0,0,1] }, front));            // print: front plate down
+  back  = translate([bb[1][0]-bb[0][0] + 15, 0, 0], back);                  // back beside
+  return { front, back, H };
+}
+
+function toSTL(...solids) {
+  const raw = stlSerializer.serialize({ binary:true }, ...solids);
+  const parts = raw.map(p => p instanceof ArrayBuffer ? new Uint8Array(p)
+    : ArrayBuffer.isView(p) ? new Uint8Array(p.buffer,p.byteOffset,p.byteLength) : new Uint8Array(p));
+  const total = parts.reduce((s,a)=>s+a.length,0), merged = new Uint8Array(total);
+  let off=0; for (const a of parts) { merged.set(a,off); off+=a.length; } return merged.buffer;
+}
+
+// ================= 3D preview =================
+const viewEl = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(viewEl.clientWidth, viewEl.clientHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.domElement.style.cssText = 'display:none;position:absolute;inset:0;';
+viewEl.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0f1115);
+const camera = new THREE.PerspectiveCamera(45, viewEl.clientWidth/viewEl.clientHeight, 0.1, 3000); camera.up.set(0,0,1);
+const controls = new OrbitControls(camera, renderer.domElement);
+scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+const dl = new THREE.DirectionalLight(0xffffff, 0.9); dl.position.set(60,-90,140); scene.add(dl);
+const stlLoader = new STLLoader();
+const mat = new THREE.MeshStandardMaterial({ color:0x59d3a4, metalness:0.1, roughness:0.7 });
+let mesh3d = null, currentSTL = null;
+(function animate(){ requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); })();
+
+function show3D(on) {
+  document.getElementById('grid').style.display = on ? 'none' : 'block';
+  renderer.domElement.style.display = on ? 'block' : 'none';
+  document.getElementById('backTo2d').style.display = on ? 'inline-block' : 'none';
+  if (on) { renderer.setSize(viewEl.clientWidth, viewEl.clientHeight);
+    camera.aspect = viewEl.clientWidth/viewEl.clientHeight; camera.updateProjectionMatrix(); }
+}
+function generate() {
+  try {
+    setStatus('generating box…');
+    const pr = buildBox(false); currentSTL = toSTL(pr.front, pr.back);
+    const asm = buildBox(true); const buf = toSTL(asm.front, asm.back);
+    if (mesh3d) { scene.remove(mesh3d); mesh3d.geometry.dispose(); }
+    const geo = stlLoader.parse(buf); geo.computeVertexNormals();
+    mesh3d = new THREE.Mesh(geo, mat); scene.add(mesh3d);
+    geo.computeBoundingBox(); const c = geo.boundingBox.getCenter(new THREE.Vector3()), s = geo.boundingBox.getSize(new THREE.Vector3());
+    const r = Math.max(s.x,s.y,s.z);
+    camera.position.set(c.x + r, c.y - r*1.4, c.z + r*1.1); controls.target.copy(c); controls.update();
+    show3D(true);
+    document.getElementById('download').disabled = false;
+    setStatus(`box ${asm.H.toFixed(1)} mm tall · ${placed.length} modules · STL ready (${(currentSTL.byteLength/1024).toFixed(0)} KB)`);
+  } catch(e) { console.error(e); setStatus('generate error: ' + e.message); }
+}
+window.addEventListener('resize', () => { if (renderer.domElement.style.display!=='none') {
+  renderer.setSize(viewEl.clientWidth, viewEl.clientHeight); camera.aspect=viewEl.clientWidth/viewEl.clientHeight; camera.updateProjectionMatrix(); } });
+
 // ---- controls ----
 function buildPalette() {
   const pal = document.getElementById('palette');
@@ -184,8 +313,13 @@ document.getElementById('remove').addEventListener('click', () => {
   placed = placed.filter(q=>q.id!==selId); selId = null; update();
 });
 document.getElementById('resetBox').addEventListener('click', () => { autoBox = true; holes = new Set(); update(); });
-document.getElementById('generate').addEventListener('click', () => {
-  setStatus(`box = ${region.size} cells · ${placed.length} modules · ${holes.size} USB-C holes · 3D box is the next step`);
+document.getElementById('generate').addEventListener('click', generate);
+document.getElementById('backTo2d').addEventListener('click', () => { show3D(false); render(); });
+document.getElementById('download').addEventListener('click', () => {
+  if (!currentSTL) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([currentSTL], { type:'model/stl' }));
+  a.download = `noknok_housing_${placed.length}mod.stl`; a.click();
 });
 
 buildPalette();

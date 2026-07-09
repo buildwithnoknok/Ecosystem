@@ -73,6 +73,7 @@
 
     <hr/>
     <button class="primary" id="generate" disabled>Generate 3D box</button>
+    <button class="primary" id="download" disabled style="background:#3a4050;color:var(--ink);">Download STL</button>
     <div class="note">
       Each cell = <b>10&nbsp;mm</b>. On each module: <span style="color:#c98a3a">○</span> = M2.5
       hole (holding column), <span style="color:#241a05">▪</span> = JST socket,
@@ -83,6 +84,7 @@
 
   <div id="view">
     <div id="status">loading…</div>
+    <button id="backTo2d" style="display:none;position:absolute;top:12px;right:12px;background:var(--panel);color:var(--ink);border:1px solid #2a2f3a;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:13px;z-index:2;">← edit layout</button>
     <svg id="grid"></svg>
   </div>
 
