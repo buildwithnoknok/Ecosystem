@@ -8,18 +8,18 @@
 // only needs footprint + name). Origin = module's own bottom-left corner, X→right, Y→up.
 const MODULES = {
   buzzer:    { name:'buzzer',     w:20, h:20, clearance_top:3.0,  pcb:1.6, clearance_bottom:3.0,
-    holes:[[2.25,2.25],[17.75,17.75]], top:{type:'grille', x:10, y:10, dia:8.5} },
+    holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'grille', x:10, y:10, dia:8.5} },
   knob:      { name:'knob',       w:20, h:20, clearance_top:9.0,  pcb:1.6, clearance_bottom:3.0,
-    holes:[[2,18],[18,2]], top:{type:'round_hole', x:10, y:10.25, dia:7.4} },
+    holes:[[2,18],[18,2]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'round_hole', x:10, y:10.25, dia:7.4} },
   ledbutton: { name:'LED button', w:20, h:20, clearance_top:11.6, pcb:1.6, clearance_bottom:3.0,
-    holes:[[2.25,17.75],[17.75,2.25]], top:{type:'button', x:10, y:10, w:16.4, h:16.2} },  // 2 diagonal M2.5
+    holes:[[2.25,17.75],[17.75,2.25]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'button', x:10, y:10, w:16.4, h:16.2} },
   usbled:    { name:'USB LEDs',   w:40, h:40, clearance_top:1.6,  pcb:1.6, clearance_bottom:9.0,
-    holes:[[4,4],[36,4],[4,36],[36,36]], top:{type:'round_hole', x:20, y:20, dia:36} },
+    holes:[[4,4],[36,4],[4,36],[36,36]], conn:[['W',3,20,'usb'],['E',36.5,20]], top:{type:'round_hole', x:20, y:20, dia:36} },
   display:   { name:'display',    w:40, h:30, clearance_top:2.0,  pcb:1.6, clearance_bottom:3.0,
-    holes:[[2.25,2.25],[2.25,27.75],[37.75,2.25],[37.75,27.75]], top:{type:'window', x:19.8, y:15, w:32.35, h:16.18} },
-  // VIRTUAL module (not a PCB): marks a USB-C power-cable hole in the box wall. MANDATORY (>=1)
-  // so the user can't forget the power inlet; multiple allowed for extra holes.
-  power:     { name:'Power hole', w:20, h:20, virtual:true, hole:14 },
+    holes:[[2.25,2.25],[2.25,27.75],[37.75,2.25],[37.75,27.75]], conn:[['W',3.1,15],['S',20,3.1]], top:{type:'window', x:19.8, y:15, w:32.35, h:16.18} },
+  // VIRTUAL module (not a PCB): a 1x1 tile marking a USB-C power-cable hole in ONE box wall.
+  // The hole faces the tile's marked edge (rotate to choose the side). MANDATORY (>=1); multiple OK.
+  power:     { name:'Power hole', w:10, h:10, virtual:true, hole:14 },
 };
 // Box height (step 2) = max(tallest module's clearance_top+pcb+clearance_bottom,
 //                           thinnest module's same sum + 5)  — the +5 guarantees cable space.
@@ -39,6 +39,19 @@ function footprint(p) {
   const m = MODULES[p.key];
   return (p.rot % 180 === 0) ? { w:m.w, h:m.h } : { w:m.h, h:m.w };
 }
+// a module-local point (mx,my) -> world (bottom-left origin), applying rotation + placement
+function loc(p, mx, my) {
+  const m = MODULES[p.key]; let rx, ry;
+  switch (p.rot) {
+    case 90:  rx = m.h - my; ry = mx;        break;
+    case 180: rx = m.w - mx; ry = m.h - my;  break;
+    case 270: rx = my;       ry = m.w - mx;  break;
+    default:  rx = mx;       ry = my;
+  }
+  return { x: p.x + rx, y: p.y + ry };
+}
+// which world edge the power hole faces, from rotation: 0=E, 90=N, 180=W, 270=S
+const HOLE_SIDE = { 0:'E', 90:'N', 180:'W', 270:'S' };
 
 // ---- SVG grid ----
 const svg = document.getElementById('grid');
@@ -66,17 +79,27 @@ function render() {
     const sx = p.x, sy = VBH - (p.y + fp.h);
     const grp = el('g', { 'data-id':p.id, style:'cursor:grab' }, svg);
     const sel = p.id === selId;
-    el('rect', { x:sx, y:sy, width:fp.w, height:fp.h, rx:1.5,
-      fill: m.virtual ? 'none' : 'var(--mod)',
-      stroke: sel ? 'var(--sel)' : (m.virtual ? 'var(--accent)' : 'var(--modEdge)'),
-      'stroke-width': sel ? 1.4 : (m.virtual ? 0.8 : 0.6),
-      'stroke-dasharray': m.virtual ? '2 1.5' : 'none' }, grp);
-    if (m.virtual)  // draw the USB-C hole
-      el('circle', { cx:sx+fp.w/2, cy:sy+fp.h/2 - 2.5, r:m.hole/2, fill:'none', stroke:'var(--accent)', 'stroke-width':0.7 }, grp);
-    el('text', { x:sx+fp.w/2, y:sy+fp.h/2 + (m.virtual?4:0), 'font-size':m.virtual?3.4:4.2,
-      fill: m.virtual ? 'var(--accent)' : '#1a1205',
-      'text-anchor':'middle', 'dominant-baseline':'central', 'pointer-events':'none' }, grp)
-      .textContent = m.virtual ? 'USB-C' : m.name;
+    if (m.virtual) {
+      // solid 1x1 power tile (easy to grab) + a bold bar on the wall side the hole faces
+      el('rect', { x:sx, y:sy, width:fp.w, height:fp.h, rx:1,
+        fill:'var(--accent)', 'fill-opacity':0.9, stroke: sel?'#fff':'var(--accent)', 'stroke-width': sel?1:0.4 }, grp);
+      const side = HOLE_SIDE[p.rot] || 'E';
+      const bar = { E:[sx+fp.w-1,sy+1,1,fp.h-2], W:[sx,sy+1,1,fp.h-2], N:[sx+1,sy,fp.w-2,1], S:[sx+1,sy+fp.h-1,fp.w-2,1] }[side];
+      el('rect', { x:bar[0], y:bar[1], width:bar[2], height:bar[3], fill:'#04150f' }, grp);
+      el('text', { x:sx+fp.w/2, y:sy+fp.h/2, 'font-size':2.6, fill:'#04150f',
+        'text-anchor':'middle', 'dominant-baseline':'central', 'pointer-events':'none' }, grp).textContent = 'USB-C';
+    } else {
+      el('rect', { x:sx, y:sy, width:fp.w, height:fp.h, rx:1.5, fill:'var(--mod)',
+        stroke: sel ? 'var(--sel)' : 'var(--modEdge)', 'stroke-width': sel ? 1.4 : 0.6 }, grp);
+      el('text', { x:sx+fp.w/2, y:sy+fp.h/2, 'font-size':4.2, fill:'#1a1205',
+        'text-anchor':'middle', 'dominant-baseline':'central', 'pointer-events':'none' }, grp).textContent = m.name;
+      // M2.5 holes (small rings) + JST/USB sockets (small dark/blue tabs) — rotate with the module
+      for (const [hx,hy] of m.holes) { const w = loc(p,hx,hy);
+        el('circle', { cx:w.x, cy:VBH-w.y, r:1.25, fill:'none', stroke:'#5c3d08', 'stroke-width':0.45, 'pointer-events':'none' }, grp); }
+      for (const [ , cx, cy, kind] of m.conn || []) { const w = loc(p,cx,cy);
+        el('rect', { x:w.x-2, y:VBH-w.y-1.3, width:4, height:2.6, rx:0.4,
+          fill: kind==='usb' ? '#2b7fd0' : '#241a05', 'pointer-events':'none' }, grp); }
+    }
   }
   const mods = placed.filter(p => !MODULES[p.key].virtual).length;
   const pwr = placed.filter(p => MODULES[p.key].virtual).length;
