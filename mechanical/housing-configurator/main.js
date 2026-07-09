@@ -12,12 +12,17 @@ const MODULES = {
   knob:      { name:'knob',       w:20, h:20, clearance_top:9.0,  pcb:1.6, clearance_bottom:3.0,
     holes:[[2,18],[18,2]], top:{type:'round_hole', x:10, y:10.25, dia:7.4} },
   ledbutton: { name:'LED button', w:20, h:20, clearance_top:11.6, pcb:1.6, clearance_bottom:3.0,
-    holes:[[17.75,2.25]], top:{type:'button', x:10, y:10, w:16.4, h:16.2} },
+    holes:[[2.25,17.75],[17.75,2.25]], top:{type:'button', x:10, y:10, w:16.4, h:16.2} },  // 2 diagonal M2.5
   usbled:    { name:'USB LEDs',   w:40, h:40, clearance_top:1.6,  pcb:1.6, clearance_bottom:9.0,
     holes:[[4,4],[36,4],[4,36],[36,36]], top:{type:'round_hole', x:20, y:20, dia:36} },
   display:   { name:'display',    w:40, h:30, clearance_top:2.0,  pcb:1.6, clearance_bottom:3.0,
     holes:[[2.25,2.25],[2.25,27.75],[37.75,2.25],[37.75,27.75]], top:{type:'window', x:19.8, y:15, w:32.35, h:16.18} },
+  // VIRTUAL module (not a PCB): marks a USB-C power-cable hole in the box wall. MANDATORY (>=1)
+  // so the user can't forget the power inlet; multiple allowed for extra holes.
+  power:     { name:'Power hole', w:20, h:20, virtual:true, hole:14 },
 };
+// Box height (step 2) = max(tallest module's clearance_top+pcb+clearance_bottom,
+//                           thinnest module's same sum + 5)  — the +5 guarantees cable space.
 
 const GRID = 10;                       // mm per cell
 const statusEl = document.getElementById('status');
@@ -60,16 +65,25 @@ function render() {
     const fp = footprint(p), m = MODULES[p.key];
     const sx = p.x, sy = VBH - (p.y + fp.h);
     const grp = el('g', { 'data-id':p.id, style:'cursor:grab' }, svg);
+    const sel = p.id === selId;
     el('rect', { x:sx, y:sy, width:fp.w, height:fp.h, rx:1.5,
-      fill:'var(--mod)', stroke: p.id===selId ? 'var(--sel)' : 'var(--modEdge)',
-      'stroke-width': p.id===selId ? 1.4 : 0.6 }, grp);
-    el('text', { x:sx+fp.w/2, y:sy+fp.h/2, 'font-size':4.2, fill:'#1a1205',
+      fill: m.virtual ? 'none' : 'var(--mod)',
+      stroke: sel ? 'var(--sel)' : (m.virtual ? 'var(--accent)' : 'var(--modEdge)'),
+      'stroke-width': sel ? 1.4 : (m.virtual ? 0.8 : 0.6),
+      'stroke-dasharray': m.virtual ? '2 1.5' : 'none' }, grp);
+    if (m.virtual)  // draw the USB-C hole
+      el('circle', { cx:sx+fp.w/2, cy:sy+fp.h/2 - 2.5, r:m.hole/2, fill:'none', stroke:'var(--accent)', 'stroke-width':0.7 }, grp);
+    el('text', { x:sx+fp.w/2, y:sy+fp.h/2 + (m.virtual?4:0), 'font-size':m.virtual?3.4:4.2,
+      fill: m.virtual ? 'var(--accent)' : '#1a1205',
       'text-anchor':'middle', 'dominant-baseline':'central', 'pointer-events':'none' }, grp)
-      .textContent = m.name;
+      .textContent = m.virtual ? 'USB-C' : m.name;
   }
-  const n = placed.length;
-  setStatus(n ? `${n} module${n>1?'s':''} placed` : 'add a module from the left');
-  document.getElementById('generate').disabled = n === 0;
+  const mods = placed.filter(p => !MODULES[p.key].virtual).length;
+  const pwr = placed.filter(p => MODULES[p.key].virtual).length;
+  setStatus(!placed.length ? 'add a module from the left'
+    : mods && !pwr ? `${mods} module${mods>1?'s':''} · ⚠ add a Power hole (required)`
+    : `${mods} module${mods>1?'s':''} · ${pwr} power hole${pwr>1?'s':''}`);
+  document.getElementById('generate').disabled = !(mods && pwr);
   document.getElementById('rotate').disabled = selId === null;
   document.getElementById('remove').disabled = selId === null;
 }
@@ -119,8 +133,10 @@ function buildPalette() {
   const pal = document.getElementById('palette');
   for (const key in MODULES) {
     const m = MODULES[key];
+    if (m.virtual) { const hr = document.createElement('hr'); pal.appendChild(hr); }
     const b = document.createElement('button');
-    b.innerHTML = `${m.name}<span>${m.w}×${m.h}</span>`;
+    b.innerHTML = `${m.name}<span>${m.virtual ? 'required' : m.w+'×'+m.h}</span>`;
+    if (m.virtual) b.style.borderColor = 'var(--accent)';
     b.addEventListener('click', () => addModule(key));
     pal.appendChild(b);
   }
