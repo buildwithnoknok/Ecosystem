@@ -21,8 +21,8 @@ const MODULES = {
     holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'grille', x:10, y:10, dia:8.5} },
   knob:      { name:'knob',       w:20, h:20, clearance_top:9.0,  pcb:1.6, clearance_bottom:3.0,
     holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'round_hole', x:10, y:10.25, dia:7.4} },
-  ledbutton: { name:'LED button', w:20, h:20, clearance_top:11.6, pcb:1.6, clearance_bottom:3.0,
-    holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'button', x:10, y:10, w:16.4, h:16.2} },
+  ledbutton: { name:'LED button', w:20, h:20, clearance_top:0.0, pcb:1.6, clearance_bottom:3.0,
+    holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'button', x:10, y:10, w:16.4, h:16.2} },  // switch pokes through -> no front columns
   usbled:    { name:'USB LEDs',   w:40, h:40, clearance_top:1.6,  pcb:1.6, clearance_bottom:9.0,
     holes:[[4,4],[36,4],[4,36],[36,36]], conn:[['W',3,20,'usb'],['E',36.5,20]], top:{type:'round_hole', x:20, y:20, dia:36} },
   display:   { name:'display',    w:40, h:30, clearance_top:2.0,  pcb:1.6, clearance_bottom:3.0,
@@ -230,7 +230,8 @@ function buildBox(assembled) {
     const pcbFrontZ = (H-frontT) - m.clearance_top, pcbBackZ = pcbFrontZ - m.pcb;
     const frontLen = (H-frontT) - pcbFrontZ, backLen = Math.max(0.4, pcbBackZ - backT);
     for (const [hx,hy] of m.holes) { const w = loc(p,hx,hy);
-      front = union(front, cylinder({ radius:postR, height:frontLen, segments:24, center:[w.x,w.y, pcbFrontZ + frontLen/2] }));
+      if (frontLen > 0.3)   // no front post for a poke-through payload (e.g. LED button) -> can't foul the opening
+        front = union(front, cylinder({ radius:postR, height:frontLen, segments:24, center:[w.x,w.y, pcbFrontZ + frontLen/2] }));
       back = union(back,
         cylinder({ radius:postR, height:backLen, segments:24, center:[w.x,w.y, backT + backLen/2] }),
         cylinder({ radius:pegR, height:m.pcb+0.6, segments:16, center:[w.x,w.y, (pcbBackZ+pcbFrontZ)/2] }));   // locating peg
@@ -305,7 +306,8 @@ function renderPreview() {
   geo.computeBoundingBox(); const c = geo.boundingBox.getCenter(new THREE.Vector3()), s = geo.boundingBox.getSize(new THREE.Vector3());
   const r = Math.max(s.x,s.y,s.z);
   camera.position.set(c.x + r, c.y - r*1.4, c.z + r*1.1); controls.target.copy(c); controls.update();
-  document.querySelectorAll('#viewToggle button').forEach(b => b.classList.toggle('on', b.dataset.mode === previewMode));
+  document.querySelectorAll('#viewToggle button').forEach(b => { const on = b.dataset.mode === previewMode;
+    b.style.background = on ? 'var(--accent)' : 'var(--panel)'; b.style.color = on ? '#04150f' : 'var(--muted)'; b.style.fontWeight = on ? '600' : '400'; });
 }
 function generate() {
   try {
@@ -341,6 +343,7 @@ document.getElementById('remove').addEventListener('click', () => {
 document.getElementById('resetBox').addEventListener('click', () => { autoBox = true; holes = new Set(); update(); });
 document.getElementById('generate').addEventListener('click', generate);
 document.getElementById('backTo2d').addEventListener('click', () => { show3D(false); render(); });
+document.querySelectorAll('#viewToggle button').forEach(b => b.addEventListener('click', () => { previewMode = b.dataset.mode; renderPreview(); }));
 document.getElementById('download').addEventListener('click', () => {
   if (!currentSTL) return;
   const a = document.createElement('a');
