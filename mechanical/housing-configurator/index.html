@@ -1,118 +1,95 @@
 <!DOCTYPE html>
 <!--
-  noknok Housing Configurator — PROOF OF CONCEPT (buzzer only)
-  ------------------------------------------------------------
-  Runs 100% in the browser. Libraries (three.js + JSCAD) are BUNDLED into app.js
-  (esbuild) — no CDN at runtime, works offline, GitHub-Pages-ready.
-  App code + geometry live in main.js;  build with:  npm install && npm run build
-
-  Buzzer layout: the 8.5x8.5x3.0 mm buzzer is the ONLY top-side component (sound port
-  up -> lid grille). MCU + side-entry JST-SH sockets (2.9 mm) are BOTTOM-side on W+E, so
-  the PCB seats buzzer-up and cables exit through the bottom standoff gap. PCB held by
-  edge ledges + snap-lips; lid caps over the base with an N/S snap-fit; floor push-out hole.
-
+  noknok Housing Configurator — V5 (monolithic box, 2D placement)
+  ---------------------------------------------------------------
+  Place modules freely on a 2D grid (bird's-eye), then generate a single uniform box:
+  front + back covers, per-module M2.5 holding columns, payload openings in the front.
+  100% client-side (three.js + JSCAD bundled into app.js by esbuild). Build: npm run build.
   License: MIT (code).  SPDX-License-Identifier: MIT
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>noknok Housing Configurator — buzzer POC</title>
+<title>noknok Housing Configurator — 2D placement</title>
 <style>
-  :root { --bg:#0f1115; --panel:#171a21; --ink:#e7e9ee; --muted:#9aa3b2; --accent:#59d3a4; }
+  :root { --bg:#0f1115; --panel:#171a21; --ink:#e7e9ee; --muted:#9aa3b2; --accent:#59d3a4;
+          --grid:#262b35; --mod:#e8912f; --modEdge:#b96f16; --sel:#59d3a4; }
   * { box-sizing:border-box; }
   body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
          background:var(--bg); color:var(--ink); display:flex; height:100vh; overflow:hidden; }
-  #sidebar { width:310px; background:var(--panel); padding:20px; display:flex; flex-direction:column; gap:16px; overflow-y:auto; }
+  #sidebar { width:290px; background:var(--panel); padding:18px; display:flex; flex-direction:column; gap:14px; overflow-y:auto; }
   #view { flex:1; position:relative; }
-  h1 { font-size:16px; margin:0 0 4px; }
-  h1 small { display:block; color:var(--muted); font-weight:400; font-size:12px; margin-top:4px; }
-  label { font-size:13px; color:var(--muted); display:block; margin-bottom:6px; }
-  .row { display:flex; align-items:center; gap:10px; }
-  input[type=range] { width:100%; }
-  input[type=number] { width:70px; background:#0d0f13; color:var(--ink); border:1px solid #2a2f3a; border-radius:6px; padding:6px; }
-  select { width:100%; background:#0d0f13; color:var(--ink); border:1px solid #2a2f3a; border-radius:6px; padding:8px; font-size:13px; }
-  .val { font-variant-numeric:tabular-nums; color:var(--ink); font-size:13px; min-width:48px; text-align:right; }
-  button { background:var(--accent); color:#04150f; border:0; border-radius:8px; padding:12px; font-weight:700; cursor:pointer; font-size:14px; }
-  button:disabled { opacity:.5; cursor:default; }
-  button.add { padding:8px 12px; font-size:13px; flex:0 0 auto; }
-  button.clear { background:none; color:var(--muted); border:1px solid #2a2f3a; padding:2px 8px; font-size:11px; font-weight:400; margin-left:8px; }
-  .layoutlist { font-size:13px; color:var(--ink); line-height:2.2; min-height:24px; }
-  .chip { background:#0d0f13; border:1px solid #2a2f3a; border-radius:14px; padding:3px 4px 3px 10px; white-space:nowrap; }
-  .chip button.x { background:none; color:var(--muted); border:0; padding:0 4px; font-size:13px; cursor:pointer; }
-  .muted { color:var(--muted); }
+  #grid { width:100%; height:100%; display:block; touch-action:none; }
+  h1 { font-size:16px; margin:0; } h1 small { display:block; color:var(--muted); font-weight:400; font-size:12px; margin-top:4px; }
+  label { font-size:12px; color:var(--muted); display:block; margin-bottom:6px; }
+  .palette { display:flex; flex-direction:column; gap:6px; }
+  .palette button { text-align:left; background:#0d0f13; color:var(--ink); border:1px solid #2a2f3a;
+    border-radius:8px; padding:9px 12px; cursor:pointer; font-size:13px; display:flex; justify-content:space-between; }
+  .palette button:hover { border-color:var(--accent); }
+  .palette button span { color:var(--muted); font-size:11px; }
+  .row { display:flex; gap:8px; }
+  .row button { flex:1; background:#0d0f13; color:var(--ink); border:1px solid #2a2f3a; border-radius:8px; padding:8px; cursor:pointer; font-size:12px; }
+  .row button:disabled { opacity:.4; cursor:default; }
+  .row button:hover:not(:disabled) { border-color:var(--accent); }
+  button.primary { background:var(--accent); color:#04150f; border:0; border-radius:8px; padding:12px; font-weight:700; cursor:pointer; font-size:14px; }
+  button.primary:disabled { opacity:.5; cursor:default; }
   .note { font-size:11px; color:var(--muted); line-height:1.5; }
-  .todo { color:#e0b15a; }
+  .seg { display:flex; border:1px solid #2a2f3a; border-radius:8px; overflow:hidden; }
+  .seg button { flex:1; background:#0d0f13; color:var(--muted); border:0; padding:7px; cursor:pointer; font-size:12px; }
+  .seg button.on { background:var(--accent); color:#04150f; font-weight:600; }
+  hr { border:0; border-top:1px solid #262b35; margin:2px 0; }
   #status { position:absolute; top:12px; left:12px; background:#000a; padding:6px 10px; border-radius:6px; font-size:12px; }
-  hr { border:0; border-top:1px solid #262b35; margin:4px 0; }
 </style>
 </head>
 <body>
   <div id="sidebar">
+    <h1>noknok housing configurator
+      <small>2D placement · monolithic box</small>
+    </h1>
+
     <div>
-      <h1>noknok housing configurator
-        <small>proof of concept · snap-together module tiles</small>
-      </h1>
+      <label>Add a module</label>
+      <div class="palette" id="palette"></div>
     </div>
 
     <div>
-      <label>Add a module tile</label>
+      <label>Selected module</label>
       <div class="row">
-        <select id="module">
-          <option value="buzzer">buzzer — sound grille</option>
-          <option value="knob">knob — ⌀7.4 shaft hole</option>
-          <option value="ledbutton">LED button — switch pokes through</option>
-          <option value="usbled">USB LEDs — 40×40, open LED face</option>
-        </select>
-        <button id="addTile" class="add">+ Add</button>
+        <button id="rotate" disabled>⟳ rotate 90°</button>
+        <button id="remove" disabled>🗑 remove</button>
       </div>
-      <span class="note">Each module is its own <b>tile</b> at its own height; add them in order to build a row (they'll slide together with dovetails). Display &amp; Pico carrier are parked.</span>
-    </div>
-
-    <div>
-      <label>Layout <button id="clearLayout" class="clear">clear</button></label>
-      <div id="layoutList" class="layoutlist"></div>
-    </div>
-
-    <div>
-      <label>Fit adjust (mm)</label>
-      <div class="row">
-        <input id="fit" type="number" min="-0.3" max="0.4" step="0.05" value="0" />
-        <span class="note">match your printer + material: <b>0</b> = normal, <b>−</b> tighter, <b>+</b> looser (e.g. +0.1 for a less-accurate printer or stiff PLA)</span>
-      </div>
-    </div>
-
-    <div class="row">
-      <input id="assembled" type="checkbox" />
-      <label style="margin:0;">Assembled preview <span class="note">(covers mated — the STL still prints flat)</span></label>
+      <div class="note" id="selNote">click a placed module to select it, then drag to move.</div>
     </div>
 
     <hr/>
-    <button id="download" disabled>Download STL</button>
+    <div>
+      <label>Outer shape</label>
+      <div class="seg" id="shapeSeg">
+        <button data-shape="outline" class="on">follow modules</button>
+        <button data-shape="rect">rectangle</button>
+      </div>
+    </div>
+
+    <hr/>
+    <button class="primary" id="generate" disabled>Generate 3D box</button>
     <div class="note">
-      <b>Phase B — tiles.</b> Each module is its own <b>two-cover sandwich</b> at its own
-      height. Build a row above; every tile prints as a flat top + bottom pair, laid out
-      across the bed. Cables chain W→E through the seam notches.
-      <br/><br/>
-      <span class="todo">next:</span> the dovetail slide-joint between tiles, then free 2D
-      drag-drop + print-bed auto-tiling.
+      Place modules on the grid (each cell = <b>10&nbsp;mm</b>). The box takes the height of the
+      tallest module; per-module columns clamp each PCB via its M2.5 holes so every payload
+      reaches the front cover. <span style="color:#e0b15a">Step 1 of 3:</span> placement.
     </div>
   </div>
 
   <div id="view">
     <div id="status">loading…</div>
+    <svg id="grid"></svg>
   </div>
 
   <script type="module" src="app.js"
-    onerror="document.getElementById('status').textContent='⚠ could not load app.js — open this page via the local server (http://localhost:8100), not by double-clicking the file.'"></script>
+    onerror="document.getElementById('status').textContent='⚠ could not load app.js — open via http://localhost or http://Brain/, not the file directly.'"></script>
   <script>
-    // If the app never runs (dead server, file:// module block, or a load error), don't hang
-    // on "loading…" forever — say what's wrong after a few seconds.
-    setTimeout(function(){
-      var s = document.getElementById('status');
-      if (s && /^(loading…)?$/.test(s.textContent.trim()))
-        s.textContent = '⚠ app didn’t start — make sure you opened http://localhost:8100 (not the file), then hard-refresh (Ctrl+F5).';
-    }, 5000);
+    setTimeout(function(){ var s=document.getElementById('status');
+      if (s && /^(loading…)?$/.test(s.textContent.trim())) s.textContent='⚠ app didn’t start — open http://Brain/ (not the file) and hard-refresh.'; }, 5000);
   </script>
 </body>
 </html>
