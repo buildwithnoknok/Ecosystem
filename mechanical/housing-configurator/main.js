@@ -213,8 +213,10 @@ function buildBox(assembled) {
   const H = frontT + backT + interior;
 
   const cells = [...region].map(c => c.split(',').map(Number));
-  const foot2d = union(...cells.map(([gx,gy]) => rectangle({ size:[GRID,GRID], center:[(gx+0.5)*GRID,(gy+0.5)*GRID] })));
-  const inner2d = offset({ delta:-wallT }, foot2d);
+  // interior = the module cells; walls are added OUTSIDE (so a corner column can't overlap a
+  // wall / collide with the other cover's wall when a module sits against the edge).
+  const inner2d = union(...cells.map(([gx,gy]) => rectangle({ size:[GRID,GRID], center:[(gx+0.5)*GRID,(gy+0.5)*GRID] })));
+  const foot2d = offset({ delta: wallT, corners:'edge' }, inner2d);
 
   // FRONT cover = perimeter walls (backT..H) + front plate (H-frontT..H)
   let front = subtract(
@@ -253,12 +255,12 @@ function buildBox(assembled) {
     for (const key of latches) {
       if (H <= zDet + 2.5) break;
       const [gx,gy,side] = key.split(','), mid = wallMid(+gx,+gy,side), [ix,iy] = IN[side], alongY = (side==='E'||side==='W');
-      const armT=1.1, armW=6, armH=Math.min(7.5, (H-backT)-1), off = wallT + 0.35 + armT/2, ax = mid.x + ix*off, ay = mid.y + iy*off;
+      const armT=1.1, armW=6, armH=Math.min(7.5, (H-backT)-1), off = 0.35 + armT/2, ax = mid.x + ix*off, ay = mid.y + iy*off;
       back = union(back, cuboid({ size: alongY?[armT,armW,armH]:[armW,armT,armH], center:[ax,ay,backT+armH/2] }));
       const det = alongY ? rotate([Math.PI/2,0,0], cylinder({radius:0.9,height:armW-1,segments:14}))
                          : rotate([0,Math.PI/2,0], cylinder({radius:0.9,height:armW-1,segments:14}));
-      back = union(back, translate([ax - ix*(armT/2+0.3), ay - iy*(armT/2+0.3), zDet], det));
-      front = subtract(front, cuboid({ size: alongY?[wallT+1,armW+0.8,2.8]:[armW+0.8,wallT+1,2.8], center:[mid.x,mid.y,zDet] }));
+      back = union(back, translate([ax - ix*(armT/2+0.5), ay - iy*(armT/2+0.5), zDet], det));   // detent toward the wall
+      front = subtract(front, cuboid({ size: alongY?[wallT+2,armW+0.8,2.8]:[armW+0.8,wallT+2,2.8], center:[mid.x - ix*wallT/2, mid.y - iy*wallT/2, zDet] }));
     }
   }
 
