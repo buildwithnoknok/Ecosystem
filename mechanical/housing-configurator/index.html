@@ -35,6 +35,12 @@
   .val { font-variant-numeric:tabular-nums; color:var(--ink); font-size:13px; min-width:48px; text-align:right; }
   button { background:var(--accent); color:#04150f; border:0; border-radius:8px; padding:12px; font-weight:700; cursor:pointer; font-size:14px; }
   button:disabled { opacity:.5; cursor:default; }
+  button.add { padding:8px 12px; font-size:13px; flex:0 0 auto; }
+  button.clear { background:none; color:var(--muted); border:1px solid #2a2f3a; padding:2px 8px; font-size:11px; font-weight:400; margin-left:8px; }
+  .layoutlist { font-size:13px; color:var(--ink); line-height:2.2; min-height:24px; }
+  .chip { background:#0d0f13; border:1px solid #2a2f3a; border-radius:14px; padding:3px 4px 3px 10px; white-space:nowrap; }
+  .chip button.x { background:none; color:var(--muted); border:0; padding:0 4px; font-size:13px; cursor:pointer; }
+  .muted { color:var(--muted); }
   .note { font-size:11px; color:var(--muted); line-height:1.5; }
   .todo { color:#e0b15a; }
   #status { position:absolute; top:12px; left:12px; background:#000a; padding:6px 10px; border-radius:6px; font-size:12px; }
@@ -45,43 +51,27 @@
   <div id="sidebar">
     <div>
       <h1>noknok housing configurator
-        <small>proof of concept · I2C modules (20×20)</small>
+        <small>proof of concept · snap-together module tiles</small>
       </h1>
     </div>
 
     <div>
-      <label>Module</label>
-      <select id="module">
-        <option value="buzzer">buzzer — sound grille</option>
-        <option value="knob">knob — ⌀7.4 shaft hole</option>
-        <option value="ledbutton">LED button — switch pokes through</option>
-        <option value="usbled">USB LEDs — 40×40, open LED face</option>
-      </select>
-      <span class="note">20×20 I2C modules share one template; USB LEDs is 40×40 with a USB-C west opening and a deep plenum. Display (40×30, W/S) &amp; Pico carrier are parked.</span>
+      <label>Add a module tile</label>
+      <div class="row">
+        <select id="module">
+          <option value="buzzer">buzzer — sound grille</option>
+          <option value="knob">knob — ⌀7.4 shaft hole</option>
+          <option value="ledbutton">LED button — switch pokes through</option>
+          <option value="usbled">USB LEDs — 40×40, open LED face</option>
+        </select>
+        <button id="addTile" class="add">+ Add</button>
+      </div>
+      <span class="note">Each module is its own <b>tile</b> at its own height; add them in order to build a row (they'll slide together with dovetails). Display &amp; Pico carrier are parked.</span>
     </div>
 
     <div>
-      <label>Number of modules (row)</label>
-      <div class="row">
-        <input id="count" type="range" min="1" max="8" value="3" />
-        <span class="val" id="countVal">3</span>
-      </div>
-    </div>
-
-    <div>
-      <label>Payload height above PCB (mm)</label>
-      <div class="row">
-        <input id="clearTop" type="number" min="0" max="25" step="0.1" value="3" />
-        <span class="note">top-side component height (set from the module; edit to taste)</span>
-      </div>
-    </div>
-
-    <div>
-      <label>Clearance below PCB / cable plenum (mm)</label>
-      <div class="row">
-        <input id="clearBot" type="number" min="1" max="14" step="0.1" value="5" />
-        <span class="note">JST-SH socket is 2.9 mm; the rest is the cable-routing plenum under the boards (generous for prototypes)</span>
-      </div>
+      <label>Layout <button id="clearLayout" class="clear">clear</button></label>
+      <div id="layoutList" class="layoutlist"></div>
     </div>
 
     <div>
@@ -100,14 +90,12 @@
     <hr/>
     <button id="download" disabled>Download STL</button>
     <div class="note">
-      <b>Two-cover sandwich</b>, a bay per buzzer. Cable the module <b>outside</b>, insert
-      it from below into the <b>top cover</b> (buzzer up, against the grille), then snap on
-      the <b>bottom cover</b> — its ribs press the PCB up and clamp it (no PCB snap-lips).
-      Cables lay into the W/E notches (open at the seam). Pop the bottom cover to remove
-      the module. Both covers print flat, side by side.
+      <b>Phase B — tiles.</b> Each module is its own <b>two-cover sandwich</b> at its own
+      height. Build a row above; every tile prints as a flat top + bottom pair, laid out
+      across the bed. Cables chain W→E through the seam notches.
       <br/><br/>
-      <span class="todo">v1 TODO:</span> tune the cover-to-cover snap + clamp height on a
-      sample print (first-guess dimensions).
+      <span class="todo">next:</span> the dovetail slide-joint between tiles, then free 2D
+      drag-drop + print-bed auto-tiling.
     </div>
   </div>
 

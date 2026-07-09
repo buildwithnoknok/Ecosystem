@@ -198,6 +198,22 @@ function buildHousing(profile, count, clearTop, clearBot, fit, assembled) {
   return { top, bot, outerW, outerD };
 }
 
+// Build a LAYOUT = a sequence of module tiles (Phase B). Each module is its OWN complete
+// housing tile at its own height (from its profile), spread across the bed for printing.
+// Returns { solids:[...], w, d } — solids are all tiles' covers, ready for toSTL().
+function buildLayout(seq, fit, assembled) {
+  const solids = [];
+  let xOff = 0, maxD = 0;
+  for (const key of seq) {
+    const prof = PROFILES[key]; if (!prof) continue;
+    const r = buildHousing(prof, 1, prof.clearance_top, prof.clearBot, fit, assembled);
+    solids.push(translate([xOff, 0, 0], r.top), translate([xOff, 0, 0], r.bot));
+    xOff += r.outerW + 8;                 // tile + gap along the bed X
+    maxD = Math.max(maxD, r.outerD * (assembled ? 1 : 2) + 14);
+  }
+  return { solids, w: Math.max(0, xOff - 8), d: maxD };
+}
+
 // serialize one or more JSCAD solids to a single binary-STL ArrayBuffer
 function toSTL(...solids) {
   const raw = stlSerializer.serialize({ binary:true }, ...solids);
@@ -233,56 +249,61 @@ grid.rotation.x = Math.PI/2; scene.add(grid);
 const stlLoader = new STLLoader();
 const material = new THREE.MeshStandardMaterial({ color:0x59d3a4, metalness:0.1, roughness:0.7 });
 let currentMesh = null, currentSTL = null;
+let LAYOUT = ['buzzer'];   // Phase B: a sequence of module tiles (each its own housing)
+
+function renderLayoutList() {
+  const el = document.getElementById('layoutList');
+  if (!LAYOUT.length) { el.innerHTML = '<span class="muted">empty — add a module</span>'; return; }
+  el.innerHTML = LAYOUT.map((k,i) =>
+    `<span class="chip">${PROFILES[k].name}<button data-i="${i}" class="x">×</button></span>`).join(' → ');
+  el.querySelectorAll('button.x').forEach(b => b.addEventListener('click', () => {
+    LAYOUT.splice(+b.dataset.i, 1); renderLayoutList(); regenerate();
+  }));
+}
 
 function regenerate() {
-  const count = +document.getElementById('count').value;
-  const clearTop = +document.getElementById('clearTop').value;
-  const clearBot = +document.getElementById('clearBot').value;
   const fit = +document.getElementById('fit').value;
   const assembled = document.getElementById('assembled').checked;
+  if (!LAYOUT.length) { setStatus('layout empty — add a module'); document.getElementById('download').disabled = true; return; }
   setStatus('generating geometry…');
   try {
-    // the STL download is ALWAYS the flat print layout
-    const pr = buildHousing(PROFILE, count, clearTop, clearBot, fit, false);
-    currentSTL = toSTL(pr.top, pr.bot);
-    // the preview is either print layout or the assembled (mated) view
-    const show = assembled ? buildHousing(PROFILE, count, clearTop, clearBot, fit, true) : pr;
-    const showBuf = assembled ? toSTL(show.top, show.bot) : currentSTL;
+    const pr = buildLayout(LAYOUT, fit, false);            // STL download = flat print layout
+    currentSTL = toSTL(...pr.solids);
+    const show = assembled ? buildLayout(LAYOUT, fit, true) : pr;
+    const showBuf = assembled ? toSTL(...show.solids) : currentSTL;
 
     if (currentMesh) { scene.remove(currentMesh); currentMesh.geometry.dispose(); }
     const geo = stlLoader.parse(showBuf);
     geo.computeVertexNormals();
     currentMesh = new THREE.Mesh(geo, material);
     scene.add(currentMesh);
-    controls.target.set(pr.outerW/2, assembled ? pr.outerD/2 : pr.outerD, assembled ? 5 : 4);
+    controls.target.set(pr.w/2, assembled ? 10 : pr.d/2, assembled ? 6 : 4);
     controls.update();
 
     document.getElementById('download').disabled = false;
-    setStatus(`${count} ${PROFILE.name} bay${count>1?'s':''} · fit ${fit>=0?'+':''}${fit}${assembled?' · ASSEMBLED preview (STL still prints flat)':''} · STL ready (${(currentSTL.byteLength/1024).toFixed(0)} KB)`);
+    const names = LAYOUT.length <= 3 ? LAYOUT.map(k=>PROFILES[k].name).join(' + ') : `${LAYOUT.length} tiles`;
+    setStatus(`${names} · fit ${fit>=0?'+':''}${fit}${assembled?' · ASSEMBLED preview (STL still prints flat)':''} · STL ready (${(currentSTL.byteLength/1024).toFixed(0)} KB)`);
   } catch (e) {
     console.error(e);
     setStatus('error: ' + e.message);
   }
 }
 
-document.getElementById('module').addEventListener('change', (e) => {
-  PROFILE = PROFILES[e.target.value] || PROFILES.buzzer;
-  document.getElementById('clearTop').value = PROFILE.clearance_top;  // sensible defaults per module
-  if (PROFILE.clearBot != null) document.getElementById('clearBot').value = PROFILE.clearBot;
-  regenerate();
+document.getElementById('addTile').addEventListener('click', () => {
+  LAYOUT.push(document.getElementById('module').value);
+  renderLayoutList(); regenerate();
 });
-document.getElementById('count').addEventListener('input', (e) => {
-  document.getElementById('countVal').textContent = e.target.value; regenerate();
+document.getElementById('clearLayout').addEventListener('click', () => {
+  LAYOUT = []; renderLayoutList(); regenerate();
 });
-document.getElementById('clearTop').addEventListener('change', regenerate);
-document.getElementById('clearBot').addEventListener('change', regenerate);
 document.getElementById('fit').addEventListener('change', regenerate);
 document.getElementById('assembled').addEventListener('change', regenerate);
 document.getElementById('download').addEventListener('click', () => {
   const blob = new Blob([currentSTL], { type:'model/stl' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `${PROFILE.module.replace(/-/g,'_')}_housing_${document.getElementById('count').value}x.stl`;
+  const nm = LAYOUT.length === 1 ? PROFILES[LAYOUT[0]].module.replace(/-/g,'_') : `layout_${LAYOUT.length}tiles`;
+  a.download = `noknok_${nm}.stl`;
   a.click();
 });
 
@@ -293,4 +314,5 @@ window.addEventListener('resize', () => {
 (function animate(){ requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); })();
 
 setStatus('libraries loaded');
+renderLayoutList();
 regenerate();
