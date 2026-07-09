@@ -28,7 +28,7 @@ const MODULES = {
   display:   { name:'display',    w:40, h:30, clearance_top:2.0,  pcb:1.6, clearance_bottom:3.0,
     holes:[[2.25,2.25],[2.25,27.75],[37.75,2.25],[37.75,27.75]], conn:[['W',3.1,15],['S',20,3.1]], top:{type:'window', x:19.8, y:15, w:32.35, h:16.18} },
 };
-const USBC_HOLE = 14;    // Ø of a USB-C power hole (placed by clicking a box wall)
+const USBC_W = 9, USBC_H = 4.5;   // USB-C power slot: width along the wall × height (click a wall)
 const GRID = 10;         // mm per cell
 
 const statusEl = document.getElementById('status');
@@ -39,7 +39,9 @@ let placed = [];          // { id, key, x, y, rot }  x,y = bottom-left in mm (gr
 let nextId = 1, selId = null;
 let region = new Set();   // "gx,gy" cells INSIDE the box
 let autoBox = true;       // region auto = bounding box of the modules, until the user edits a cell
-let holes = new Set();    // "gx,gy,side" boundary wall segments carrying a USB-C hole
+let holes = new Set();    // "gx,gy,side" walls carrying a USB-C power slot
+let latches = new Set();  // "gx,gy,side" walls carrying an assembly latch (user-placed)
+let wallMode = 'hole';    // clicking a wall adds: 'hole' or 'latch'
 
 // footprint accounting for rotation (90/270 swaps w/h)
 function footprint(p) { const m = MODULES[p.key]; return (p.rot % 180 === 0) ? { w:m.w, h:m.h } : { w:m.h, h:m.w }; }
@@ -119,24 +121,25 @@ function render() {
       el('rect', { x:w.x-2, y:VBH-w.y-1.3, width:4, height:2.6, rx:0.4,
         fill: kind==='usb' ? '#2b7fd0' : '#241a05', 'pointer-events':'none' }, grp); }
   }
-  // box walls (clickable) + USB-C hole markers
+  // box walls (clickable): USB-C power slots (blue) + assembly latches (orange)
   const wg = el('g', {}, svg);
   for (const [gx,gy,s] of boundaryWalls()) {
-    const [x1,y1,x2,y2] = wallXY(gx,gy,s), key = `${gx},${gy},${s}`, hole = holes.has(key);
+    const [x1,y1,x2,y2] = wallXY(gx,gy,s), key = `${gx},${gy},${s}`, hole = holes.has(key), latch = latches.has(key);
     el('line', { x1,y1,x2,y2, stroke:'transparent', 'stroke-width':3.5, 'data-wall':key, style:'cursor:pointer' }, wg);
-    el('line', { x1,y1,x2,y2, stroke: hole?'#2b7fd0':'var(--accent)', 'stroke-width': hole?1.8:0.9, 'pointer-events':'none' }, wg);
-    if (hole) { const mx=(x1+x2)/2, my=(y1+y2)/2;
-      el('circle', { cx:mx, cy:my, r:USBC_HOLE/2, fill:'#2b7fd0', 'fill-opacity':0.12, stroke:'#2b7fd0', 'stroke-width':0.7, 'pointer-events':'none' }, wg);
-      el('text', { x:mx, y:my, 'font-size':2.6, fill:'#2b7fd0', 'text-anchor':'middle', 'dominant-baseline':'central', 'pointer-events':'none' }, wg).textContent='USB-C'; }
+    el('line', { x1,y1,x2,y2, stroke: hole?'#2b7fd0': latch?'#e8912f':'var(--accent)', 'stroke-width': (hole||latch)?1.9:0.9, 'pointer-events':'none' }, wg);
+    const mx=(x1+x2)/2, my=(y1+y2)/2;
+    if (hole)  el('rect', { x:mx-USBC_W/2, y:my-2, width:USBC_W, height:4, rx:1.2, fill:'#2b7fd0', 'fill-opacity':0.3, stroke:'#2b7fd0', 'stroke-width':0.5, 'pointer-events':'none' }, wg);
+    if (latch) el('rect', { x:mx-2, y:my-2, width:4, height:4, rx:0.8, fill:'#e8912f', 'fill-opacity':0.35, stroke:'#e8912f', 'stroke-width':0.5, 'pointer-events':'none' }, wg);
   }
   // status + generate enable
-  const mods = placed.length, nh = holes.size;
+  const mods = placed.length, nh = holes.size, nl = latches.size;
   const uncovered = [...moduleCells()].some(c => !region.has(c));
   setStatus(!mods ? 'add a module from the left'
     : uncovered ? `${mods} module${mods>1?'s':''} · ⚠ a module is outside the box — extend it (click cells) or reset`
-    : !nh ? `${mods} module${mods>1?'s':''} · ⚠ click a box wall to add the required USB-C hole`
-    : `${mods} module${mods>1?'s':''} · ${nh} USB-C hole${nh>1?'s':''} · box = ${region.size} cells`);
-  document.getElementById('generate').disabled = !(mods && nh && !uncovered);
+    : !nh ? `${mods} module${mods>1?'s':''} · ⚠ click a wall to add a USB-C power slot`
+    : !nl ? `${mods} module${mods>1?'s':''} · ${nh} power · ⚠ switch to Latch and click walls to add latches`
+    : `${mods} module${mods>1?'s':''} · ${nh} power · ${nl} latch${nl>1?'es':''} · box = ${region.size} cells`);
+  document.getElementById('generate').disabled = !(mods && nh && nl && !uncovered);
   document.getElementById('rotate').disabled = selId===null;
   document.getElementById('remove').disabled = selId===null;
 }
@@ -160,7 +163,11 @@ function addModule(key) {
 let drag = null;
 svg.addEventListener('pointerdown', (e) => {
   const wl = e.target.closest('[data-wall]');
-  if (wl) { const k = wl.dataset.wall; holes.has(k) ? holes.delete(k) : holes.add(k); render(); return; }
+  if (wl) { const k = wl.dataset.wall;
+    const set = wallMode === 'latch' ? latches : holes, other = wallMode === 'latch' ? holes : latches;
+    other.delete(k);                              // a wall holds a hole OR a latch, not both
+    set.has(k) ? set.delete(k) : set.add(k);
+    render(); return; }
   const grp = e.target.closest('g[data-id]');
   if (grp) { const id = +grp.dataset.id; selId = id; const p = placed.find(q=>q.id===id);
     const mm = toMM(e); drag = { id, ox: mm.x-p.x, oy: mm.y-p.y }; svg.setPointerCapture(e.pointerId); render(); return; }
@@ -214,10 +221,10 @@ function buildBox(assembled) {
     translate([0,0,backT], extrudeLinear({ height: H-backT }, foot2d)),
     translate([0,0,backT], extrudeLinear({ height: (H-frontT)-backT }, inner2d)));
   for (const p of placed) front = subtract(front, topCut(p, H));            // payload openings
-  for (const key of holes) {                                                // USB-C wall holes
-    const [gx,gy,s] = key.split(','); const mid = wallMid(+gx,+gy,s), zc = (backT + (H-frontT))/2;
-    let c = cylinder({ radius:USBC_HOLE/2, height: wallT+6, segments:32 });
-    c = (s==='E'||s==='W') ? rotate([0,Math.PI/2,0], c) : rotate([Math.PI/2,0,0], c);
+  for (const key of holes) {                                                // USB-C power slots
+    const [gx,gy,s] = key.split(','); const mid = wallMid(+gx,+gy,s);
+    const slotH = Math.min(USBC_H, (H-frontT-backT) - 1.5), zc = (backT + (H-frontT))/2;   // fits the interior height
+    const c = (s==='E'||s==='W') ? cuboid({ size:[wallT+6, USBC_W, slotH] }) : cuboid({ size:[USBC_W, wallT+6, slotH] });
     front = subtract(front, translate([mid.x, mid.y, zc], c));
   }
   // BACK cover = back plate (0..backT)
@@ -238,14 +245,15 @@ function buildBox(assembled) {
     }
   }
 
-  // cover-to-cover JOIN — flexing latches on a few PERIMETER walls: a spring arm on the back
+  // cover-to-cover JOIN — flexing latches on the walls the USER picked: a spring arm on the back
   // cover clicks a detent into a window in the front-cover wall. Press the detent through the
   // window from OUTSIDE to release, so the box opens (nothing internal is trapped).
-  { const bw = boundaryWalls(), step = Math.max(1, Math.ceil(bw.length/6)), zDet = backT + 5.5;
-    const IN = { E:[-1,0], W:[1,0], N:[0,-1], S:[0,1] };
-    for (let i=0; i<bw.length && H > zDet + 2.5; i += step) {
-      const [gx,gy,side] = bw[i], mid = wallMid(+gx,+gy,side), [ix,iy] = IN[side], alongY = (side==='E'||side==='W');
-      const armT=1.1, armW=6, armH=7.5, off = wallT + 0.35 + armT/2, ax = mid.x + ix*off, ay = mid.y + iy*off;
+  { const IN = { E:[-1,0], W:[1,0], N:[0,-1], S:[0,1] };
+    const zDet = backT + Math.min(5.5, (H-frontT-backT)*0.5);
+    for (const key of latches) {
+      if (H <= zDet + 2.5) break;
+      const [gx,gy,side] = key.split(','), mid = wallMid(+gx,+gy,side), [ix,iy] = IN[side], alongY = (side==='E'||side==='W');
+      const armT=1.1, armW=6, armH=Math.min(7.5, (H-backT)-1), off = wallT + 0.35 + armT/2, ax = mid.x + ix*off, ay = mid.y + iy*off;
       back = union(back, cuboid({ size: alongY?[armT,armW,armH]:[armW,armT,armH], center:[ax,ay,backT+armH/2] }));
       const det = alongY ? rotate([Math.PI/2,0,0], cylinder({radius:0.9,height:armW-1,segments:14}))
                          : rotate([0,Math.PI/2,0], cylinder({radius:0.9,height:armW-1,segments:14}));
@@ -340,7 +348,11 @@ document.getElementById('rotate').addEventListener('click', () => {
 document.getElementById('remove').addEventListener('click', () => {
   placed = placed.filter(q=>q.id!==selId); selId = null; update();
 });
-document.getElementById('resetBox').addEventListener('click', () => { autoBox = true; holes = new Set(); update(); });
+document.getElementById('resetBox').addEventListener('click', () => { autoBox = true; holes = new Set(); latches = new Set(); update(); });
+document.querySelectorAll('#wallMode button').forEach(b => b.addEventListener('click', () => {
+  wallMode = b.dataset.mode;
+  document.querySelectorAll('#wallMode button').forEach(x => x.classList.toggle('on', x === b));
+}));
 document.getElementById('generate').addEventListener('click', generate);
 document.getElementById('backTo2d').addEventListener('click', () => { show3D(false); render(); });
 document.querySelectorAll('#viewToggle button').forEach(b => b.addEventListener('click', () => { previewMode = b.dataset.mode; renderPreview(); }));

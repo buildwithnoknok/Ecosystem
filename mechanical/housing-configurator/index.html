@@ -35,6 +35,9 @@
   button.primary { background:var(--accent); color:#04150f; border:0; border-radius:8px; padding:12px; font-weight:700; cursor:pointer; font-size:14px; }
   button.primary:disabled { opacity:.5; cursor:default; }
   .note { font-size:11px; color:var(--muted); line-height:1.5; }
+  .seg2 { display:flex; border:1px solid #2a2f3a; border-radius:8px; overflow:hidden; margin-top:6px; }
+  .seg2 button { flex:1; background:#0d0f13; color:var(--muted); border:0; padding:8px; cursor:pointer; font-size:12px; }
+  .seg2 button.on { background:var(--accent); color:#04150f; font-weight:600; }
   .seg { display:flex; border:1px solid #2a2f3a; border-radius:8px; overflow:hidden; }
   .seg button { flex:1; background:#0d0f13; color:var(--muted); border:0; padding:7px; cursor:pointer; font-size:12px; }
   .seg button.on { background:var(--accent); color:#04150f; font-weight:600; }
@@ -65,10 +68,20 @@
     <hr/>
     <div>
       <label>Box outline</label>
-      <div class="note">Starts as a rectangle around your modules. <b>Click empty cells</b> to
-        reshape it (hug, notch, or bridge apart modules into one box), and <b>click a wall</b>
-        to add the required <span style="color:#2b7fd0">USB-C hole</span>.</div>
+      <div class="note"><b>Click empty cells</b> to reshape the box (hug, notch, or bridge apart
+        modules into one box). Starts as a rectangle around your modules.</div>
       <div class="row" style="margin-top:6px;"><button id="resetBox">↺ reset to rectangle</button></div>
+    </div>
+
+    <div>
+      <label>Click a wall to add a…</label>
+      <div class="seg2" id="wallMode">
+        <button data-mode="hole" class="on">🔌 power slot</button>
+        <button data-mode="latch">🔒 latch</button>
+      </div>
+      <div class="note">Both are required. Place <span style="color:#2b7fd0">power slots</span> for
+        the cable and <span style="color:#e8912f">latches</span> around the box to hold the covers
+        shut — keep them on separate walls.</div>
     </div>
 
     <hr/>
