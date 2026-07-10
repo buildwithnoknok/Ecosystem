@@ -82,6 +82,19 @@ function labelCells(l) {
 }
 function allLabelCells() { const s=new Set(); for (const l of labels) for (const [gx,gy] of labelCells(l)) s.add(ck(gx,gy)); return s; }
 function requiredCells() { const s = moduleCells(); for (const c of allLabelCells()) s.add(c); return s; }   // must be inside the box
+// cells occupied by OTHER modules + OTHER modules' labels (own labels follow the module, so they're excluded)
+function occupiedBy(exceptId) {
+  const s = new Set();
+  for (const q of placed) if (q.id !== exceptId) { const fp = footprint(q);
+    for (let cx=q.x/GRID; cx<(q.x+fp.w)/GRID; cx++) for (let cy=q.y/GRID; cy<(q.y+fp.h)/GRID; cy++) s.add(ck(cx,cy)); }
+  for (const l of labels) if (l.modId !== exceptId) for (const [gx,gy] of labelCells(l)) s.add(ck(gx,gy));
+  return s;
+}
+// does a footprint at grid-cell (gx0,gy0) sized (wc×hc) hit any occupied/blocked cell?
+function fits(gx0, gy0, wc, hc, blocked) {
+  for (let cx=gx0; cx<gx0+wc; cx++) for (let cy=gy0; cy<gy0+hc; cy++) if (blocked.has(ck(cx,cy))) return false;
+  return true;
+}
 // world-mm rectangle of a label's strip (for 2D text + 3D engraving)
 function labelStripWorld(l) {
   const cells = labelCells(l); if (!cells.length) return null;
@@ -212,9 +225,15 @@ function toMM(evt) {
 const snap = (v) => Math.round(v / GRID) * GRID;
 
 function addModule(key) {
-  const m = MODULES[key];
-  const x = 20 + (placed.length * 10) % 120, y = VBH - 60 - (Math.floor(placed.length/12)*30);
-  placed.push({ id: nextId, key, x: snap(x), y: snap(y - m.h), rot: 0 });
+  const m = MODULES[key], wc = m.w/GRID, hc = m.h/GRID, NX = VBW/GRID, NY = VBH/GRID;
+  const blocked = occupiedBy(null);                 // every existing module + label
+  let gx0 = 2, gy0 = Math.floor((NY - hc) * 0.55);  // default landing spot (upper-middle)
+  if (!fits(gx0, gy0, wc, hc, blocked)) {           // occupied -> scan for the first free spot
+    let found = false;
+    for (let gy = NY-hc; gy >= 0 && !found; gy--) for (let gx = 0; gx <= NX-wc; gx++)
+      if (fits(gx, gy, wc, hc, blocked)) { gx0=gx; gy0=gy; found=true; break; }
+  }
+  placed.push({ id: nextId, key, x: gx0*GRID, y: gy0*GRID, rot: 0 });
   selId = nextId; nextId++; update();
 }
 
@@ -239,10 +258,8 @@ svg.addEventListener('pointermove', (e) => {
   if (!drag) return;
   const p = placed.find(q=>q.id===drag.id); const mm = toMM(e);
   const nx = snap(mm.x-drag.ox), ny = snap(mm.y-drag.oy), fp = footprint(p);
-  const other = new Set();                                   // label cells belonging to OTHER modules
-  for (const l of labels) if (l.modId!==p.id) for (const [gx,gy] of labelCells(l)) other.add(ck(gx,gy));
-  for (let cx=nx/GRID; cx<(nx+fp.w)/GRID; cx++) for (let cy=ny/GRID; cy<(ny+fp.h)/GRID; cy++)
-    if (other.has(ck(cx,cy))) return;                        // don't drop a module onto a label
+  // don't drop onto another module or another module's label (no overlaps)
+  if (!fits(nx/GRID, ny/GRID, fp.w/GRID, fp.h/GRID, occupiedBy(p.id))) return;
   p.x = nx; p.y = ny; update();
 });
 svg.addEventListener('pointerup', (e) => { drag = null; try { svg.releasePointerCapture(e.pointerId); } catch(_){} });
@@ -515,7 +532,12 @@ function buildPalette() {
 }
 document.getElementById('rotate').addEventListener('click', () => {
   const p = placed.find(q=>q.id===selId); if (!p) return;
-  p.rot = (p.rot + 90) % 360; p.x = snap(p.x); p.y = snap(p.y); update();
+  const old = p.rot; p.rot = (p.rot + 90) % 360; p.x = snap(p.x); p.y = snap(p.y);
+  const fp = footprint(p);
+  if (!fits(p.x/GRID, p.y/GRID, fp.w/GRID, fp.h/GRID, occupiedBy(p.id))) {   // rotation would overlap
+    p.rot = old; setStatus('⚠ no room to rotate here — move the module first'); return;
+  }
+  update();
 });
 document.getElementById('remove').addEventListener('click', () => {
   labels = labels.filter(l=>l.modId!==selId);   // drop that module's labels too
