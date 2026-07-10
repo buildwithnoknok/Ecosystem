@@ -8,7 +8,7 @@ import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import jscad from '@jscad/modeling';
 import stlSerializer from '@jscad/stl-serializer';
 const { primitives, booleans, transforms, extrusions, expansions, hulls } = jscad;
-const { cuboid, cylinder, rectangle } = primitives;
+const { cuboid, cylinder, rectangle, circle } = primitives;
 const { union, subtract } = booleans;
 const { hull } = hulls;
 const { translate, rotate, mirror } = transforms;
@@ -118,19 +118,24 @@ function render() {
       'text-anchor':'middle', 'dominant-baseline':'central', 'pointer-events':'none' }, grp).textContent = m.name;
     for (const [hx,hy] of m.holes) { const w = loc(p,hx,hy);
       el('circle', { cx:w.x, cy:VBH-w.y, r:1.25, fill:'none', stroke:'#5c3d08', 'stroke-width':0.45, 'pointer-events':'none' }, grp); }
-    // connector: an ARROW at the socket. Its tail marks the socket position; it points OUTWARD along
-    // the connector's edge — the direction the plug is inserted from — so you can plan cable routing.
+    // connector: an ARROW at the socket. Its tail marks the socket; it points the way the plug is
+    // inserted from. The plug slides in ALONG the edge the socket sits on, so the insertion axis is
+    // perpendicular to the side letter (a socket on the W/E edge inserts from top/bottom). It points
+    // toward the nearer edge and is length-clamped to stay inside the module square.
     for (const [side, cx, cy, kind] of m.conn || []) {
       const w = loc(p,cx,cy), sx = w.x, sy = VBH - w.y;
-      const L = { W:[-1,0], E:[1,0], S:[0,-1], N:[0,1] }[side] || [0,-1];   // local outward direction
+      let ldx, ldy, dist;                                                  // module-local dir + room to the edge
+      if (side === 'W' || side === 'E') { const up = cy > m.h/2; ldx = 0; ldy = up ? 1 : -1; dist = up ? m.h-cy : cy; }
+      else                              { const rt = cx > m.w/2; ldx = rt ? 1 : -1; ldy = 0; dist = rt ? m.w-cx : cx; }
       let dx, dy; switch (p.rot) {                                          // rotate with the module
-        case 90:  dx=-L[1]; dy= L[0]; break; case 180: dx=-L[0]; dy=-L[1]; break;
-        case 270: dx= L[1]; dy=-L[0]; break; default: dx= L[0]; dy= L[1]; }
+        case 90:  dx=-ldy; dy= ldx; break; case 180: dx=-ldx; dy=-ldy; break;
+        case 270: dx= ldy; dy=-ldx; break; default: dx= ldx; dy= ldy; }
       const ux = dx, uy = -dy, px = -uy, py = ux;                           // SVG dir (flip Y) + perpendicular
       const col = kind==='usb' ? '#2b7fd0' : '#3d2a08';
-      const len = 6.5, hx = sx + ux*len, hy = sy + uy*len;                  // arrow-head tip (outward)
-      el('line', { x1:sx, y1:sy, x2:hx-ux*2.4, y2:hy-uy*2.4, stroke:col, 'stroke-width':1.2, 'stroke-linecap':'round', 'pointer-events':'none' }, grp);
-      el('polygon', { points:`${hx},${hy} ${hx-ux*2.8+px*1.7},${hy-uy*2.8+py*1.7} ${hx-ux*2.8-px*1.7},${hy-uy*2.8-py*1.7}`,
+      const len = Math.max(2.4, Math.min(6, dist - 1.3));                   // keep the head inside the square
+      const hx = sx + ux*len, hy = sy + uy*len;
+      el('line', { x1:sx, y1:sy, x2:hx-ux*2.2, y2:hy-uy*2.2, stroke:col, 'stroke-width':1.2, 'stroke-linecap':'round', 'pointer-events':'none' }, grp);
+      el('polygon', { points:`${hx},${hy} ${hx-ux*2.6+px*1.6},${hy-uy*2.6+py*1.6} ${hx-ux*2.6-px*1.6},${hy-uy*2.6-py*1.6}`,
         fill:col, 'pointer-events':'none' }, grp);
     }
   }
@@ -218,6 +223,28 @@ function wallMid(gx,gy,s) {                              // world midpoint of a 
   return s==='N' ? {x:(gx+0.5)*GRID, y:(gy+1)*GRID} : s==='S' ? {x:(gx+0.5)*GRID, y:gy*GRID}
        : s==='E' ? {x:(gx+1)*GRID, y:(gy+0.5)*GRID} : {x:gx*GRID, y:(gy+0.5)*GRID};
 }
+// Does an M2.5 hole (module-local) fall under the payload opening (+ a post-radius margin)? If so a
+// front column there would jut into the opening and block the payload — hold that corner differently.
+function holeInOpening(m, hx, hy, margin) {
+  const f = m.top; if (!f) return false; const g = (margin ?? BOX.postR);
+  if (f.type === 'grille' || f.type === 'round_hole') { const r = f.dia/2 + g; return (hx-f.x)**2 + (hy-f.y)**2 < r*r; }
+  return Math.abs(hx-f.x) < f.w/2 + g && Math.abs(hy-f.y) < f.h/2 + g;
+}
+// A recessed board whose mount holes sit under the opening can't use front posts (they'd block the
+// payload). Instead retain it with a COLLAR: a thin well-wall around the opening, from the front plate
+// down to the PCB front, whose bottom rim presses the PCB border (clamping it against the back posts).
+function recessCollar(p, m, H, pcbFrontZ) {
+  const f = m.top; if (!f) return null;
+  const collarT = 1.2, z0 = pcbFrontZ, h = (H - BOX.frontT) - z0; if (h <= 0.3) return null;
+  let outer, inner;
+  if (f.type === 'grille' || f.type === 'round_hole') {
+    outer = circle({ radius: f.dia/2 + collarT, segments:48 }); inner = circle({ radius: f.dia/2, segments:48 });
+  } else { outer = rectangle({ size:[f.w+2*collarT, f.h+2*collarT] }); inner = rectangle({ size:[f.w, f.h] }); }
+  let solid = translate([0,0,z0], extrudeLinear({ height:h }, translate([f.x, f.y], subtract(outer, inner))));
+  const rad = p.rot*Math.PI/180;                        // place into world = same map as loc()
+  const T = p.rot===90 ? [m.h,0] : p.rot===180 ? [m.w,m.h] : p.rot===270 ? [0,m.w] : [0,0];
+  return translate([p.x+T[0], p.y+T[1], 0], rotate([0,0,rad], solid));
+}
 
 // Build the box from the current layout. Returns { front, back, H }.
 function buildBox(assembled) {
@@ -266,18 +293,26 @@ function buildBox(assembled) {
       // fills the M2.5 hole and locates the board without protruding into the opposite post. A short
       // peg pulls straight back out on disassembly instead of snapping off.
       const pegZ = pcbFrontZ - m.pcb/2;   // PCB mid-plane
-      if (frontLen > 0.3) {
+      const blocked = holeInOpening(m, hx, hy);   // a front post here would jut into the payload opening
+      if (frontLen > 0.3 && !blocked) {
         // front post presses the PCB front, back post presses the back, the peg locates it.
         front = union(front,
           cylinder({ radius:postR, height:frontLen, segments:24, center:[w.x,w.y, pcbFrontZ + frontLen/2] }),
           cylinder({ radius:pegR, height:pegLen, segments:16, center:[w.x,w.y, pegZ] }));
         back = union(back, cylinder({ radius:postR, height:backLen, segments:24, center:[w.x,w.y, backT + backLen/2] }));
       } else {
-        // flush/poke-through payload: no front material for a post -> peg rides on the back post.
+        // flush payload, OR the hole sits under the opening -> no front post; hold from the back only
+        // (peg rides on the back post). Recessed boards are also clamped by the collar added below.
         back = union(back,
           cylinder({ radius:postR, height:backLen, segments:24, center:[w.x,w.y, backT + backLen/2] }),
           cylinder({ radius:pegR, height:pegLen, segments:16, center:[w.x,w.y, pegZ] }));
       }
+    }
+    // recessed board with mount holes under the opening: retain it with a collar (well-wall) around
+    // the payload opening instead of posts that would block it.
+    if (frontLen > 1.0 && m.holes.some(([hx,hy]) => holeInOpening(m, hx, hy))) {
+      const collar = recessCollar(p, m, H, pcbFrontZ);
+      if (collar) front = union(front, collar);
     }
     // extra support columns under the JST-SH sockets (the corners with no M2.5 hole). They rise from
     // the back cover to just under the socket body (2.95 mm above the PCB back), so the plastic socket
