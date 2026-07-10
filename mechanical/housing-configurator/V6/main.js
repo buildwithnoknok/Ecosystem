@@ -13,7 +13,9 @@ const { union, subtract } = booleans;
 const { hull } = hulls;
 const { translate, rotate, mirror } = transforms;
 const { extrudeLinear } = extrusions;
-const { offset } = expansions;
+const { offset, expand } = expansions;
+const { path2 } = jscad.geometries;
+const { vectorText } = jscad.text;   // built-in single-stroke font for engraved labels
 
 // ---- Module library (mm). footprint w×h, payload height, plenum, M2.5 holes, JST/USB sockets,
 // top opening. Mirrors each module repo's mechanical/housing.json. Origin = module bottom-left. ----
@@ -44,6 +46,8 @@ let autoBox = true;       // region auto = bounding box of the modules, until th
 let holes = new Set();    // "gx,gy,side" walls carrying a USB-C power slot
 let latches = new Set();  // "gx,gy,side" walls carrying an assembly latch (user-placed)
 let wallMode = 'hole';    // clicking a wall adds: 'hole' or 'latch'
+let labels = [];          // { id, modId, side, text, size } — engraved text on the top cover
+let nextLabelId = 1, labelSide = 'N', labelSize = 5;
 
 // footprint accounting for rotation (90/270 swaps w/h)
 function footprint(p) { const m = MODULES[p.key]; return (p.rot % 180 === 0) ? { w:m.w, h:m.h } : { w:m.h, h:m.w }; }
@@ -64,8 +68,29 @@ function moduleCells() {
       for (let cy = p.y/GRID; cy < (p.y+fp.h)/GRID; cy++) s.add(ck(cx,cy)); }
   return s;
 }
-function recomputeBox() {          // auto box = bounding rectangle of the module cells
-  const mc = [...moduleCells()].map(c => c.split(',').map(Number));
+// cells occupied by a label's reserved strip (the tiles adjacent to a module edge)
+function cellBox(p) { const fp = footprint(p);
+  return { x0:p.x/GRID, x1:(p.x+fp.w)/GRID-1, y0:p.y/GRID, y1:(p.y+fp.h)/GRID-1 }; }
+function labelCells(l) {
+  const p = placed.find(q=>q.id===l.modId); if (!p) return [];
+  const b = cellBox(p), out = [];
+  if (l.side==='N')      for (let gx=b.x0; gx<=b.x1; gx++) out.push([gx, b.y1+1]);
+  else if (l.side==='S') for (let gx=b.x0; gx<=b.x1; gx++) out.push([gx, b.y0-1]);
+  else if (l.side==='E') for (let gy=b.y0; gy<=b.y1; gy++) out.push([b.x1+1, gy]);
+  else                   for (let gy=b.y0; gy<=b.y1; gy++) out.push([b.x0-1, gy]);
+  return out;
+}
+function allLabelCells() { const s=new Set(); for (const l of labels) for (const [gx,gy] of labelCells(l)) s.add(ck(gx,gy)); return s; }
+function requiredCells() { const s = moduleCells(); for (const c of allLabelCells()) s.add(c); return s; }   // must be inside the box
+// world-mm rectangle of a label's strip (for 2D text + 3D engraving)
+function labelStripWorld(l) {
+  const cells = labelCells(l); if (!cells.length) return null;
+  const gxs=cells.map(c=>c[0]), gys=cells.map(c=>c[1]);
+  return { x0:Math.min(...gxs)*GRID, x1:(Math.max(...gxs)+1)*GRID,
+           y0:Math.min(...gys)*GRID, y1:(Math.max(...gys)+1)*GRID, horizontal:(l.side==='N'||l.side==='S') };
+}
+function recomputeBox() {          // auto box = bounding rectangle of the module + label cells
+  const mc = [...requiredCells()].map(c => c.split(',').map(Number));
   region = new Set(); if (!mc.length) return;
   const xs = mc.map(c=>c[0]), ys = mc.map(c=>c[1]);
   const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
@@ -140,6 +165,19 @@ function render() {
         fill:col, 'pointer-events':'none' }, grp);
     }
   }
+  // labels: reserved strip + the text that will be engraved on the top cover
+  for (const l of labels) {
+    const s = labelStripWorld(l); if (!s) continue;
+    const lg = el('g', { 'pointer-events':'none' }, svg);
+    el('rect', { x:s.x0, y:VBH-s.y1, width:s.x1-s.x0, height:s.y1-s.y0, rx:1, fill:'#59d3a4',
+      'fill-opacity':0.10, stroke:'#59d3a4', 'stroke-opacity':0.55, 'stroke-width':0.4, 'stroke-dasharray':'2 1.5' }, lg);
+    const cx=(s.x0+s.x1)/2, cy=VBH-(s.y0+s.y1)/2;
+    const fs = Math.min(l.size, (s.horizontal?s.y1-s.y0:s.x1-s.x0) - 2.5);
+    const t = el('text', { x:cx, y:cy, 'font-size':fs, fill:'#d8f5e9', 'text-anchor':'middle',
+      'dominant-baseline':'central', 'font-family':'Inter, system-ui, sans-serif' }, lg);
+    if (!s.horizontal) t.setAttribute('transform', `rotate(-90 ${cx} ${cy})`);
+    t.textContent = l.text;
+  }
   // box walls (clickable): USB-C power slots (blue) + assembly latches (orange)
   const wg = el('g', {}, svg);
   for (const [gx,gy,s] of boundaryWalls()) {
@@ -150,9 +188,11 @@ function render() {
     if (hole)  el('rect', { x:mx-USBC_W/2, y:my-2, width:USBC_W, height:4, rx:1.2, fill:'#2b7fd0', 'fill-opacity':0.3, stroke:'#2b7fd0', 'stroke-width':0.5, 'pointer-events':'none' }, wg);
     if (latch) el('rect', { x:mx-2, y:my-2, width:4, height:4, rx:0.8, fill:'#e8912f', 'fill-opacity':0.35, stroke:'#e8912f', 'stroke-width':0.5, 'pointer-events':'none' }, wg);
   }
+  renderLabelList();
+  document.getElementById('addLabel').disabled = !(selId!==null && document.getElementById('labelText').value.trim());
   // status + generate enable
   const mods = placed.length, nh = holes.size, nl = latches.size;
-  const uncovered = [...moduleCells()].some(c => !region.has(c));
+  const uncovered = [...requiredCells()].some(c => !region.has(c));
   setStatus(!mods ? 'add a module from the left'
     : uncovered ? `${mods} module${mods>1?'s':''} · ⚠ a module is outside the box — extend it (click cells) or reset`
     : !nh ? `${mods} module${mods>1?'s':''} · ⚠ click a wall to add a USB-C power slot`
@@ -192,13 +232,18 @@ svg.addEventListener('pointerdown', (e) => {
     const mm = toMM(e); drag = { id, ox: mm.x-p.x, oy: mm.y-p.y }; svg.setPointerCapture(e.pointerId); render(); return; }
   const mm = toMM(e); const gx = Math.floor(mm.x/GRID), gy = Math.floor(mm.y/GRID); selId = null;
   if (gx<0 || gy<0 || gx>=VBW/GRID || gy>=VBH/GRID) { render(); return; }
-  if (moduleCells().has(ck(gx,gy))) { render(); return; }   // never carve a module's own cell
+  if (requiredCells().has(ck(gx,gy))) { render(); return; }   // never carve a module or label cell
   autoBox = false; const k = ck(gx,gy); region.has(k) ? region.delete(k) : region.add(k); render();
 });
 svg.addEventListener('pointermove', (e) => {
   if (!drag) return;
   const p = placed.find(q=>q.id===drag.id); const mm = toMM(e);
-  p.x = snap(mm.x-drag.ox); p.y = snap(mm.y-drag.oy); update();
+  const nx = snap(mm.x-drag.ox), ny = snap(mm.y-drag.oy), fp = footprint(p);
+  const other = new Set();                                   // label cells belonging to OTHER modules
+  for (const l of labels) if (l.modId!==p.id) for (const [gx,gy] of labelCells(l)) other.add(ck(gx,gy));
+  for (let cx=nx/GRID; cx<(nx+fp.w)/GRID; cx++) for (let cy=ny/GRID; cy<(ny+fp.h)/GRID; cy++)
+    if (other.has(ck(cx,cy))) return;                        // don't drop a module onto a label
+  p.x = nx; p.y = ny; update();
 });
 svg.addEventListener('pointerup', (e) => { drag = null; try { svg.releasePointerCapture(e.pointerId); } catch(_){} });
 
@@ -245,6 +290,33 @@ function recessCollar(p, m, H, pcbFrontZ) {
   const rad = p.rot*Math.PI/180;                        // place into world = same map as loc()
   const T = p.rot===90 ? [m.h,0] : p.rot===180 ? [m.w,m.h] : p.rot===270 ? [0,m.w] : [0,0];
   return translate([p.x+T[0], p.y+T[1], 0], rotate([0,0,rad], solid));
+}
+
+// A shallow engraved-text solid for one label, positioned over its reserved strip on the top cover.
+// Uses the built-in single-stroke vector font; each stroke is expanded to a groove of width strokeW.
+function labelEngraving(l, H) {
+  if (!l.text || !l.text.trim()) return null;
+  const s = labelStripWorld(l); if (!s) return null;
+  const wcx=(s.x0+s.x1)/2, wcy=(s.y0+s.y1)/2;
+  const availLen = (s.horizontal ? s.x1-s.x0 : s.y1-s.y0) - 3;      // along the edge
+  const availDep = (s.horizontal ? s.y1-s.y0 : s.x1-s.x0) - 2.5;    // across the strip
+  const fh = Math.max(2, Math.min(l.size, availDep));
+  let segs; try { segs = vectorText({ height:fh, xOffset:0, yOffset:0 }, l.text); } catch(_) { return null; }
+  if (!segs || !segs.length) return null;
+  let minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;
+  for (const seg of segs) for (const pt of seg) { minx=Math.min(minx,pt[0]);maxx=Math.max(maxx,pt[0]);miny=Math.min(miny,pt[1]);maxy=Math.max(maxy,pt[1]); }
+  const tw=maxx-minx, cx=(minx+maxx)/2, cy=(miny+maxy)/2, sc = (tw>availLen && tw>0) ? availLen/tw : 1;
+  const depth = 0.4, strokeW = 0.85, strokes = [];
+  for (const seg of segs) {
+    const pts = seg.map(pt => { let lx=(pt[0]-cx)*sc, ly=(pt[1]-cy)*sc;
+      if (!s.horizontal) { const t=lx; lx=-ly; ly=t; }              // rotate 90° for E/W edges
+      return [wcx+lx, wcy+ly]; });
+    const p = pts.length>1 ? path2.fromPoints({closed:false}, pts)
+                           : path2.fromPoints({closed:false}, [pts[0], [pts[0][0]+0.05, pts[0][1]]]);
+    strokes.push(expand({ delta:strokeW/2, corners:'round', segments:6 }, p));
+  }
+  const text2d = strokes.length>1 ? union(...strokes) : strokes[0];
+  return translate([0,0, H-depth], extrudeLinear({ height: depth+0.5 }, text2d));
 }
 
 // Build the box from the current layout. Returns { front, back, H }.
@@ -359,6 +431,9 @@ function buildBox(assembled) {
     }
   }
 
+  // engrave the module labels into the top cover (subtract shallow grooves)
+  for (const l of labels) { const eng = labelEngraving(l, H); if (eng) front = subtract(front, eng); }
+
   if (assembled) return { front, back, H };
   // PRINT layout: front plate down; back laid out as a MIRROR IMAGE across the fold line to its
   // right, so folding it over onto the front realigns every column (fixes the flip mismatch).
@@ -443,8 +518,51 @@ document.getElementById('rotate').addEventListener('click', () => {
   p.rot = (p.rot + 90) % 360; p.x = snap(p.x); p.y = snap(p.y); update();
 });
 document.getElementById('remove').addEventListener('click', () => {
+  labels = labels.filter(l=>l.modId!==selId);   // drop that module's labels too
   placed = placed.filter(q=>q.id!==selId); selId = null; update();
 });
+
+// ---- labels ----
+function renderLabelList() {
+  const list = document.getElementById('labelList'); if (!list) return;
+  list.innerHTML = '';
+  const nm = { N:'top', S:'bottom', E:'right', W:'left' };
+  for (const l of labels) {
+    const p = placed.find(q=>q.id===l.modId), mod = p ? MODULES[p.key].name : '?';
+    const chip = document.createElement('div'); chip.className = 'labelChip';
+    const span = document.createElement('span'); span.textContent = `“${l.text}” · ${mod} ${nm[l.side]}`;
+    const x = document.createElement('button'); x.textContent = '✕'; x.title = 'remove label';
+    x.addEventListener('click', () => { labels = labels.filter(q=>q.id!==l.id); update(); });
+    chip.appendChild(span); chip.appendChild(x); list.appendChild(chip);
+  }
+}
+function addOrUpdateLabel() {
+  const p = placed.find(q=>q.id===selId); const text = document.getElementById('labelText').value.trim();
+  if (!p || !text) return;
+  const cand = { id:nextLabelId, modId:p.id, side:labelSide, text, size:labelSize };
+  const cells = labelCells(cand);
+  const occ = moduleCells();
+  const otherLabels = new Set(); for (const l of labels) if (!(l.modId===p.id && l.side===labelSide)) for (const [gx,gy] of labelCells(l)) otherLabels.add(ck(gx,gy));
+  const N = VBW/GRID, M = VBH/GRID;
+  const bad = !cells.length || cells.some(([gx,gy]) => gx<0||gy<0||gx>=N||gy>=M || occ.has(ck(gx,gy)) || otherLabels.has(ck(gx,gy)));
+  if (bad) { setStatus('⚠ no room for that label — free the tiles next to that edge, or pick another edge'); return; }
+  labels = labels.filter(l => !(l.modId===p.id && l.side===labelSide));   // one label per module edge
+  labels.push(cand); nextLabelId++;
+  if (!autoBox) for (const [gx,gy] of cells) region.add(ck(gx,gy));        // keep the text covered
+  document.getElementById('labelText').value = '';
+  update();
+}
+document.getElementById('labelText').addEventListener('input', () => {
+  document.getElementById('addLabel').disabled = !(selId!==null && document.getElementById('labelText').value.trim());
+});
+document.querySelectorAll('#labelSide button').forEach(b => b.addEventListener('click', () => {
+  labelSide = b.dataset.side;
+  document.querySelectorAll('#labelSide button').forEach(x => x.classList.toggle('on', x === b));
+}));
+document.getElementById('labelSize').addEventListener('input', (e) => {
+  labelSize = +e.target.value; document.getElementById('labelSizeVal').textContent = labelSize.toFixed(1);
+});
+document.getElementById('addLabel').addEventListener('click', addOrUpdateLabel);
 document.getElementById('resetBox').addEventListener('click', () => { autoBox = true; holes = new Set(); latches = new Set(); update(); });
 document.querySelectorAll('#wallMode button').forEach(b => b.addEventListener('click', () => {
   wallMode = b.dataset.mode;

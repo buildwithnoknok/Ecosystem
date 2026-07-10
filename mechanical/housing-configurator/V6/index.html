@@ -41,6 +41,18 @@
   .seg { display:flex; border:1px solid #2a2f3a; border-radius:8px; overflow:hidden; }
   .seg button { flex:1; background:#0d0f13; color:var(--muted); border:0; padding:7px; cursor:pointer; font-size:12px; }
   .seg button.on { background:var(--accent); color:#04150f; font-weight:600; }
+  input[type=text] { width:100%; background:#0d0f13; color:var(--ink); border:1px solid #2a2f3a;
+    border-radius:8px; padding:8px 10px; font-size:13px; }
+  input[type=text]:focus { outline:none; border-color:var(--accent); }
+  input[type=range] { width:100%; accent-color:var(--accent); }
+  .seg4 { display:flex; border:1px solid #2a2f3a; border-radius:8px; overflow:hidden; }
+  .seg4 button { flex:1; background:#0d0f13; color:var(--muted); border:0; padding:7px 2px; cursor:pointer; font-size:11px; }
+  .seg4 button.on { background:var(--accent); color:#04150f; font-weight:600; }
+  #labelList { display:flex; flex-direction:column; gap:4px; margin-top:8px; }
+  .labelChip { display:flex; justify-content:space-between; align-items:center; background:#0d0f13;
+    border:1px solid #2a2f3a; border-radius:6px; padding:5px 4px 5px 9px; font-size:12px; }
+  .labelChip button { background:none; border:0; color:var(--muted); cursor:pointer; font-size:13px; padding:0 4px; }
+  .labelChip button:hover { color:var(--accent); }
   hr { border:0; border-top:1px solid #262b35; margin:2px 0; }
   #status { position:absolute; top:12px; left:12px; background:#000a; padding:6px 10px; border-radius:6px; font-size:12px; }
 </style>
@@ -63,6 +75,26 @@
         <button id="remove" disabled>🗑 remove</button>
       </div>
       <div class="note" id="selNote">click a placed module to select it, then drag to move.</div>
+    </div>
+
+    <div>
+      <label>Label the selected module</label>
+      <input id="labelText" type="text" placeholder="e.g. Volume" maxlength="18" />
+      <div class="seg4" id="labelSide" style="margin-top:6px;">
+        <button data-side="N" class="on">▲ top</button>
+        <button data-side="E">▶ right</button>
+        <button data-side="S">▼ bottom</button>
+        <button data-side="W">◀ left</button>
+      </div>
+      <div class="row" style="margin-top:8px;align-items:center;gap:10px;">
+        <span class="note" style="white-space:nowrap;margin:0;">size <b id="labelSizeVal">5.0</b> mm</span>
+        <input id="labelSize" type="range" min="3" max="9" step="0.5" value="5" />
+      </div>
+      <div class="row" style="margin-top:8px;"><button class="primary" id="addLabel" disabled
+        style="padding:9px;font-size:13px;">＋ add / update label</button></div>
+      <div class="note">Text is engraved on the top cover in the tiles next to the chosen edge — no
+        module can be placed there.</div>
+      <div id="labelList"></div>
     </div>
 
     <hr/>
