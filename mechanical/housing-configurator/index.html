@@ -118,7 +118,13 @@
 
     <hr/>
     <button class="primary" id="generate" disabled>Generate 3D box</button>
-    <button class="primary" id="download" disabled style="background:#3a4050;color:var(--ink);">Download STL</button>
+    <button class="primary" id="download" disabled style="background:#3a4050;color:var(--ink);">Download STL (both covers)</button>
+    <div class="row" style="margin-top:6px;">
+      <button id="dlTop" disabled>⬇ top cover</button>
+      <button id="dlBottom" disabled>⬇ bottom cover</button>
+    </div>
+    <div class="note">Both covers are separate bodies in the file — in your slicer use “Split to
+      objects/parts” to print or colour them independently, or grab each cover on its own above.</div>
     <div class="note">
       Each cell = <b>10&nbsp;mm</b>. On each module: <span style="color:#c98a3a">○</span> = M2.5
       hole (holding column), <span style="color:#3d2a08">→</span> = JST socket &amp; plug-in direction,

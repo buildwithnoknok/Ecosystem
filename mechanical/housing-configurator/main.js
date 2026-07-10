@@ -484,6 +484,7 @@ const stlLoader = new STLLoader();
 const mat = new THREE.MeshStandardMaterial({ color:0x59d3a4, metalness:0.1, roughness:0.7 });
 let mesh3d = null, currentSTL = null;          // currentSTL is ALWAYS the print layout (for download)
 let printBuf = null, asmBuf = null, previewMode = 'assembled', boxH = 0;
+let printFront = null, printBack = null;       // the two covers on their own (print-oriented), for separate export
 (function animate(){ requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); })();
 
 function show3D(on) {
@@ -510,9 +511,12 @@ function generate() {
   try {
     setStatus('generating box…');
     const pr = buildBox(false); printBuf = toSTL(pr.front, pr.back); currentSTL = printBuf;
+    printFront = pr.front; printBack = pr.back;
     const asm = buildBox(true); asmBuf = toSTL(asm.front, asm.back); boxH = asm.H;
     show3D(true); renderPreview();
     document.getElementById('download').disabled = false;
+    document.getElementById('dlTop').disabled = false;
+    document.getElementById('dlBottom').disabled = false;
     setStatus(`box ${boxH.toFixed(1)} mm tall · ${placed.length} modules · STL ready (${(currentSTL.byteLength/1024).toFixed(0)} KB)`);
   } catch(e) { console.error(e); setStatus('generate error: ' + e.message); }
 }
@@ -593,11 +597,19 @@ document.querySelectorAll('#wallMode button').forEach(b => b.addEventListener('c
 document.getElementById('generate').addEventListener('click', generate);
 document.getElementById('backTo2d').addEventListener('click', () => { show3D(false); render(); });
 document.querySelectorAll('#viewToggle button').forEach(b => b.addEventListener('click', () => { previewMode = b.dataset.mode; renderPreview(); }));
-document.getElementById('download').addEventListener('click', () => {
-  if (!currentSTL) return;
+function downloadBlob(buf, name) {
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([currentSTL], { type:'model/stl' }));
-  a.download = `noknok_housing_${placed.length}mod.stl`; a.click();
+  a.href = URL.createObjectURL(new Blob([buf], { type:'model/stl' }));
+  a.download = name; a.click();
+}
+document.getElementById('download').addEventListener('click', () => {
+  if (currentSTL) downloadBlob(currentSTL, `noknok_housing_${placed.length}mod.stl`);
+});
+document.getElementById('dlTop').addEventListener('click', () => {
+  if (printFront) downloadBlob(toSTL(printFront), `noknok_top_cover_${placed.length}mod.stl`);
+});
+document.getElementById('dlBottom').addEventListener('click', () => {
+  if (printBack) downloadBlob(toSTL(printBack), `noknok_bottom_cover_${placed.length}mod.stl`);
 });
 
 buildPalette();
