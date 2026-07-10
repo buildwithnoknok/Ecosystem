@@ -22,15 +22,16 @@ const MODULES = {
     holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'grille', x:10, y:10, dia:8.5} },
   knob:      { name:'knob',       w:20, h:20, clearance_top:9.0,  pcb:1.6, clearance_bottom:3.0,
     holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'round_hole', x:10, y:10.25, dia:7.4} },
-  ledbutton: { name:'LED button', w:20, h:20, clearance_top:6.6, pcb:1.6, clearance_bottom:3.0,
-    holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'button', x:10, y:10, w:16.4, h:16.2} },  // board recessed 6.6 mm; button sits behind the front window
+  ledbutton: { name:'LED button', w:20, h:20, clearance_top:5.0, pcb:1.6, clearance_bottom:3.0,
+    holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'button', x:10, y:10, w:16.4, h:16.2} },  // 5 mm PCB-to-top-cover (keyboard switch); button behind the front window
   usbled:    { name:'USB LEDs',   w:40, h:40, clearance_top:1.6,  pcb:1.6, clearance_bottom:9.0,
-    holes:[[4,4],[36,4],[4,36],[36,36]], conn:[['W',3,20,'usb'],['E',36.5,20]], top:{type:'window', x:20, y:20, w:36, h:36} },  // square opening so the corner LEDs aren't clipped
+    holes:[[4,4],[36,4],[4,36],[36,36]], conn:[['W',3,20,'usb'],['E',36.5,20]], top:{type:'window', x:20, y:20, w:38, h:38} },  // square opening so the corner LEDs aren't clipped
   display:   { name:'display',    w:40, h:30, clearance_top:2.0,  pcb:1.6, clearance_bottom:3.0,
     holes:[[2.25,2.25],[2.25,27.75],[37.75,2.25],[37.75,27.75]], conn:[['W',3.1,15],['S',20,3.1]], top:{type:'window', x:19.8, y:15, w:32.35, h:16.18} },
 };
 const USBC_W = 9, USBC_H = 4.5;   // USB-C power slot: width along the wall × height (click a wall)
 const GRID = 10;         // mm per cell
+const WALL_GAP = 2;      // clearance between a module and the outer wall (so it's easy to drop in)
 
 const statusEl = document.getElementById('status');
 const setStatus = (t) => { statusEl.textContent = t; };
@@ -250,22 +251,29 @@ function recessCollar(p, m, H, pcbFrontZ) {
 function buildBox(assembled) {
   const { frontT, backT, wallT, postR, pegR, pegLen, socketR } = BOX;
   const stacks = placed.map(p => { const m=MODULES[p.key]; return m.clearance_top + m.pcb + m.clearance_bottom; });
-  const interior = Math.max(Math.max(...stacks), Math.min(...stacks) + 5);   // +5 = cable space
+  // SEAT lifts even the TALLEST board off the floor, so its JST-socket support columns stay a
+  // printable height (otherwise a socket whose body nearly fills clearance_bottom rests ~on the floor
+  // and the column would be ~0). +5 keeps cable space for shorter boards.
+  const SEAT = 1.2;
+  const interior = Math.max(Math.max(...stacks) + SEAT, Math.min(...stacks) + 5);
   const H = frontT + backT + interior;
 
   const cells = [...region].map(c => c.split(',').map(Number));
-  // interior = the module cells; walls are added OUTSIDE (so a corner column can't overlap a
-  // wall / collide with the other cover's wall when a module sits against the edge).
+  // cavity = the module cells inflated by WALL_GAP so a module isn't jammed against the outer wall.
+  // The wall is added OUTSIDE the cavity; wall-relative features (cable slot, latch) shift out to meet it.
   const inner2d = union(...cells.map(([gx,gy]) => rectangle({ size:[GRID,GRID], center:[(gx+0.5)*GRID,(gy+0.5)*GRID] })));
-  const foot2d = offset({ delta: wallT, corners:'edge' }, inner2d);
+  const cavity2d = offset({ delta: WALL_GAP, corners:'edge' }, inner2d);
+  const foot2d = offset({ delta: wallT, corners:'edge' }, cavity2d);
 
   // FRONT cover = perimeter walls (backT..H) + front plate (H-frontT..H)
   let front = subtract(
     translate([0,0,backT], extrudeLinear({ height: H-backT }, foot2d)),
-    translate([0,0,backT], extrudeLinear({ height: (H-frontT)-backT }, inner2d)));
+    translate([0,0,backT], extrudeLinear({ height: (H-frontT)-backT }, cavity2d)));
   for (const p of placed) front = subtract(front, topCut(p, H));            // payload openings
   for (const key of holes) {                                                // USB-C cable slots
-    const [gx,gy,s] = key.split(','); const mid = wallMid(+gx,+gy,s); const alongY = (s==='E'||s==='W');
+    const [gx,gy,s] = key.split(','); const alongY = (s==='E'||s==='W');
+    const on = { N:[0,1], S:[0,-1], E:[1,0], W:[-1,0] }[s];                  // outward normal
+    const wm = wallMid(+gx,+gy,s), mid = { x: wm.x + on[0]*WALL_GAP, y: wm.y + on[1]*WALL_GAP };  // out to the wall
     // Open U-notch cut DOWN from the wall's free (parting-line) rim: the plug is fitted to the module
     // before assembly, so only the bare cable needs room. Lay the cable into the slot from the top,
     // then close the covers — no threading a whole plug through a hole.
@@ -331,7 +339,8 @@ function buildBox(assembled) {
     const zDet = backT + Math.min(4.0, (H-frontT-backT)*0.42);   // detent lower -> shorter, stiffer arm
     for (const key of latches) {
       if (H <= zDet + 2) continue;
-      const [gx,gy,side] = key.split(','), mid = wallMid(+gx,+gy,side), [ix,iy] = IN[side], alongY = (side==='E'||side==='W');
+      const [gx,gy,side] = key.split(','), [ix,iy] = IN[side], alongY = (side==='E'||side==='W');
+      const wm = wallMid(+gx,+gy,side), mid = { x: wm.x - ix*WALL_GAP, y: wm.y - iy*WALL_GAP };   // out to the wall (−IN = outward)
       const armT=1.2, armW=6, flare=2.4, off = 0.35 + armT/2, ax = mid.x + ix*off, ay = mid.y + iy*off;
       const armH = Math.min((zDet-backT)+1.6, (H-backT)-1);       // tip just above the detent
       // TAPERED "pyramid" base: hull a thin tip block to a wider base block that flares toward the
