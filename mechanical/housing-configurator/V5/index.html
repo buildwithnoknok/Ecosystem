@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<!--
+  noknok Housing Configurator — V5 (monolithic box, 2D placement)
+  ---------------------------------------------------------------
+  Place modules freely on a 2D grid (bird's-eye), then generate a single uniform box:
+  front + back covers, per-module M2.5 holding columns, payload openings in the front.
+  100% client-side (three.js + JSCAD bundled into app.js by esbuild). Build: npm run build.
+  License: MIT (code).  SPDX-License-Identifier: MIT
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>noknok Housing Configurator — 2D placement</title>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --ink:#e7e9ee; --muted:#9aa3b2; --accent:#59d3a4;
+          --grid:#262b35; --mod:#e8912f; --modEdge:#b96f16; --sel:#59d3a4; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+         background:var(--bg); color:var(--ink); display:flex; height:100vh; overflow:hidden; }
+  #sidebar { width:290px; background:var(--panel); padding:18px; display:flex; flex-direction:column; gap:14px; overflow-y:auto; }
+  #view { flex:1; position:relative; }
+  #grid { width:100%; height:100%; display:block; touch-action:none; }
+  h1 { font-size:16px; margin:0; } h1 small { display:block; color:var(--muted); font-weight:400; font-size:12px; margin-top:4px; }
+  label { font-size:12px; color:var(--muted); display:block; margin-bottom:6px; }
+  .palette { display:flex; flex-direction:column; gap:6px; }
+  .palette button { text-align:left; background:#0d0f13; color:var(--ink); border:1px solid #2a2f3a;
+    border-radius:8px; padding:9px 12px; cursor:pointer; font-size:13px; display:flex; justify-content:space-between; }
+  .palette button:hover { border-color:var(--accent); }
+  .palette button span { color:var(--muted); font-size:11px; }
+  .row { display:flex; gap:8px; }
+  .row button { flex:1; background:#0d0f13; color:var(--ink); border:1px solid #2a2f3a; border-radius:8px; padding:8px; cursor:pointer; font-size:12px; }
+  .row button:disabled { opacity:.4; cursor:default; }
+  .row button:hover:not(:disabled) { border-color:var(--accent); }
+  button.primary { background:var(--accent); color:#04150f; border:0; border-radius:8px; padding:12px; font-weight:700; cursor:pointer; font-size:14px; }
+  button.primary:disabled { opacity:.5; cursor:default; }
+  .note { font-size:11px; color:var(--muted); line-height:1.5; }
+  .seg2 { display:flex; border:1px solid #2a2f3a; border-radius:8px; overflow:hidden; margin-top:6px; }
+  .seg2 button { flex:1; background:#0d0f13; color:var(--muted); border:0; padding:8px; cursor:pointer; font-size:12px; }
+  .seg2 button.on { background:var(--accent); color:#04150f; font-weight:600; }
+  .seg { display:flex; border:1px solid #2a2f3a; border-radius:8px; overflow:hidden; }
+  .seg button { flex:1; background:#0d0f13; color:var(--muted); border:0; padding:7px; cursor:pointer; font-size:12px; }
+  .seg button.on { background:var(--accent); color:#04150f; font-weight:600; }
+  hr { border:0; border-top:1px solid #262b35; margin:2px 0; }
+  #status { position:absolute; top:12px; left:12px; background:#000a; padding:6px 10px; border-radius:6px; font-size:12px; }
+</style>
+</head>
+<body>
+  <div id="sidebar">
+    <h1>noknok housing configurator
+      <small>2D placement · monolithic box</small>
+    </h1>
+
+    <div>
+      <label>Add a module</label>
+      <div class="palette" id="palette"></div>
+    </div>
+
+    <div>
+      <label>Selected module</label>
+      <div class="row">
+        <button id="rotate" disabled>⟳ rotate 90°</button>
+        <button id="remove" disabled>🗑 remove</button>
+      </div>
+      <div class="note" id="selNote">click a placed module to select it, then drag to move.</div>
+    </div>
+
+    <hr/>
+    <div>
+      <label>Box outline</label>
+      <div class="note"><b>Click empty cells</b> to reshape the box (hug, notch, or bridge apart
+        modules into one box). Starts as a rectangle around your modules.</div>
+      <div class="row" style="margin-top:6px;"><button id="resetBox">↺ reset to rectangle</button></div>
+    </div>
+
+    <div>
+      <label>Click a wall to add a…</label>
+      <div class="seg2" id="wallMode">
+        <button data-mode="hole" class="on">🔌 power slot</button>
+        <button data-mode="latch">🔒 latch</button>
+      </div>
+      <div class="note">Both are required. Place <span style="color:#2b7fd0">power slots</span> for
+        the cable and <span style="color:#e8912f">latches</span> around the box to hold the covers
+        shut — keep them on separate walls.</div>
+    </div>
+
+    <hr/>
+    <button class="primary" id="generate" disabled>Generate 3D box</button>
+    <button class="primary" id="download" disabled style="background:#3a4050;color:var(--ink);">Download STL</button>
+    <div class="note">
+      Each cell = <b>10&nbsp;mm</b>. On each module: <span style="color:#c98a3a">○</span> = M2.5
+      hole (holding column), <span style="color:#241a05">▪</span> = JST socket,
+      <span style="color:#2b7fd0">▪</span> = USB-C. Watch that sockets have cable room and a
+      column doesn't land on one. <span style="color:#e0b15a">Step 1 of 3:</span> placement.
+    </div>
+  </div>
+
+  <div id="view">
+    <div id="status">loading…</div>
+    <div id="viewToggle" style="display:none;position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:2;border:1px solid #2a2f3a;border-radius:8px;overflow:hidden;">
+      <button data-mode="assembled" class="on" style="background:var(--accent);color:#04150f;border:0;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600;">Assembled</button>
+      <button data-mode="print" style="background:var(--panel);color:var(--muted);border:0;padding:8px 14px;cursor:pointer;font-size:13px;">Print layout</button>
+    </div>
+    <button id="backTo2d" style="display:none;position:absolute;top:12px;right:12px;background:var(--panel);color:var(--ink);border:1px solid #2a2f3a;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:13px;z-index:2;">← edit layout</button>
+    <svg id="grid"></svg>
+  </div>
+
+  <script type="module" src="app.js"
+    onerror="document.getElementById('status').textContent='⚠ could not load app.js — open via http://localhost or http://Brain/, not the file directly.'"></script>
+  <script>
+    setTimeout(function(){ var s=document.getElementById('status');
+      if (s && /^(loading…)?$/.test(s.textContent.trim())) s.textContent='⚠ app didn’t start — open http://Brain/ (not the file) and hard-refresh.'; }, 5000);
+  </script>
+</body>
+</html>
