@@ -239,11 +239,23 @@ function buildBox(assembled) {
     const pcbFrontZ = (H-frontT) - m.clearance_top, pcbBackZ = pcbFrontZ - m.pcb;
     const frontLen = (H-frontT) - pcbFrontZ, backLen = Math.max(0.4, pcbBackZ - backT);
     for (const [hx,hy] of m.holes) { const w = loc(p,hx,hy);
-      if (frontLen > 0.3)   // no front post for a poke-through payload (e.g. LED button) -> can't foul the opening
-        front = union(front, cylinder({ radius:postR, height:frontLen, segments:24, center:[w.x,w.y, pcbFrontZ + frontLen/2] }));
-      back = union(back,
-        cylinder({ radius:postR, height:backLen, segments:24, center:[w.x,w.y, backT + backLen/2] }),
-        cylinder({ radius:pegR, height:m.pcb+0.6, segments:16, center:[w.x,w.y, (pcbBackZ+pcbFrontZ)/2] }));   // locating peg
+      if (frontLen > 0.3) {
+        // pin on the TOP (front) cover: it locates the module while you load the top cover
+        // (cables plugged, top cover down, modules in). Front post + a peg through the PCB that
+        // lands in a socket in the back post; the back post just presses the board.
+        front = union(front,
+          cylinder({ radius:postR, height:frontLen, segments:24, center:[w.x,w.y, pcbFrontZ + frontLen/2] }),
+          cylinder({ radius:pegR, height:m.pcb+1.5, segments:16, center:[w.x,w.y, (pcbFrontZ + pcbBackZ-1.5)/2] }));
+        let bpost = cylinder({ radius:postR, height:backLen, segments:24, center:[w.x,w.y, backT + backLen/2] });
+        bpost = subtract(bpost, cylinder({ radius:pegR+0.3, height:2.1, segments:16, center:[w.x,w.y, pcbBackZ - 1] }));
+        back = union(back, bpost);
+      } else {
+        // poke-through payload (LED button): the M2.5 holes sit under the opening, so there's no
+        // front material for a pin -> peg stays on the back post; the payload-in-opening locates it.
+        back = union(back,
+          cylinder({ radius:postR, height:backLen, segments:24, center:[w.x,w.y, backT + backLen/2] }),
+          cylinder({ radius:pegR, height:m.pcb+0.6, segments:16, center:[w.x,w.y, (pcbBackZ+pcbFrontZ)/2] }));
+      }
     }
   }
 
