@@ -301,7 +301,7 @@ function wallMid(gx,gy,s) {                              // world midpoint of a 
 // front column there would jut into the opening and block the payload — hold that corner differently.
 function holeInOpening(m, hx, hy, margin) {
   const f = m.top; if (!f) return false; const g = (margin ?? BOX.postR);
-  if (f.type === 'grille' || f.type === 'round_hole') { const r = f.dia/2 + g; return (hx-f.x)**2 + (hy-f.y)**2 < r*r; }
+  if (f.type === 'grille' || f.type === 'round_hole' || f.type === 'dome_mount') { const r = f.dia/2 + g; return (hx-f.x)**2 + (hy-f.y)**2 < r*r; }
   return Math.abs(hx-f.x) < f.w/2 + g && Math.abs(hy-f.y) < f.h/2 + g;
 }
 // A recessed board whose mount holes sit under the opening can't use front posts (they'd block the
