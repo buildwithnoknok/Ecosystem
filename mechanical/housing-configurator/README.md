@@ -42,16 +42,17 @@ is a published interface: design a lid with the matching internal thread and it 
 |---|---|
 | Thread major ø (neck crest) | **44 mm** |
 | Thread minor ø (neck root) | 41 mm (1.5 mm radial depth) |
-| Starts / lead | 3-start, 15 mm lead (5 mm crest spacing) — seats in ~⅔ turn |
-| Neck height | 10 mm, ø38 mm clear bore for the light |
+| Starts / lead | 3-start, 7.5 mm lead (2.5 mm crest spacing) — ~2 turns grip, seats in ~⅔ turn |
+| Neck height | 5 mm (kept low so the LEDs can spill sideways), ø38 mm clear bore |
 | Fit clearance | 0.4 mm radial (lid thread grown by this) |
 | Lid outer ø | ~48.4 mm (stays inside the 50 mm footprint) |
 
-The tool exports a **reference dome lid** (`⬇ reference dome lid`, print in translucent filament) — the
-easiest starting point for a custom top. Thread params live in the `DOME` constant in `main.js`
-(`threadSolid` / `domeNeck` / `referenceDome`). **Note:** thread fit always wants one test print to dial
-in the clearance; the dome-mount cover prints **neck-up** (it can't go plate-down) so expect light
-support/bridging under the frame.
+The tool exports two matching reference lids: **⬇ reference dome lid** (`referenceDome`, print in
+translucent filament) and **⬇ honeycomb dome lid** (`referenceDomeHoney`, hex-perforated so it works as a
+light shade in any opaque filament). Both are the easiest starting point for a custom top. Thread params
+live in the `DOME` constant in `main.js` (`threadSolid` / `domeNeck`). **Note:** thread fit always wants
+one test print to dial in the clearance; the dome-mount cover prints **neck-up** (it can't go plate-down)
+so expect light support/bridging under the frame.
 
 ## Module library
 

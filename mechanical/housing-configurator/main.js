@@ -21,7 +21,7 @@ const TAU = Math.PI * 2;
 // External thread on a neck (the "jar") on the top cover; a lid (dome) with the matching internal
 // thread screws over it. Sized so the lid stays within the 50 mm module footprint. depth=radial tooth,
 // lead=elevation per turn (3-start => crest spacing 5 mm), bore=clear hole for the light.
-const DOME = { majorD:44, depth:1.5, bore:38, height:10, lead:15, starts:3, clearance:0.4 };
+const DOME = { majorD:44, depth:1.5, bore:38, height:5, lead:7.5, starts:3, clearance:0.4 };   // 5 mm neck (wider side-light); lead 7.5 => 3-start, 2.5 mm crest spacing, ~2 turns grip, ~⅔-turn seat
 
 // ---- Module library (mm). footprint w×h, payload height, plenum, M2.5 holes, JST/USB sockets,
 // top opening. Mirrors each module repo's mechanical/housing.json. Origin = module bottom-left. ----
@@ -349,6 +349,28 @@ function referenceDome(cfg) {
   const cap = intersect(capShell, cylinder({ radius: outerR+1, height: outerR+2, segments:72, center:[0,0,skirtH+(outerR)/2] }));
   return union(skirt, cap);
 }
+// Honeycomb variant: the solid dome with hex holes punched radially through the CAP (skirt/thread left
+// intact), so it works as a light-shade in opaque filament too. Holes are hex-packed on rings of latitude.
+function referenceDomeHoney(cfg) {
+  const wall = 1.8, clr = cfg.clearance, outerR = cfg.majorD/2 + clr + wall, skirtH = cfg.height + 1.5;
+  const R = outerR - wall/2, cz = skirtH, holeR = 2.5;       // mid-shell radius, cap centre z, hex radius
+  const holes = [];
+  let ring = 0;
+  for (let deg = 16; deg <= 74; deg += 15) {                 // rings of latitude (from top), stay above the skirt
+    const theta = deg*Math.PI/180, ringR = R*Math.sin(theta);
+    const n = Math.max(6, Math.round(2*Math.PI*ringR / (holeR*3)));
+    const phi0 = (ring % 2) * (Math.PI / n);                 // stagger alternate rings -> honeycomb packing
+    for (let k=0; k<n; k++) {
+      const phi = phi0 + k*2*Math.PI/n;
+      let h = rotate([0,0,phi], rotate([0,theta,0], cylinder({ radius:holeR, height:wall*3, segments:6 })));
+      const dir = [Math.sin(theta)*Math.cos(phi), Math.sin(theta)*Math.sin(phi), Math.cos(theta)];
+      holes.push(translate([R*dir[0], R*dir[1], cz + R*dir[2]], h));
+    }
+    ring++;
+  }
+  holes.push(translate([0,0,cz+R], cylinder({ radius:holeR, height:wall*3, segments:6 })));   // hole at the apex
+  return subtract(referenceDome(cfg), union(...holes));
+}
 
 // A shallow engraved-text solid for one label, positioned over its reserved strip on the top cover.
 // Uses the built-in single-stroke vector font; each stroke is expanded to a groove of width strokeW.
@@ -566,8 +588,10 @@ function generate() {
     document.getElementById('dlTop').disabled = false;
     document.getElementById('dlBottom').disabled = false;
     const hasDome = placed.some(p => MODULES[p.key].top && MODULES[p.key].top.type==='dome_mount');
-    document.getElementById('dlDome').style.display = hasDome ? 'block' : 'none';
-    document.getElementById('dlDome').disabled = !hasDome;
+    for (const id of ['dlDome','dlDomeHoney']) {
+      document.getElementById(id).style.display = hasDome ? 'block' : 'none';
+      document.getElementById(id).disabled = !hasDome;
+    }
     setStatus(`box ${boxH.toFixed(1)} mm tall · ${placed.length} modules · STL ready (${(currentSTL.byteLength/1024).toFixed(0)} KB)`);
   } catch(e) { console.error(e); setStatus('generate error: ' + e.message); }
 }
@@ -664,6 +688,11 @@ document.getElementById('dlBottom').addEventListener('click', () => {
 });
 document.getElementById('dlDome').addEventListener('click', () => {
   downloadBlob(toSTL(referenceDome(DOME)), `noknok_dome_mount_${DOME.majorD}_lid.stl`);   // matching lid (print in translucent)
+});
+document.getElementById('dlDomeHoney').addEventListener('click', () => {
+  setStatus('building honeycomb dome…');
+  downloadBlob(toSTL(referenceDomeHoney(DOME)), `noknok_dome_mount_${DOME.majorD}_lid_honeycomb.stl`);   // hex-perforated (any filament)
+  setStatus('honeycomb dome ready');
 });
 
 buildPalette();
