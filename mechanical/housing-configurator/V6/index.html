@@ -151,8 +151,18 @@
     <svg id="grid"></svg>
   </div>
 
-  <script type="module" src="app.js?v=8"
-    onerror="document.getElementById('status').textContent='⚠ could not load app.js — open via http://localhost or http://Brain/, not the file directly.'"></script>
+  <script>
+    // Load app.js with a unique query each visit so GitHub Pages / the browser can never serve a stale
+    // build (this repeatedly bit us — users kept seeing old versions). Costs a re-download per visit,
+    // which is fine while the tool is under active development.
+    (function(){
+      var s = document.createElement('script');
+      s.type = 'module';
+      s.src = 'app.js?t=' + Date.now();
+      s.onerror = function(){ document.getElementById('status').textContent = '⚠ could not load app.js — open via http://localhost or http://Brain/, not the file directly.'; };
+      document.body.appendChild(s);
+    })();
+  </script>
   <script>
     setTimeout(function(){ var s=document.getElementById('status');
       if (s && /^(loading…)?$/.test(s.textContent.trim())) s.textContent='⚠ app didn’t start — open http://Brain/ (not the file) and hard-refresh.'; }, 5000);

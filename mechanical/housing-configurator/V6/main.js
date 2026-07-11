@@ -26,19 +26,20 @@ const TAU = Math.PI * 2;
 const DOME = { threadMajor:59.5, depth:1.2, height:6, lead:7.5, starts:3, clearance:0.4, opening:58, form:60 };
 const domeThread = (grow=0) => threadSolid({ majorD:DOME.threadMajor, depth:DOME.depth, height:DOME.height, lead:DOME.lead, starts:DOME.starts }, grow);
 
-// ---- Module library (mm). footprint w×h, payload height, plenum, M2.5 holes, JST/USB sockets,
-// top opening. Mirrors each module repo's mechanical/housing.json. Origin = module bottom-left. ----
+// ---- Module library (mm). footprint w×h, payload height, plenum, M2.5 holes, connectors, top opening.
+// conn = [ arrowDir, x, y, kind? ] — arrowDir (N/S/E/W) = the way the plug inserts / cable exits (drawn
+// as an arrow), set per real board. Mirrors each module repo's mechanical/housing.json. Origin = bottom-left. ----
 const MODULES = {
   buzzer:    { name:'buzzer',     w:20, h:20, clearance_top:3.0,  pcb:1.6, clearance_bottom:3.0,
-    holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'grille', x:10, y:10, dia:8.5} },
+    holes:[[2.25,2.25],[17.75,17.75]], conn:[['N',3.1,15.5],['S',16.9,4.5]], top:{type:'grille', x:10, y:10, dia:8.5} },
   knob:      { name:'knob',       w:20, h:20, clearance_top:9.0,  pcb:1.6, clearance_bottom:3.0,
-    holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'round_hole', x:10, y:10.25, dia:7.4} },
+    holes:[[2.25,2.25],[17.75,17.75]], conn:[['N',3.1,15.5],['S',16.9,4.5]], top:{type:'round_hole', x:10, y:10.25, dia:7.4} },
   ledbutton: { name:'LED button', w:20, h:20, clearance_top:5.0, pcb:1.6, clearance_bottom:3.0,
-    holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'button', x:10, y:10, w:16.4, h:16.2} },  // 5 mm PCB-to-top-cover (keyboard switch); button behind the front window
+    holes:[[2.25,2.25],[17.75,17.75]], conn:[['N',3.1,15.5],['S',16.9,4.5]], top:{type:'button', x:10, y:10, w:16.4, h:16.2} },  // 5 mm PCB-to-top-cover (keyboard switch); button behind the front window
   usbled:    { name:'USB LEDs',   w:40, h:40, clearance_top:1.6,  pcb:1.6, clearance_bottom:9.0,
     holes:[[4,4],[36,4],[4,36],[36,36]], conn:[['W',3,20,'usb'],['E',36.5,20]], top:{type:'window', x:20, y:20, w:38, h:38} },  // square opening so the corner LEDs aren't clipped
-  usbleddome:{ name:'USB LEDs +dome', w:60, h:60, clearance_top:1.6, pcb:1.6, clearance_bottom:9.0,   // 60×60 variant: 40×40 board centred, female thread ring inside; a dome screws in
-    holes:[[14,14],[46,14],[14,46],[46,46]], conn:[['W',13,30,'usb'],['E',46.5,30]], top:{type:'dome_mount', x:30, y:30, dia:58} },
+  usbleddome:{ name:'USB LEDs +dome', w:70, h:70, clearance_top:1.6, pcb:1.6, clearance_bottom:9.0,   // 70×70 variant: 40×40 board centred, female thread ring (ø62) stays inside the tile so it can't overlap a neighbour
+    holes:[[19,19],[51,19],[19,51],[51,51]], conn:[['W',18,35,'usb'],['E',51.5,35]], top:{type:'dome_mount', x:35, y:35, dia:58} },
   display:   { name:'display',    w:40, h:30, clearance_top:2.0,  pcb:1.6, clearance_bottom:3.0,
     holes:[[2.25,2.25],[2.25,27.75],[37.75,2.25],[37.75,27.75]], conn:[['W',3.1,15],['S',20,3.1]], top:{type:'window', x:19.8, y:15, w:32.35, h:16.18} },
 };
@@ -128,6 +129,13 @@ function boundaryWalls() {          // edges where an in-region cell meets an ou
     for (const s in NB) { const [dx,dy]=NB[s]; if (!region.has(ck(gx+dx,gy+dy))) w.push([gx,gy,s]); } }
   return w;
 }
+// drop any power slot / latch whose wall is no longer a boundary of the box (e.g. after a tile is
+// removed or a module moves) — otherwise it lingers invisibly and reappears in the 3D box.
+function pruneWalls() {
+  const valid = new Set(boundaryWalls().map(([gx,gy,s]) => `${gx},${gy},${s}`));
+  for (const k of [...holes])   if (!valid.has(k)) holes.delete(k);
+  for (const k of [...latches]) if (!valid.has(k)) latches.delete(k);
+}
 function wallXY(gx,gy,s) {          // SVG endpoints of a wall segment (Y flipped)
   const x0=gx*GRID, x1=(gx+1)*GRID, ya=VBH-(gy+1)*GRID, yb=VBH-gy*GRID;
   return s==='N' ? [x0,ya,x1,ya] : s==='S' ? [x0,yb,x1,yb] : s==='E' ? [x1,ya,x1,yb] : [x0,ya,x0,yb];
@@ -147,6 +155,7 @@ function el(tag, attrs, parent) {
 
 function render() {
   svg.innerHTML = '';
+  pruneWalls();          // keep power slots / latches only on walls that still exist
   // grid lines
   const g = el('g', { stroke:'var(--grid)', 'stroke-width':0.25 }, svg);
   for (let x=0; x<=VBW; x+=GRID) el('line', {x1:x,y1:0,x2:x,y2:VBH}, g);
@@ -168,15 +177,14 @@ function render() {
       'text-anchor':'middle', 'dominant-baseline':'central', 'pointer-events':'none' }, grp).textContent = m.name;
     for (const [hx,hy] of m.holes) { const w = loc(p,hx,hy);
       el('circle', { cx:w.x, cy:VBH-w.y, r:1.25, fill:'none', stroke:'#5c3d08', 'stroke-width':0.45, 'pointer-events':'none' }, grp); }
-    // connector: an ARROW at the socket. Its tail marks the socket; it points the way the plug is
-    // inserted from. The plug slides in ALONG the edge the socket sits on, so the insertion axis is
-    // perpendicular to the side letter (a socket on the W/E edge inserts from top/bottom). It points
-    // toward the nearer edge and is length-clamped to stay inside the module square.
-    for (const [side, cx, cy, kind] of m.conn || []) {
+    // connector: an ARROW at the socket, pointing the way the plug is inserted / the cable exits. That
+    // direction is an explicit compass letter in the connector data (conn[0]) — it varies per board, so
+    // it is stored, not derived. The arrow rotates with the module and is length-clamped to stay inside.
+    for (const [dir, cx, cy, kind] of m.conn || []) {
       const w = loc(p,cx,cy), sx = w.x, sy = VBH - w.y;
-      let ldx, ldy, dist;                                                  // module-local dir + room to the edge
-      if (side === 'W' || side === 'E') { const up = cy > m.h/2; ldx = 0; ldy = up ? 1 : -1; dist = up ? m.h-cy : cy; }
-      else                              { const rt = cx > m.w/2; ldx = rt ? 1 : -1; ldy = 0; dist = rt ? m.w-cx : cx; }
+      const D = { N:[0,1], S:[0,-1], E:[1,0], W:[-1,0] }[dir] || [0,-1];    // module-local arrow direction
+      const ldx = D[0], ldy = D[1];
+      const dist = ldy>0 ? m.h-cy : ldy<0 ? cy : ldx>0 ? m.w-cx : cx;       // room to that edge (clamp length)
       let dx, dy; switch (p.rot) {                                          // rotate with the module
         case 90:  dx=-ldy; dy= ldx; break; case 180: dx=-ldx; dy=-ldy; break;
         case 270: dx= ldy; dy=-ldx; break; default: dx= ldx; dy= ldy; }
@@ -381,7 +389,7 @@ function referenceDomeHoney() {
 
 // A shallow engraved-text solid for one label, positioned over its reserved strip on the top cover.
 // Uses the built-in single-stroke vector font; each stroke is expanded to a groove of width strokeW.
-function labelEngraving(l, H) {
+function labelEngraving(l, H, flipX) {
   if (!l.text || !l.text.trim()) return null;
   const s = labelStripWorld(l); if (!s) return null;
   const wcx=(s.x0+s.x1)/2, wcy=(s.y0+s.y1)/2;
@@ -400,7 +408,9 @@ function labelEngraving(l, H) {
   for (const seg of segs) {
     let pts = seg.map(pt => { let lx=(pt[0]-cx)*sc, ly=(pt[1]-cy)*sc;
       if (!s.horizontal) { const t=lx; lx=-ly; ly=t; }              // rotate 90° for E/W edges
-      return [wcx+lx, wcy+ly]; });
+      // flipX mirrors the text in world X for the PRINT layout: the top cover prints face-down, so the
+      // engraving is on the bed side and would otherwise read right-to-left once the part is flipped up.
+      return [flipX ? wcx-lx : wcx+lx, wcy+ly]; });
     pts = pts.filter((p,i)=> i===0 || Math.hypot(p[0]-pts[i-1][0], p[1]-pts[i-1][1]) > 1e-3);   // drop coincident points
     if (pts.length < 2) { if (pts.length===1) pts = [pts[0], [pts[0][0]+0.02, pts[0][1]]]; else continue; }
     strokes.push(expand({ delta:sw/2, corners:'round', segments:8 }, path2.fromPoints({closed:false}, pts)));
@@ -535,8 +545,9 @@ function buildBox(assembled) {
       front = union(front, translate([w.x, w.y, (H-frontT)-DOME.height], domeRing())); } }
 
   // engrave the module labels into the top cover (subtract shallow grooves). Guard each one so a single
-  // troublesome label can never crash the whole box.
-  for (const l of labels) { try { const eng = labelEngraving(l, H); if (eng) front = subtract(front, eng); }
+  // troublesome label can never crash the whole box. Mirror the text for the PRINT build (!assembled) so
+  // it reads correctly once the face-down-printed cover is flipped up.
+  for (const l of labels) { try { const eng = labelEngraving(l, H, !assembled); if (eng) front = subtract(front, eng); }
     catch(e) { console.warn('label skipped:', l.text, e.message); } }
 
   if (assembled) return { front, back, H };
