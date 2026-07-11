@@ -32,27 +32,30 @@ cover** buttons export each on its own (they're also separate disconnected bodie
 file, so a slicer's "Split to objects/parts" separates them for printing individually or in
 different colours).
 
-## noknok Dome Mount ø44 (screw-on tops)
+## noknok Dome Mount ø58 (screw-in tops)
 
-The **USB LEDs +dome** variant is a 50 × 50 mm housing whose top cover carries a coarse, jam-jar-style
-**external thread** (the "jar") so custom tops — a diffuser dome or any other top — screw over it. This
-is a published interface: design a lid with the matching internal thread and it fits.
+The **USB LEDs +dome** variant is a 60 × 60 mm housing. Its top cover carries a coarse, jam-jar-style
+**female (internal) thread ring that projects DOWN into the box** — same direction as the walls/columns,
+so the **cover prints flat on the bed with no supports**. A lid (dome) with the matching **male thread
+screws IN** from the top. This is a published interface: design a lid with the matching male thread and it
+fits.
 
 | Parameter | Value |
 |---|---|
-| Thread major ø (neck crest) | **44 mm** |
-| Thread minor ø (neck root) | 41 mm (1.5 mm radial depth) |
-| Starts / lead | 3-start, 7.5 mm lead (2.5 mm crest spacing) — ~2 turns grip, seats in ~⅔ turn |
-| Neck height | 5 mm (kept low so the LEDs can spill sideways), ø38 mm clear bore |
-| Fit clearance | 0.4 mm radial (lid thread grown by this) |
-| Lid outer ø | ~48.4 mm (stays inside the 50 mm footprint) |
+| Thread major ø (male crest) | **59.5 mm** |
+| Ring bore / female crest ø | ~57.9 mm (the 40 × 40 board, 56.6 mm diagonal, sits inside) |
+| Starts / lead | 3-start, 7.5 mm lead (2.5 mm crest spacing) — seats in ~⅔ turn |
+| Ring height (into the box) | 6 mm, 1.2 mm radial tooth |
+| Fit clearance | 0.4 mm radial |
+| Ring outer ø | ~62 mm (inside the ~64 mm interior) |
+| Lid globe ø | ~59.5 mm (within the 60 mm footprint) |
 
-The tool exports two matching reference lids: **⬇ reference dome lid** (`referenceDome`, print in
-translucent filament) and **⬇ honeycomb dome lid** (`referenceDomeHoney`, hex-perforated so it works as a
-light shade in any opaque filament). Both are the easiest starting point for a custom top. Thread params
-live in the `DOME` constant in `main.js` (`threadSolid` / `domeNeck`). **Note:** thread fit always wants
-one test print to dial in the clearance; the dome-mount cover prints **neck-up** (it can't go plate-down)
-so expect light support/bridging under the frame.
+The board is smaller than the light opening, so it isn't held by front columns — it rests on the tall
+back-cover posts (gravity + locating pegs; a firmer snap can be added). The tool exports two matching
+screw-in lids: **⬇ reference dome lid** (`referenceDome`, print translucent) and **⬇ honeycomb dome lid**
+(`referenceDomeHoney`, hex-perforated for any opaque filament). Thread params live in the `DOME` constant
+in `main.js` (`threadSolid` / `domeRing`). **Note:** thread fit always wants one test print to tune the
+clearance; the internal thread prints with modest overhangs (coarse pitch bridges fine).
 
 ## Module library
 

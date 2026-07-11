@@ -17,11 +17,14 @@ const { offset, expand } = expansions;
 const { path2 } = jscad.geometries;
 const { vectorText } = jscad.text;   // built-in single-stroke font for engraved labels
 const TAU = Math.PI * 2;
-// "noknok Dome Mount ø44" — coarse jar-style thread interface for screw-on tops over the USB LEDs.
-// External thread on a neck (the "jar") on the top cover; a lid (dome) with the matching internal
-// thread screws over it. Sized so the lid stays within the 50 mm module footprint. depth=radial tooth,
-// lead=elevation per turn (3-start => crest spacing 5 mm), bore=clear hole for the light.
-const DOME = { majorD:44, depth:1.5, bore:38, height:5, lead:7.5, starts:3, clearance:0.4 };   // 5 mm neck (wider side-light); lead 7.5 => 3-start, 2.5 mm crest spacing, ~2 turns grip, ~⅔-turn seat
+// "noknok Dome Mount ø58" — coarse jar-style thread for screw-in tops over the USB LEDs. The thread is a
+// FEMALE (internal) ring that projects DOWN into the box from the top cover (same way as walls/columns,
+// so the cover prints flat with no supports). A lid (dome) with the matching MALE thread screws in from
+// the top. The 60 mm form factor is sized so the 40x40 board sits inside the ring bore. threadMajor =
+// male crest OD; depth = radial tooth; lead = 3-start => 2.5 mm crest spacing; opening = light hole in
+// the plate (>= board diagonal 56.6 so the board fits inside); form = module footprint (mm).
+const DOME = { threadMajor:59.5, depth:1.2, height:6, lead:7.5, starts:3, clearance:0.4, opening:58, form:60 };
+const domeThread = (grow=0) => threadSolid({ majorD:DOME.threadMajor, depth:DOME.depth, height:DOME.height, lead:DOME.lead, starts:DOME.starts }, grow);
 
 // ---- Module library (mm). footprint w×h, payload height, plenum, M2.5 holes, JST/USB sockets,
 // top opening. Mirrors each module repo's mechanical/housing.json. Origin = module bottom-left. ----
@@ -34,8 +37,8 @@ const MODULES = {
     holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'button', x:10, y:10, w:16.4, h:16.2} },  // 5 mm PCB-to-top-cover (keyboard switch); button behind the front window
   usbled:    { name:'USB LEDs',   w:40, h:40, clearance_top:1.6,  pcb:1.6, clearance_bottom:9.0,
     holes:[[4,4],[36,4],[4,36],[36,36]], conn:[['W',3,20,'usb'],['E',36.5,20]], top:{type:'window', x:20, y:20, w:38, h:38} },  // square opening so the corner LEDs aren't clipped
-  usbleddome:{ name:'USB LEDs +dome', w:50, h:50, clearance_top:1.6, pcb:1.6, clearance_bottom:9.0,   // 50×50 variant: 40×40 board centred, threaded neck on top
-    holes:[[9,9],[41,9],[9,41],[41,41]], conn:[['W',8,25,'usb'],['E',41.5,25]], top:{type:'dome_mount', x:25, y:25, dia:38} },
+  usbleddome:{ name:'USB LEDs +dome', w:60, h:60, clearance_top:1.6, pcb:1.6, clearance_bottom:9.0,   // 60×60 variant: 40×40 board centred, female thread ring inside; a dome screws in
+    holes:[[14,14],[46,14],[14,46],[46,46]], conn:[['W',13,30,'usb'],['E',46.5,30]], top:{type:'dome_mount', x:30, y:30, dia:58} },
   display:   { name:'display',    w:40, h:30, clearance_top:2.0,  pcb:1.6, clearance_bottom:3.0,
     holes:[[2.25,2.25],[2.25,27.75],[37.75,2.25],[37.75,27.75]], conn:[['W',3.1,15],['S',20,3.1]], top:{type:'window', x:19.8, y:15, w:32.35, h:16.18} },
 };
@@ -333,43 +336,47 @@ function threadSolid(cfg, grow = 0, segs = 64) {
     s = union(s, extrudeHelical({ angle, pitch: lead, startAngle: i*TAU/starts, segmentsPerRotation: segs }, tooth));
   return intersect(s, cylinder({ radius: rMaj+1, height, segments: segs, center:[0,0,height/2] }));   // trim flush
 }
-// The neck on the housing top cover = threaded solid with a clear bore for the light, base at z=0.
-function domeNeck(cfg) {
-  return subtract(threadSolid(cfg), cylinder({ radius: cfg.bore/2, height: cfg.height+2, segments:64, center:[0,0,cfg.height/2] }));
+// The ring on the housing top cover = a FEMALE-threaded ring, base at z=0, projecting up (placed to
+// point DOWN into the box). The female thread + bore are carved by subtracting a clearance-grown male
+// thread from a plain ring cylinder. Bore is large enough that the board sits inside it.
+function domeRing() {
+  const wall = 0.9, ringOR = DOME.threadMajor/2 + DOME.clearance + wall;
+  return subtract(cylinder({ radius: ringOR, height: DOME.height, segments:72, center:[0,0,DOME.height/2] }),
+                  domeThread(DOME.clearance));
 }
-// Reference lid: a threaded skirt (female thread carved by a clearance-grown male plug) + a domed
-// translucent cap. Prints on its own; screws over the neck. Base at z=0.
-function referenceDome(cfg) {
-  const wall = 1.8, clr = cfg.clearance, outerR = cfg.majorD/2 + clr + wall, skirtH = cfg.height + 1.5;
-  const skirt = subtract(
-    cylinder({ radius: outerR, height: skirtH, segments:72, center:[0,0,skirtH/2] }),
-    threadSolid(cfg, clr));                                              // carve the female thread + bore
-  const capShell = subtract(sphere({ radius: outerR, segments:48, center:[0,0,skirtH] }),
-                            sphere({ radius: outerR-wall, segments:48, center:[0,0,skirtH] }));
-  const cap = intersect(capShell, cylinder({ radius: outerR+1, height: outerR+2, segments:72, center:[0,0,skirtH+(outerR)/2] }));
-  return union(skirt, cap);
+const domeGlobeOR = () => DOME.form/2 - 0.5;   // dome globe / flange outer radius
+const domeBoreR   = () => DOME.threadMajor/2 - DOME.depth - 1.8;   // clear light bore through the lid
+// Reference lid (screws INTO the ring): a MALE-threaded tube (bored for light) + a flange that rests on
+// the cover + a domed translucent cap. Base at z=0.
+function referenceDome() {
+  const wall = 1.8, gOR = domeGlobeOR(), boreR = domeBoreR(), fz = DOME.height, gz = DOME.height + 1.6;
+  const tube = subtract(domeThread(0), cylinder({ radius: boreR, height: DOME.height+2, segments:64, center:[0,0,DOME.height/2] }));
+  const flange = subtract(cylinder({ radius: gOR, height:1.6, segments:72, center:[0,0,fz+0.8] }),
+                          cylinder({ radius: boreR, height:2,   segments:64, center:[0,0,fz+0.8] }));
+  const cap = intersect(
+    subtract(sphere({ radius: gOR, segments:48, center:[0,0,gz] }), sphere({ radius: gOR-wall, segments:48, center:[0,0,gz] })),
+    cylinder({ radius: gOR+1, height: gOR+2, segments:72, center:[0,0,gz+gOR/2] }));
+  return union(tube, flange, cap);
 }
-// Honeycomb variant: the solid dome with hex holes punched radially through the CAP (skirt/thread left
+// Honeycomb variant: the same lid with hex holes punched radially through the globe cap (thread/flange
 // intact), so it works as a light-shade in opaque filament too. Holes are hex-packed on rings of latitude.
-function referenceDomeHoney(cfg) {
-  const wall = 1.8, clr = cfg.clearance, outerR = cfg.majorD/2 + clr + wall, skirtH = cfg.height + 1.5;
-  const R = outerR - wall/2, cz = skirtH, holeR = 2.5;       // mid-shell radius, cap centre z, hex radius
-  const holes = [];
+function referenceDomeHoney() {
+  const wall = 1.8, gOR = domeGlobeOR(), gz = DOME.height + 1.6, R = gOR - wall/2, holeR = 2.5, holes = [];
   let ring = 0;
-  for (let deg = 16; deg <= 74; deg += 15) {                 // rings of latitude (from top), stay above the skirt
+  for (let deg = 16; deg <= 74; deg += 15) {
     const theta = deg*Math.PI/180, ringR = R*Math.sin(theta);
     const n = Math.max(6, Math.round(2*Math.PI*ringR / (holeR*3)));
     const phi0 = (ring % 2) * (Math.PI / n);                 // stagger alternate rings -> honeycomb packing
     for (let k=0; k<n; k++) {
       const phi = phi0 + k*2*Math.PI/n;
-      let h = rotate([0,0,phi], rotate([0,theta,0], cylinder({ radius:holeR, height:wall*3, segments:6 })));
+      const h = rotate([0,0,phi], rotate([0,theta,0], cylinder({ radius:holeR, height:wall*3, segments:6 })));
       const dir = [Math.sin(theta)*Math.cos(phi), Math.sin(theta)*Math.sin(phi), Math.cos(theta)];
-      holes.push(translate([R*dir[0], R*dir[1], cz + R*dir[2]], h));
+      holes.push(translate([R*dir[0], R*dir[1], gz + R*dir[2]], h));
     }
     ring++;
   }
-  holes.push(translate([0,0,cz+R], cylinder({ radius:holeR, height:wall*3, segments:6 })));   // hole at the apex
-  return subtract(referenceDome(cfg), union(...holes));
+  holes.push(translate([0,0,gz+R], cylinder({ radius:holeR, height:wall*3, segments:6 })));   // hole at the apex
+  return subtract(referenceDome(), union(...holes));
 }
 
 // A shallow engraved-text solid for one label, positioned over its reserved strip on the top cover.
@@ -478,8 +485,9 @@ function buildBox(assembled) {
       }
     }
     // recessed board with mount holes under the opening: retain it with a collar (well-wall) around
-    // the payload opening instead of posts that would block it.
-    if (frontLen > 1.0 && m.holes.some(([hx,hy]) => holeInOpening(m, hx, hy))) {
+    // the payload opening instead of posts that would block it. (Skip for dome_mount — the board is
+    // smaller than the big opening, so a collar can't reach it; it rests on the back posts.)
+    if (frontLen > 1.0 && m.top.type !== 'dome_mount' && m.holes.some(([hx,hy]) => holeInOpening(m, hx, hy))) {
       const collar = recessCollar(p, m, H, pcbFrontZ);
       if (collar) front = union(front, collar);
     }
@@ -520,11 +528,11 @@ function buildBox(assembled) {
     }
   }
 
-  // dome-mount variant: add the threaded neck (the "jar") on the outer face, over the light window
-  let hasNeck = false;
+  // dome-mount variant: add the female thread ring on the INSIDE of the top cover (projects down into
+  // the box, around the light opening), so the outer face stays flat and prints without supports.
   for (const p of placed) { const f = MODULES[p.key].top;
-    if (f && f.type === 'dome_mount') { hasNeck = true; const w = loc(p, f.x, f.y);
-      front = union(front, translate([w.x, w.y, H], domeNeck(DOME))); } }
+    if (f && f.type === 'dome_mount') { const w = loc(p, f.x, f.y);
+      front = union(front, translate([w.x, w.y, (H-frontT)-DOME.height], domeRing())); } }
 
   // engrave the module labels into the top cover (subtract shallow grooves). Guard each one so a single
   // troublesome label can never crash the whole box.
@@ -534,9 +542,8 @@ function buildBox(assembled) {
   if (assembled) return { front, back, H };
   // PRINT layout: front plate down; back laid out as a MIRROR IMAGE across the fold line to its
   // right, so folding it over onto the front realigns every column (fixes the flip mismatch).
-  // A dome neck can't go plate-down (it would print into the bed), so leave that cover neck-up.
   const bb = jscad.measurements.measureBoundingBox(foot2d);
-  if (!hasNeck) front = translate([0,0,H], mirror({ normal:[0,0,1] }, front));
+  front = translate([0,0,H], mirror({ normal:[0,0,1] }, front));
   back  = mirror({ normal:[1,0,0], origin:[bb[1][0] + 8, 0, 0] }, back);
   return { front, back, H };
 }
@@ -698,11 +705,11 @@ document.getElementById('dlBottom').addEventListener('click', () => {
   if (printBack) downloadBlob(toSTL(printBack), `noknok_bottom_cover_${placed.length}mod.stl`);
 });
 document.getElementById('dlDome').addEventListener('click', () => {
-  downloadBlob(toSTL(referenceDome(DOME)), `noknok_dome_mount_${DOME.majorD}_lid.stl`);   // matching lid (print in translucent)
+  downloadBlob(toSTL(referenceDome()), `noknok_dome_mount_${DOME.threadMajor}_lid.stl`);   // matching screw-in lid (print translucent)
 });
 document.getElementById('dlDomeHoney').addEventListener('click', () => {
   setStatus('building honeycomb dome…');
-  downloadBlob(toSTL(referenceDomeHoney(DOME)), `noknok_dome_mount_${DOME.majorD}_lid_honeycomb.stl`);   // hex-perforated (any filament)
+  downloadBlob(toSTL(referenceDomeHoney()), `noknok_dome_mount_${DOME.threadMajor}_lid_honeycomb.stl`);   // hex-perforated (any filament)
   setStatus('honeycomb dome ready');
 });
 
