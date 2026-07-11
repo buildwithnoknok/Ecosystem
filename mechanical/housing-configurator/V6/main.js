@@ -386,17 +386,26 @@ function labelEngraving(l, H) {
   let minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;
   for (const seg of segs) for (const pt of seg) { minx=Math.min(minx,pt[0]);maxx=Math.max(maxx,pt[0]);miny=Math.min(miny,pt[1]);maxy=Math.max(maxy,pt[1]); }
   const tw=maxx-minx, cx=(minx+maxx)/2, cy=(miny+maxy)/2, sc = (tw>availLen && tw>0) ? availLen/tw : 1;
-  const depth = 0.4, strokeW = 0.85, strokes = [];
+  // groove width MUST scale with the text: a fixed width on shrunk-to-fit text bloats the strokes until
+  // they overlap into a non-manifold blob ("geometry is not closed"). Keep it proportional to sc.
+  const depth = 0.4, sw = 0.85*sc, strokes = [];
+  if (sw < 0.12) return null;                                       // too small to engrave meaningfully
   for (const seg of segs) {
-    const pts = seg.map(pt => { let lx=(pt[0]-cx)*sc, ly=(pt[1]-cy)*sc;
+    let pts = seg.map(pt => { let lx=(pt[0]-cx)*sc, ly=(pt[1]-cy)*sc;
       if (!s.horizontal) { const t=lx; lx=-ly; ly=t; }              // rotate 90° for E/W edges
       return [wcx+lx, wcy+ly]; });
-    const p = pts.length>1 ? path2.fromPoints({closed:false}, pts)
-                           : path2.fromPoints({closed:false}, [pts[0], [pts[0][0]+0.05, pts[0][1]]]);
-    strokes.push(expand({ delta:strokeW/2, corners:'round', segments:6 }, p));
+    pts = pts.filter((p,i)=> i===0 || Math.hypot(p[0]-pts[i-1][0], p[1]-pts[i-1][1]) > 1e-3);   // drop coincident points
+    if (pts.length < 2) { if (pts.length===1) pts = [pts[0], [pts[0][0]+0.02, pts[0][1]]]; else continue; }
+    strokes.push(expand({ delta:sw/2, corners:'round', segments:8 }, path2.fromPoints({closed:false}, pts)));
   }
-  const text2d = strokes.length>1 ? union(...strokes) : strokes[0];
-  return translate([0,0, H-depth], extrudeLinear({ height: depth+0.5 }, text2d));
+  // Extrude each stroke to its own prism and union in 3D. A 2D union of many overlapping rounded stroke
+  // outlines is fragile (it can produce an un-closed outline -> "geometry is not closed"); 3D union of
+  // simple prisms is robust. Guard each stroke so one bad glyph stroke can't take out the whole label.
+  const solids = [];
+  for (const st of strokes) { try { solids.push(extrudeLinear({ height: depth+0.5 }, st)); } catch(_) {} }
+  if (!solids.length) return null;
+  const text3d = solids.length>1 ? union(...solids) : solids[0];
+  return translate([0,0, H-depth], text3d);
 }
 
 // Build the box from the current layout. Returns { front, back, H }.
@@ -517,8 +526,10 @@ function buildBox(assembled) {
     if (f && f.type === 'dome_mount') { hasNeck = true; const w = loc(p, f.x, f.y);
       front = union(front, translate([w.x, w.y, H], domeNeck(DOME))); } }
 
-  // engrave the module labels into the top cover (subtract shallow grooves)
-  for (const l of labels) { const eng = labelEngraving(l, H); if (eng) front = subtract(front, eng); }
+  // engrave the module labels into the top cover (subtract shallow grooves). Guard each one so a single
+  // troublesome label can never crash the whole box.
+  for (const l of labels) { try { const eng = labelEngraving(l, H); if (eng) front = subtract(front, eng); }
+    catch(e) { console.warn('label skipped:', l.text, e.message); } }
 
   if (assembled) return { front, back, H };
   // PRINT layout: front plate down; back laid out as a MIRROR IMAGE across the fold line to its
