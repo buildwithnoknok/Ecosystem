@@ -687,7 +687,14 @@ document.querySelectorAll('#wallMode button').forEach(b => b.addEventListener('c
   wallMode = b.dataset.mode;
   document.querySelectorAll('#wallMode button').forEach(x => x.classList.toggle('on', x === b));
 }));
-document.getElementById('generate').addEventListener('click', generate);
+document.getElementById('generate').addEventListener('click', () => {
+  // show the "generating…" overlay, then yield (setTimeout, ~a paint frame) so the browser actually
+  // paints it before the synchronous, blocking box build starts — otherwise the UI just freezes with
+  // no feedback. (setTimeout also fires in a backgrounded tab, unlike requestAnimationFrame.)
+  const busy = document.getElementById('busy');
+  busy.style.display = 'flex';
+  setTimeout(() => { try { generate(); } finally { busy.style.display = 'none'; } }, 40);
+});
 document.getElementById('backTo2d').addEventListener('click', () => { show3D(false); render(); });
 document.querySelectorAll('#viewToggle button').forEach(b => b.addEventListener('click', () => { previewMode = b.dataset.mode; renderPreview(); }));
 function downloadBlob(buf, name) {
