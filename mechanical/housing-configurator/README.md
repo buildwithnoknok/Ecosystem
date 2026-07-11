@@ -32,6 +32,27 @@ cover** buttons export each on its own (they're also separate disconnected bodie
 file, so a slicer's "Split to objects/parts" separates them for printing individually or in
 different colours).
 
+## noknok Dome Mount ø44 (screw-on tops)
+
+The **USB LEDs +dome** variant is a 50 × 50 mm housing whose top cover carries a coarse, jam-jar-style
+**external thread** (the "jar") so custom tops — a diffuser dome or any other top — screw over it. This
+is a published interface: design a lid with the matching internal thread and it fits.
+
+| Parameter | Value |
+|---|---|
+| Thread major ø (neck crest) | **44 mm** |
+| Thread minor ø (neck root) | 41 mm (1.5 mm radial depth) |
+| Starts / lead | 3-start, 15 mm lead (5 mm crest spacing) — seats in ~⅔ turn |
+| Neck height | 10 mm, ø38 mm clear bore for the light |
+| Fit clearance | 0.4 mm radial (lid thread grown by this) |
+| Lid outer ø | ~48.4 mm (stays inside the 50 mm footprint) |
+
+The tool exports a **reference dome lid** (`⬇ reference dome lid`, print in translucent filament) — the
+easiest starting point for a custom top. Thread params live in the `DOME` constant in `main.js`
+(`threadSolid` / `domeNeck` / `referenceDome`). **Note:** thread fit always wants one test print to dial
+in the clearance; the dome-mount cover prints **neck-up** (it can't go plate-down) so expect light
+support/bridging under the frame.
+
 ## Module library
 
 The module footprints, clearances, mount holes, connectors and top openings live in the `MODULES`

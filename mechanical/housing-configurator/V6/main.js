@@ -8,14 +8,20 @@ import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import jscad from '@jscad/modeling';
 import stlSerializer from '@jscad/stl-serializer';
 const { primitives, booleans, transforms, extrusions, expansions, hulls } = jscad;
-const { cuboid, cylinder, rectangle, circle } = primitives;
-const { union, subtract } = booleans;
+const { cuboid, cylinder, rectangle, circle, polygon, sphere } = primitives;
+const { union, subtract, intersect } = booleans;
 const { hull } = hulls;
 const { translate, rotate, mirror } = transforms;
-const { extrudeLinear } = extrusions;
+const { extrudeLinear, extrudeHelical } = extrusions;
 const { offset, expand } = expansions;
 const { path2 } = jscad.geometries;
 const { vectorText } = jscad.text;   // built-in single-stroke font for engraved labels
+const TAU = Math.PI * 2;
+// "noknok Dome Mount ø44" — coarse jar-style thread interface for screw-on tops over the USB LEDs.
+// External thread on a neck (the "jar") on the top cover; a lid (dome) with the matching internal
+// thread screws over it. Sized so the lid stays within the 50 mm module footprint. depth=radial tooth,
+// lead=elevation per turn (3-start => crest spacing 5 mm), bore=clear hole for the light.
+const DOME = { majorD:44, depth:1.5, bore:38, height:10, lead:15, starts:3, clearance:0.4 };
 
 // ---- Module library (mm). footprint w×h, payload height, plenum, M2.5 holes, JST/USB sockets,
 // top opening. Mirrors each module repo's mechanical/housing.json. Origin = module bottom-left. ----
@@ -28,6 +34,8 @@ const MODULES = {
     holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'button', x:10, y:10, w:16.4, h:16.2} },  // 5 mm PCB-to-top-cover (keyboard switch); button behind the front window
   usbled:    { name:'USB LEDs',   w:40, h:40, clearance_top:1.6,  pcb:1.6, clearance_bottom:9.0,
     holes:[[4,4],[36,4],[4,36],[36,36]], conn:[['W',3,20,'usb'],['E',36.5,20]], top:{type:'window', x:20, y:20, w:38, h:38} },  // square opening so the corner LEDs aren't clipped
+  usbleddome:{ name:'USB LEDs +dome', w:50, h:50, clearance_top:1.6, pcb:1.6, clearance_bottom:9.0,   // 50×50 variant: 40×40 board centred, threaded neck on top
+    holes:[[9,9],[41,9],[9,41],[41,41]], conn:[['W',8,25,'usb'],['E',41.5,25]], top:{type:'dome_mount', x:25, y:25, dia:38} },
   display:   { name:'display',    w:40, h:30, clearance_top:2.0,  pcb:1.6, clearance_bottom:3.0,
     holes:[[2.25,2.25],[2.25,27.75],[37.75,2.25],[37.75,27.75]], conn:[['W',3.1,15],['S',20,3.1]], top:{type:'window', x:19.8, y:15, w:32.35, h:16.18} },
 };
@@ -278,7 +286,7 @@ function topCut(p, H) {                                  // front-plate opening 
   const m = MODULES[p.key], f = m.top, w = loc(p, f.x, f.y);
   const z = H - BOX.frontT/2, hh = BOX.frontT + 1.2;
   if (f.type === 'grille')     return grilleCut(w.x, w.y, z, hh);
-  if (f.type === 'round_hole') return cylinder({ radius:f.dia/2, height:hh, segments:48, center:[w.x, w.y, z] });
+  if (f.type === 'round_hole' || f.type === 'dome_mount') return cylinder({ radius:f.dia/2, height:hh, segments:48, center:[w.x, w.y, z] });
   const sw = (p.rot%180===0)? f.w : f.h, sh = (p.rot%180===0)? f.h : f.w;   // rect: swap if rotated
   return cuboid({ size:[sw, sh, hh], center:[w.x, w.y, z] });
 }
@@ -307,6 +315,39 @@ function recessCollar(p, m, H, pcbFrontZ) {
   const rad = p.rot*Math.PI/180;                        // place into world = same map as loc()
   const T = p.rot===90 ? [m.h,0] : p.rot===180 ? [m.w,m.h] : p.rot===270 ? [0,m.w] : [0,0];
   return translate([p.x+T[0], p.y+T[1], 0], rotate([0,0,rad], solid));
+}
+
+// ---- coarse "jar" thread (noknok Dome Mount) ----------------------------------------------------
+// A solid, externally-threaded cylinder centred on the Z axis, base at z=0. `grow` inflates every
+// radius (use grow = clearance to make the female-thread cutter for the matching lid). The thread is
+// `starts` parallel helices of a trapezoidal tooth swept with extrudeHelical; the result is trimmed
+// flush to [0, height].
+function threadSolid(cfg, grow = 0, segs = 64) {
+  const { majorD, depth, height, lead, starts } = cfg;
+  const rMaj = majorD/2 + grow, rMin = rMaj - depth, cp = lead/starts;   // cp = crest-to-crest spacing
+  const tB = cp*0.66, tC = cp*0.20;                                      // tooth base / crest heights
+  const tooth = polygon({ points: [[rMin-0.3,-tB/2],[rMaj,-tC/2],[rMaj,tC/2],[rMin-0.3,tB/2]] });
+  let s = cylinder({ radius: rMin, height, segments: segs, center:[0,0,height/2] });
+  const angle = (height/lead)*TAU;
+  for (let i=0; i<starts; i++)
+    s = union(s, extrudeHelical({ angle, pitch: lead, startAngle: i*TAU/starts, segmentsPerRotation: segs }, tooth));
+  return intersect(s, cylinder({ radius: rMaj+1, height, segments: segs, center:[0,0,height/2] }));   // trim flush
+}
+// The neck on the housing top cover = threaded solid with a clear bore for the light, base at z=0.
+function domeNeck(cfg) {
+  return subtract(threadSolid(cfg), cylinder({ radius: cfg.bore/2, height: cfg.height+2, segments:64, center:[0,0,cfg.height/2] }));
+}
+// Reference lid: a threaded skirt (female thread carved by a clearance-grown male plug) + a domed
+// translucent cap. Prints on its own; screws over the neck. Base at z=0.
+function referenceDome(cfg) {
+  const wall = 1.8, clr = cfg.clearance, outerR = cfg.majorD/2 + clr + wall, skirtH = cfg.height + 1.5;
+  const skirt = subtract(
+    cylinder({ radius: outerR, height: skirtH, segments:72, center:[0,0,skirtH/2] }),
+    threadSolid(cfg, clr));                                              // carve the female thread + bore
+  const capShell = subtract(sphere({ radius: outerR, segments:48, center:[0,0,skirtH] }),
+                            sphere({ radius: outerR-wall, segments:48, center:[0,0,skirtH] }));
+  const cap = intersect(capShell, cylinder({ radius: outerR+1, height: outerR+2, segments:72, center:[0,0,skirtH+(outerR)/2] }));
+  return union(skirt, cap);
 }
 
 // A shallow engraved-text solid for one label, positioned over its reserved strip on the top cover.
@@ -448,14 +489,21 @@ function buildBox(assembled) {
     }
   }
 
+  // dome-mount variant: add the threaded neck (the "jar") on the outer face, over the light window
+  let hasNeck = false;
+  for (const p of placed) { const f = MODULES[p.key].top;
+    if (f && f.type === 'dome_mount') { hasNeck = true; const w = loc(p, f.x, f.y);
+      front = union(front, translate([w.x, w.y, H], domeNeck(DOME))); } }
+
   // engrave the module labels into the top cover (subtract shallow grooves)
   for (const l of labels) { const eng = labelEngraving(l, H); if (eng) front = subtract(front, eng); }
 
   if (assembled) return { front, back, H };
   // PRINT layout: front plate down; back laid out as a MIRROR IMAGE across the fold line to its
   // right, so folding it over onto the front realigns every column (fixes the flip mismatch).
+  // A dome neck can't go plate-down (it would print into the bed), so leave that cover neck-up.
   const bb = jscad.measurements.measureBoundingBox(foot2d);
-  front = translate([0,0,H], mirror({ normal:[0,0,1] }, front));
+  if (!hasNeck) front = translate([0,0,H], mirror({ normal:[0,0,1] }, front));
   back  = mirror({ normal:[1,0,0], origin:[bb[1][0] + 8, 0, 0] }, back);
   return { front, back, H };
 }
@@ -517,6 +565,9 @@ function generate() {
     document.getElementById('download').disabled = false;
     document.getElementById('dlTop').disabled = false;
     document.getElementById('dlBottom').disabled = false;
+    const hasDome = placed.some(p => MODULES[p.key].top && MODULES[p.key].top.type==='dome_mount');
+    document.getElementById('dlDome').style.display = hasDome ? 'block' : 'none';
+    document.getElementById('dlDome').disabled = !hasDome;
     setStatus(`box ${boxH.toFixed(1)} mm tall · ${placed.length} modules · STL ready (${(currentSTL.byteLength/1024).toFixed(0)} KB)`);
   } catch(e) { console.error(e); setStatus('generate error: ' + e.message); }
 }
@@ -610,6 +661,9 @@ document.getElementById('dlTop').addEventListener('click', () => {
 });
 document.getElementById('dlBottom').addEventListener('click', () => {
   if (printBack) downloadBlob(toSTL(printBack), `noknok_bottom_cover_${placed.length}mod.stl`);
+});
+document.getElementById('dlDome').addEventListener('click', () => {
+  downloadBlob(toSTL(referenceDome(DOME)), `noknok_dome_mount_${DOME.majorD}_lid.stl`);   // matching lid (print in translucent)
 });
 
 buildPalette();
