@@ -23,9 +23,13 @@ A single monolithic box of uniform height:
   module first and only the bare cable is laid into the slot before closing.
 - **Cover latches** — flexing snap arms (tapered base) on user-picked walls; press from outside
   to release. Nothing internal is trapped.
+- **Cable hooks** — ⌐-shaped hooks on the bottom cover, placed on empty in-box tiles (toggle to
+  "cable hook" mode; click a tile to add, click again to rotate, a full turn removes). Tuck a
+  cable under the arm.
 - **2 mm clearance** between each module and the outer wall for easy assembly.
-- **Engraved text labels** on the top cover (built-in single-stroke font), along a chosen module
-  edge; the labelled tiles are reserved so no module can sit under the text.
+- **Engraved text labels** on the top cover (built-in single-stroke font, bold, 0.8 mm deep),
+  along a chosen module edge; the labelled tiles are reserved so no module can sit under the text.
+  Mirrored in the print build so they read correctly on the face-down-printed cover.
 
 Modules can't overlap. The **Download STL** button exports both covers; **top cover** / **bottom
 cover** buttons export each on its own (they're also separate disconnected bodies in the combined
@@ -34,7 +38,8 @@ different colours).
 
 ## noknok Dome Mount ø58 (screw-in tops)
 
-The **USB LEDs +dome** variant is a 60 × 60 mm housing. Its top cover carries a coarse, jam-jar-style
+The **USB LEDs +dome** variant is a 70 × 70 mm housing (the tile is oversized so the ~62 mm ring can't
+overlap a neighbouring module). Its top cover carries a coarse, jam-jar-style
 **female (internal) thread ring that projects DOWN into the box** — same direction as the walls/columns,
 so the **cover prints flat on the bed with no supports**. A lid (dome) with the matching **male thread
 screws IN** from the top. This is a published interface: design a lid with the matching male thread and it
@@ -47,8 +52,8 @@ fits.
 | Starts / lead | 3-start, 7.5 mm lead (2.5 mm crest spacing) — seats in ~⅔ turn |
 | Ring height (into the box) | 6 mm, 1.2 mm radial tooth |
 | Fit clearance | 0.4 mm radial |
-| Ring outer ø | ~62 mm (inside the ~64 mm interior) |
-| Lid globe ø | ~59.5 mm (within the 60 mm footprint) |
+| Ring outer ø | ~62 mm (well inside the 70 mm tile) |
+| Lid globe ø | ~69 mm (fills the 70 mm tile) |
 
 The board is smaller than the light opening, so it isn't held by front columns — it rests on the tall
 back-cover posts (gravity + locating pegs; a firmer snap can be added). The tool exports two matching

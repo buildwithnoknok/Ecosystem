@@ -14,7 +14,7 @@ const { hull } = hulls;
 const { translate, rotate, mirror } = transforms;
 const { extrudeLinear, extrudeHelical } = extrusions;
 const { offset, expand } = expansions;
-const { path2 } = jscad.geometries;
+const { path2, geom3 } = jscad.geometries;
 const { vectorText } = jscad.text;   // built-in single-stroke font for engraved labels
 const TAU = Math.PI * 2;
 // "noknok Dome Mount ø58" — coarse jar-style thread for screw-in tops over the USB LEDs. The thread is a
@@ -23,7 +23,7 @@ const TAU = Math.PI * 2;
 // the top. The 60 mm form factor is sized so the 40x40 board sits inside the ring bore. threadMajor =
 // male crest OD; depth = radial tooth; lead = 3-start => 2.5 mm crest spacing; opening = light hole in
 // the plate (>= board diagonal 56.6 so the board fits inside); form = module footprint (mm).
-const DOME = { threadMajor:59.5, depth:1.2, height:6, lead:7.5, starts:3, clearance:0.4, opening:58, form:60 };
+const DOME = { threadMajor:59.5, depth:1.2, height:6, lead:7.5, starts:3, clearance:0.4, opening:58, form:70 };   // form 70 = lid globe fills the 70 mm tile; flange rests on a wider frame
 const domeThread = (grow=0) => threadSolid({ majorD:DOME.threadMajor, depth:DOME.depth, height:DOME.height, lead:DOME.lead, starts:DOME.starts }, grow);
 
 // ---- Module library (mm). footprint w×h, payload height, plenum, M2.5 holes, connectors, top opening.
@@ -60,6 +60,8 @@ let latches = new Set();  // "gx,gy,side" walls carrying an assembly latch (user
 let wallMode = 'hole';    // clicking a wall adds: 'hole' or 'latch'
 let labels = [];          // { id, modId, side, text, size } — engraved text on the top cover
 let nextLabelId = 1, labelSide = 'N', labelSize = 5;
+let hooks = [];           // { gx, gy, rot } — cable hooks on the bottom cover, in empty in-box tiles
+let cellMode = 'box';     // clicking an empty in-box cell: 'box' = reshape outline, 'hook' = place cable hook
 
 // footprint accounting for rotation (90/270 swaps w/h)
 function footprint(p) { const m = MODULES[p.key]; return (p.rot % 180 === 0) ? { w:m.w, h:m.h } : { w:m.h, h:m.w }; }
@@ -135,6 +137,9 @@ function pruneWalls() {
   const valid = new Set(boundaryWalls().map(([gx,gy,s]) => `${gx},${gy},${s}`));
   for (const k of [...holes])   if (!valid.has(k)) holes.delete(k);
   for (const k of [...latches]) if (!valid.has(k)) latches.delete(k);
+  // drop cable hooks whose tile is no longer an empty in-box cell (module moved onto it, or tile removed)
+  const mc = moduleCells(), lc = allLabelCells();
+  hooks = hooks.filter(h => region.has(ck(h.gx,h.gy)) && !mc.has(ck(h.gx,h.gy)) && !lc.has(ck(h.gx,h.gy)));
 }
 function wallXY(gx,gy,s) {          // SVG endpoints of a wall segment (Y flipped)
   const x0=gx*GRID, x1=(gx+1)*GRID, ya=VBH-(gy+1)*GRID, yb=VBH-gy*GRID;
@@ -220,6 +225,15 @@ function render() {
     if (hole)  el('rect', { x:mx-USBC_W/2, y:my-2, width:USBC_W, height:4, rx:1.2, fill:'#2b7fd0', 'fill-opacity':0.3, stroke:'#2b7fd0', 'stroke-width':0.5, 'pointer-events':'none' }, wg);
     if (latch) el('rect', { x:mx-2, y:my-2, width:4, height:4, rx:0.8, fill:'#e8912f', 'fill-opacity':0.35, stroke:'#e8912f', 'stroke-width':0.5, 'pointer-events':'none' }, wg);
   }
+  // cable hooks (on empty in-box tiles): a post + an arm pointing in the rotation direction
+  for (const h of hooks) {
+    const cx=(h.gx+0.5)*GRID, cy=VBH-(h.gy+0.5)*GRID;
+    const d = { 0:[0,-1], 90:[1,0], 180:[0,1], 270:[-1,0] }[h.rot];   // SVG arm dir (0 = N = up)
+    const hg = el('g', { 'pointer-events':'none' }, svg), col='#c07be0';
+    el('rect', { x:cx-1.3, y:cy-1.3, width:2.6, height:2.6, rx:0.6, fill:col }, hg);
+    el('line', { x1:cx, y1:cy, x2:cx+d[0]*3.4, y2:cy+d[1]*3.4, stroke:col, 'stroke-width':1.8, 'stroke-linecap':'round' }, hg);
+    el('circle', { cx:cx+d[0]*3.4, cy:cy+d[1]*3.4, r:1.0, fill:col }, hg);
+  }
   renderLabelList();
   document.getElementById('addLabel').disabled = !(selId!==null && document.getElementById('labelText').value.trim());
   // status + generate enable
@@ -270,6 +284,13 @@ svg.addEventListener('pointerdown', (e) => {
     const mm = toMM(e); drag = { id, ox: mm.x-p.x, oy: mm.y-p.y }; svg.setPointerCapture(e.pointerId); render(); return; }
   const mm = toMM(e); const gx = Math.floor(mm.x/GRID), gy = Math.floor(mm.y/GRID); selId = null;
   if (gx<0 || gy<0 || gx>=VBW/GRID || gy>=VBH/GRID) { render(); return; }
+  if (cellMode === 'hook') {                                    // place / rotate / remove a cable hook
+    const h = hooks.find(q => q.gx===gx && q.gy===gy);
+    if (h) { h.rot = (h.rot + 90) % 360; if (h.rot === 0) hooks = hooks.filter(q => q !== h); }   // rotate; a full turn removes it
+    else if (region.has(ck(gx,gy)) && !moduleCells().has(ck(gx,gy)) && !allLabelCells().has(ck(gx,gy)))
+      hooks.push({ gx, gy, rot: 0 });                           // only on an empty in-box tile
+    render(); return;
+  }
   if (requiredCells().has(ck(gx,gy))) { render(); return; }   // never carve a module or label cell
   autoBox = false; const k = ck(gx,gy); region.has(k) ? region.delete(k) : region.add(k); render();
 });
@@ -284,7 +305,7 @@ svg.addEventListener('pointermove', (e) => {
 svg.addEventListener('pointerup', (e) => { drag = null; try { svg.releasePointerCapture(e.pointerId); } catch(_){} });
 
 // ================= 3D box generation =================
-const BOX = { frontT:1.2, backT:1.2, wallT:1.5, postR:2.0, pegR:1.15, pegLen:1.6, socketR:1.8 };
+const BOX = { frontT:1.2, backT:2.0, wallT:1.5, postR:2.0, pegR:1.15, pegLen:1.6, socketR:1.8 };   // backT 2.0: thicker, more rigid bottom cover
 const SOCKET_H = 2.95;   // JST-SH socket body height above the PCB (support columns press here)
 
 function grilleCut(cx, cy, z, hh) {
@@ -362,29 +383,33 @@ function referenceDome() {
   const flange = subtract(cylinder({ radius: gOR, height:1.6, segments:72, center:[0,0,fz+0.8] }),
                           cylinder({ radius: boreR, height:2,   segments:64, center:[0,0,fz+0.8] }));
   const cap = intersect(
-    subtract(sphere({ radius: gOR, segments:48, center:[0,0,gz] }), sphere({ radius: gOR-wall, segments:48, center:[0,0,gz] })),
-    cylinder({ radius: gOR+1, height: gOR+2, segments:72, center:[0,0,gz+gOR/2] }));
+    subtract(sphere({ radius: gOR, segments:40, center:[0,0,gz] }), sphere({ radius: gOR-wall, segments:40, center:[0,0,gz] })),
+    cylinder({ radius: gOR+1, height: gOR+2, segments:64, center:[0,0,gz+gOR/2] }));
   return union(tube, flange, cap);
 }
 // Honeycomb variant: the same lid with hex holes punched radially through the globe cap (thread/flange
 // intact), so it works as a light-shade in opaque filament too. Holes are hex-packed on rings of latitude.
 function referenceDomeHoney() {
-  const wall = 1.8, gOR = domeGlobeOR(), gz = DOME.height + 1.6, R = gOR - wall/2, holeR = 2.5, holes = [];
+  const wall = 1.8, gOR = domeGlobeOR(), gz = DOME.height + 1.6, R = gOR - wall/2, holeR = 3.4, cutterPolys = [];
   let ring = 0;
-  for (let deg = 16; deg <= 74; deg += 15) {
+  // ~1 mm walls (spacing 2.35·holeR) + rings down to near the equator so the perforation starts right
+  // above the thread/flange instead of a solid band. The hex cutters are disjoint, so we collect their
+  // polygons into ONE geom3 and do a single subtract — a 100+-way union() here is ~20 s, this is ~9 s.
+  const punch = (h) => { for (const p of geom3.toPolygons(h)) cutterPolys.push(p); };
+  for (let deg = 16; deg <= 84; deg += 13) {
     const theta = deg*Math.PI/180, ringR = R*Math.sin(theta);
-    const n = Math.max(6, Math.round(2*Math.PI*ringR / (holeR*3)));
+    const n = Math.max(6, Math.round(2*Math.PI*ringR / (holeR*2.35)));
     const phi0 = (ring % 2) * (Math.PI / n);                 // stagger alternate rings -> honeycomb packing
     for (let k=0; k<n; k++) {
       const phi = phi0 + k*2*Math.PI/n;
       const h = rotate([0,0,phi], rotate([0,theta,0], cylinder({ radius:holeR, height:wall*3, segments:6 })));
       const dir = [Math.sin(theta)*Math.cos(phi), Math.sin(theta)*Math.sin(phi), Math.cos(theta)];
-      holes.push(translate([R*dir[0], R*dir[1], gz + R*dir[2]], h));
+      punch(translate([R*dir[0], R*dir[1], gz + R*dir[2]], h));
     }
     ring++;
   }
-  holes.push(translate([0,0,gz+R], cylinder({ radius:holeR, height:wall*3, segments:6 })));   // hole at the apex
-  return subtract(referenceDome(), union(...holes));
+  punch(translate([0,0,gz+R], cylinder({ radius:holeR, height:wall*3, segments:6 })));   // hole at the apex
+  return subtract(referenceDome(), geom3.create(cutterPolys));
 }
 
 // A shallow engraved-text solid for one label, positioned over its reserved strip on the top cover.
@@ -403,8 +428,8 @@ function labelEngraving(l, H, flipX) {
   const tw=maxx-minx, cx=(minx+maxx)/2, cy=(miny+maxy)/2, sc = (tw>availLen && tw>0) ? availLen/tw : 1;
   // groove width MUST scale with the text: a fixed width on shrunk-to-fit text bloats the strokes until
   // they overlap into a non-manifold blob ("geometry is not closed"). Keep it proportional to sc.
-  const depth = 0.4, sw = 0.85*sc, strokes = [];
-  if (sw < 0.12) return null;                                       // too small to engrave meaningfully
+  const depth = 0.8, sw = 1.3*sc, strokes = [];                    // depth 0.8 + wide stroke = bolder, more readable
+  if (sw < 0.15) return null;                                       // too small to engrave meaningfully
   for (const seg of segs) {
     let pts = seg.map(pt => { let lx=(pt[0]-cx)*sc, ly=(pt[1]-cy)*sc;
       if (!s.horizontal) { const t=lx; lx=-ly; ly=t; }              // rotate 90° for E/W edges
@@ -423,6 +448,18 @@ function labelEngraving(l, H, flipX) {
   if (!solids.length) return null;
   const text3d = solids.length>1 ? union(...solids) : solids[0];
   return translate([0,0, H-depth], text3d);
+}
+
+// A cable hook that rises from the bottom cover in an empty tile: a post + a top arm (⌐) with a gap
+// under it to tuck a cable. The arm points in `rot` (0/90/180/270); it stays within the 10 mm tile so it
+// can't foul a neighbouring module, and prints as a short overhang plate-down. z0 = top of the back plate.
+function cableHook(gx, gy, rot, z0) {
+  const cx=(gx+0.5)*GRID, cy=(gy+0.5)*GRID, postW=2.6, hookH=6.0, armLen=3.5, armT=1.6;
+  const d = { 0:[0,1], 90:[1,0], 180:[0,-1], 270:[-1,0] }[rot] || [0,1];   // world arm direction
+  const post = cuboid({ size:[postW, postW, hookH], center:[cx, cy, z0+hookH/2] });
+  const armSize = Math.abs(d[0])>0 ? [armLen+postW, postW, armT] : [postW, armLen+postW, armT];
+  const arm = cuboid({ size: armSize, center:[cx + d[0]*armLen/2, cy + d[1]*armLen/2, z0+hookH-armT/2] });
+  return union(post, arm);
 }
 
 // Build the box from the current layout. Returns { front, back, H }.
@@ -510,6 +547,9 @@ function buildBox(assembled) {
       if (h > 0.5) back = union(back, cylinder({ radius:socketR, height:h, segments:20, center:[w.x, w.y, backT + h/2] }));
     }
   }
+
+  // user-placed cable hooks rise from the bottom cover in empty tiles
+  for (const h of hooks) back = union(back, cableHook(h.gx, h.gy, h.rot, backT));
 
   // cover-to-cover JOIN — flexing latches on the walls the USER picked: a spring arm on the back
   // cover clicks a detent into a window in the front-cover wall. Press the detent through the
@@ -698,14 +738,21 @@ document.querySelectorAll('#wallMode button').forEach(b => b.addEventListener('c
   wallMode = b.dataset.mode;
   document.querySelectorAll('#wallMode button').forEach(x => x.classList.toggle('on', x === b));
 }));
-document.getElementById('generate').addEventListener('click', () => {
-  // show the "generating…" overlay, then yield (setTimeout, ~a paint frame) so the browser actually
-  // paints it before the synchronous, blocking box build starts — otherwise the UI just freezes with
-  // no feedback. (setTimeout also fires in a backgrounded tab, unlike requestAnimationFrame.)
+document.querySelectorAll('#cellMode button').forEach(b => b.addEventListener('click', () => {
+  cellMode = b.dataset.mode;
+  document.querySelectorAll('#cellMode button').forEach(x => x.classList.toggle('on', x === b));
+  document.getElementById('cellModeNote').innerHTML = cellMode === 'hook'
+    ? '<b>Cable hook:</b> click an empty in-box tile to add a hook; click it again to rotate; a full turn removes it. It prints on the bottom cover — tuck a cable under the arm.'
+    : '<b>Reshape box:</b> click empty cells to hug, notch, or bridge modules into one box.';
+}));
+// show the overlay with a message, yield a frame so it paints, then run the (blocking) work, then hide it.
+function busyThen(msg, fn) {
   const busy = document.getElementById('busy');
+  document.getElementById('busyMsg').textContent = msg;
   busy.style.display = 'flex';
-  setTimeout(() => { try { generate(); } finally { busy.style.display = 'none'; } }, 40);
-});
+  setTimeout(() => { try { fn(); } finally { busy.style.display = 'none'; } }, 40);
+}
+document.getElementById('generate').addEventListener('click', () => busyThen('Generating 3D box… please wait', generate));
 document.getElementById('backTo2d').addEventListener('click', () => { show3D(false); render(); });
 document.querySelectorAll('#viewToggle button').forEach(b => b.addEventListener('click', () => { previewMode = b.dataset.mode; renderPreview(); }));
 function downloadBlob(buf, name) {
@@ -722,14 +769,10 @@ document.getElementById('dlTop').addEventListener('click', () => {
 document.getElementById('dlBottom').addEventListener('click', () => {
   if (printBack) downloadBlob(toSTL(printBack), `noknok_bottom_cover_${placed.length}mod.stl`);
 });
-document.getElementById('dlDome').addEventListener('click', () => {
-  downloadBlob(toSTL(referenceDome()), `noknok_dome_mount_${DOME.threadMajor}_lid.stl`);   // matching screw-in lid (print translucent)
-});
-document.getElementById('dlDomeHoney').addEventListener('click', () => {
-  setStatus('building honeycomb dome…');
-  downloadBlob(toSTL(referenceDomeHoney()), `noknok_dome_mount_${DOME.threadMajor}_lid_honeycomb.stl`);   // hex-perforated (any filament)
-  setStatus('honeycomb dome ready');
-});
+document.getElementById('dlDome').addEventListener('click', () => busyThen('Building dome lid…',
+  () => downloadBlob(toSTL(referenceDome()), `noknok_dome_mount_${DOME.threadMajor}_lid.stl`)));   // matching screw-in lid (print translucent)
+document.getElementById('dlDomeHoney').addEventListener('click', () => busyThen('Building honeycomb dome… (a few seconds)',
+  () => downloadBlob(toSTL(referenceDomeHoney()), `noknok_dome_mount_${DOME.threadMajor}_lid_honeycomb.stl`)));   // hex-perforated (any filament)
 
 buildPalette();
 update();

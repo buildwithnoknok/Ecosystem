@@ -104,9 +104,13 @@
 
     <hr/>
     <div>
-      <label>Box outline</label>
-      <div class="note"><b>Click empty cells</b> to reshape the box (hug, notch, or bridge apart
-        modules into one box). Starts as a rectangle around your modules.</div>
+      <label>Click an empty cell to…</label>
+      <div class="seg2" id="cellMode">
+        <button data-mode="box" class="on">⬚ reshape box</button>
+        <button data-mode="hook">🪝 cable hook</button>
+      </div>
+      <div class="note" id="cellModeNote"><b>Reshape box:</b> click empty cells to hug, notch, or bridge
+        modules into one box.</div>
       <div class="row" style="margin-top:6px;"><button id="resetBox">↺ reset to rectangle</button></div>
     </div>
 
@@ -142,7 +146,7 @@
 
   <div id="view">
     <div id="status">loading…</div>
-    <div id="busy"><div><span class="spin"></span> Generating 3D box… please wait</div></div>
+    <div id="busy"><div><span class="spin"></span> <span id="busyMsg">Generating 3D box… please wait</span></div></div>
     <div id="viewToggle" style="display:none;position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:2;border:1px solid #2a2f3a;border-radius:8px;overflow:hidden;">
       <button data-mode="assembled" class="on" style="background:var(--accent);color:#04150f;border:0;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600;">Assembled</button>
       <button data-mode="print" style="background:var(--panel);color:var(--muted);border:0;padding:8px 14px;cursor:pointer;font-size:13px;">Print layout</button>
