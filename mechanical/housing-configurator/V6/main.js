@@ -62,6 +62,10 @@ let labels = [];          // { id, modId, side, text, size } — engraved text o
 let nextLabelId = 1, labelSide = 'N', labelSize = 5;
 let hooks = [];           // { gx, gy, rot } — cable hooks on the bottom cover, in empty in-box tiles
 let cellMode = 'box';     // clicking an empty in-box cell: 'box' = reshape outline, 'hook' = place cable hook
+// ---- box-joining features (join two separately-printed boxes) — all keyed "gx,gy,side" like holes/latches
+let dtMale = new Set();    // male dovetail RAIL on the OUTSIDE of a wall (slides down into another box's groove)
+let dtFemale = new Set();  // female dovetail GROOVE — grows a boss inward and reserves that tile for the socket
+let openings = new Set();  // cable pass-through — most of the wall removed at the floor line
 
 // footprint accounting for rotation (90/270 swaps w/h)
 function footprint(p) { const m = MODULES[p.key]; return (p.rot % 180 === 0) ? { w:m.w, h:m.h } : { w:m.h, h:m.w }; }
@@ -82,6 +86,8 @@ function moduleCells() {
       for (let cy = p.y/GRID; cy < (p.y+fp.h)/GRID; cy++) s.add(ck(cx,cy)); }
   return s;
 }
+// tiles reserved by female dovetail sockets (the in-box cell that owns each female wall)
+function femaleCells() { const s = new Set(); for (const k of dtFemale) { const [gx,gy] = k.split(','); s.add(ck(+gx,+gy)); } return s; }
 // cells occupied by a label's reserved strip (the tiles adjacent to a module edge)
 function cellBox(p) { const fp = footprint(p);
   return { x0:p.x/GRID, x1:(p.x+fp.w)/GRID-1, y0:p.y/GRID, y1:(p.y+fp.h)/GRID-1 }; }
@@ -95,13 +101,14 @@ function labelCells(l) {
   return out;
 }
 function allLabelCells() { const s=new Set(); for (const l of labels) for (const [gx,gy] of labelCells(l)) s.add(ck(gx,gy)); return s; }
-function requiredCells() { const s = moduleCells(); for (const c of allLabelCells()) s.add(c); return s; }   // must be inside the box
+function requiredCells() { const s = moduleCells(); for (const c of allLabelCells()) s.add(c); for (const c of femaleCells()) s.add(c); return s; }   // must be inside the box
 // cells occupied by OTHER modules + OTHER modules' labels (own labels follow the module, so they're excluded)
 function occupiedBy(exceptId) {
   const s = new Set();
   for (const q of placed) if (q.id !== exceptId) { const fp = footprint(q);
     for (let cx=q.x/GRID; cx<(q.x+fp.w)/GRID; cx++) for (let cy=q.y/GRID; cy<(q.y+fp.h)/GRID; cy++) s.add(ck(cx,cy)); }
   for (const l of labels) if (l.modId !== exceptId) for (const [gx,gy] of labelCells(l)) s.add(ck(gx,gy));
+  for (const c of femaleCells()) s.add(c);   // a female socket fills its tile — no module may sit there
   return s;
 }
 // does a footprint at grid-cell (gx0,gy0) sized (wc×hc) hit any occupied/blocked cell?
@@ -135,8 +142,11 @@ function boundaryWalls() {          // edges where an in-region cell meets an ou
 // removed or a module moves) — otherwise it lingers invisibly and reappears in the 3D box.
 function pruneWalls() {
   const valid = new Set(boundaryWalls().map(([gx,gy,s]) => `${gx},${gy},${s}`));
-  for (const k of [...holes])   if (!valid.has(k)) holes.delete(k);
-  for (const k of [...latches]) if (!valid.has(k)) latches.delete(k);
+  for (const k of [...holes])    if (!valid.has(k)) holes.delete(k);
+  for (const k of [...latches])  if (!valid.has(k)) latches.delete(k);
+  for (const k of [...dtMale])   if (!valid.has(k)) dtMale.delete(k);
+  for (const k of [...dtFemale]) if (!valid.has(k)) dtFemale.delete(k);
+  for (const k of [...openings]) if (!valid.has(k)) openings.delete(k);
   // drop cable hooks whose tile is no longer an empty in-box cell (module moved onto it, or tile removed)
   const mc = moduleCells(), lc = allLabelCells();
   hooks = hooks.filter(h => region.has(ck(h.gx,h.gy)) && !mc.has(ck(h.gx,h.gy)) && !lc.has(ck(h.gx,h.gy)));
@@ -156,6 +166,13 @@ function el(tag, attrs, parent) {
   const e = document.createElementNS(SVGNS, tag);
   for (const k in attrs) e.setAttribute(k, attrs[k]);
   if (parent) parent.appendChild(e); return e;
+}
+// SVG dovetail outline at a wall midpoint (mx,my): narrow neck (nw) at the wall widening to tip (tw) over
+// depth dp, along the wall's outward normal oS / tangent tS. inward=true points into the box (female).
+function svgDovetail(mx, my, oS, tS, nw, tw, dp, inward) {
+  const s = inward ? -1 : 1, tx = mx + oS[0]*dp*s, ty = my + oS[1]*dp*s;
+  const P = (px,py,w) => `${(px+tS[0]*w).toFixed(2)},${(py+tS[1]*w).toFixed(2)}`;
+  return `${P(mx,my,-nw/2)} ${P(tx,ty,-tw/2)} ${P(tx,ty,tw/2)} ${P(mx,my,nw/2)}`;
 }
 
 function render() {
@@ -215,15 +232,27 @@ function render() {
     if (!s.horizontal) t.setAttribute('transform', `rotate(-90 ${cx} ${cy})`);
     t.textContent = l.text;
   }
-  // box walls (clickable): USB-C power slots (blue) + assembly latches (orange)
+  // box walls (clickable). Each wall carries at most one feature: power slot (blue), latch (orange),
+  // male/female dovetail (sky) or a cable opening (coral) — the last three join two boxes together.
+  const DT_COL = '#38bdf8', OPEN_COL = '#fb7185';
   const wg = el('g', {}, svg);
   for (const [gx,gy,s] of boundaryWalls()) {
-    const [x1,y1,x2,y2] = wallXY(gx,gy,s), key = `${gx},${gy},${s}`, hole = holes.has(key), latch = latches.has(key);
+    const [x1,y1,x2,y2] = wallXY(gx,gy,s), key = `${gx},${gy},${s}`;
+    const hole=holes.has(key), latch=latches.has(key), male=dtMale.has(key), female=dtFemale.has(key), open=openings.has(key);
+    const feat = hole||latch||male||female||open;
+    const col = hole?'#2b7fd0': latch?'#e8912f': (male||female)?DT_COL: open?OPEN_COL:'var(--accent)';
     el('line', { x1,y1,x2,y2, stroke:'transparent', 'stroke-width':3.5, 'data-wall':key, style:'cursor:pointer' }, wg);
-    el('line', { x1,y1,x2,y2, stroke: hole?'#2b7fd0': latch?'#e8912f':'var(--accent)', 'stroke-width': (hole||latch)?1.9:0.9, 'pointer-events':'none' }, wg);
+    el('line', { x1,y1,x2,y2, stroke:col, 'stroke-width': feat?1.9:0.9, 'pointer-events':'none' }, wg);
     const mx=(x1+x2)/2, my=(y1+y2)/2;
+    const oS = { N:[0,-1], S:[0,1], E:[1,0], W:[-1,0] }[s], tS = [-oS[1], oS[0]];
     if (hole)  el('rect', { x:mx-USBC_W/2, y:my-2, width:USBC_W, height:4, rx:1.2, fill:'#2b7fd0', 'fill-opacity':0.3, stroke:'#2b7fd0', 'stroke-width':0.5, 'pointer-events':'none' }, wg);
     if (latch) el('rect', { x:mx-2, y:my-2, width:4, height:4, rx:0.8, fill:'#e8912f', 'fill-opacity':0.35, stroke:'#e8912f', 'stroke-width':0.5, 'pointer-events':'none' }, wg);
+    if (male)  el('polygon', { points: svgDovetail(mx,my,oS,tS,DT.neck,DT.tip,DT.depth,false), fill:DT_COL, 'fill-opacity':0.85, 'pointer-events':'none' }, wg);
+    if (female) {
+      el('rect', { x:gx*GRID, y:VBH-(gy+1)*GRID, width:GRID, height:GRID, fill:DT_COL, 'fill-opacity':0.12, 'pointer-events':'none' }, wg);
+      el('polygon', { points: svgDovetail(mx,my,oS,tS,DT.neck,DT.tip,DT.depth,true), fill:'none', stroke:DT_COL, 'stroke-width':0.7, 'pointer-events':'none' }, wg);
+    }
+    if (open)  el('rect', { x:mx-(oS[0]?2:4), y:my-(oS[1]?2:4), width:oS[0]?4:8, height:oS[1]?4:8, rx:1, fill:OPEN_COL, 'fill-opacity':0.25, stroke:OPEN_COL, 'stroke-width':0.6, 'pointer-events':'none' }, wg);
   }
   // cable hooks (on empty in-box tiles): a post + an arm pointing in the rotation direction
   for (const h of hooks) {
@@ -270,15 +299,25 @@ function addModule(key) {
   selId = nextId; nextId++; update();
 }
 
+// A wall carries exactly one feature. Toggle the active wallMode's feature on this wall, clearing any
+// other feature there. A female dovetail also reserves the tile behind it, so that tile must be empty.
+function toggleWallFeature(k) {
+  const byMode = { hole:holes, latch:latches, maleDT:dtMale, femaleDT:dtFemale, opening:openings };
+  const active = byMode[wallMode]; if (!active) return;
+  if (wallMode === 'femaleDT' && !active.has(k)) {
+    const [gx,gy] = k.split(',').map(Number);
+    if (moduleCells().has(ck(gx,gy)) || allLabelCells().has(ck(gx,gy))) {
+      setStatus('⚠ a female dovetail fills its tile — free that cell first (move the module, or add an empty cell with Reshape box)'); return; }
+  }
+  for (const m in byMode) if (byMode[m] !== active) byMode[m].delete(k);   // one feature per wall
+  active.has(k) ? active.delete(k) : active.add(k);
+}
+
 // ---- pointer: wall click -> hole; module click -> select+drag; empty click -> toggle box cell ----
 let drag = null;
 svg.addEventListener('pointerdown', (e) => {
   const wl = e.target.closest('[data-wall]');
-  if (wl) { const k = wl.dataset.wall;
-    const set = wallMode === 'latch' ? latches : holes, other = wallMode === 'latch' ? holes : latches;
-    other.delete(k);                              // a wall holds a hole OR a latch, not both
-    set.has(k) ? set.delete(k) : set.add(k);
-    render(); return; }
+  if (wl) { toggleWallFeature(wl.dataset.wall); render(); return; }
   const grp = e.target.closest('g[data-id]');
   if (grp) { const id = +grp.dataset.id; selId = id; const p = placed.find(q=>q.id===id);
     const mm = toMM(e); drag = { id, ox: mm.x-p.x, oy: mm.y-p.y }; svg.setPointerCapture(e.pointerId); render(); return; }
@@ -307,6 +346,11 @@ svg.addEventListener('pointerup', (e) => { drag = null; try { svg.releasePointer
 // ================= 3D box generation =================
 const BOX = { frontT:1.2, backT:2.0, wallT:1.5, postR:2.0, pegR:1.15, pegLen:1.6, socketR:1.8 };   // backT 2.0: thicker, more rigid bottom cover
 const SOCKET_H = 2.95;   // JST-SH socket body height above the PCB (support columns press here)
+// Box-joining dovetail (vertical slide-in). A male RAIL on the outside of one box's wall slides DOWN into
+// the female GROOVE on the other box. neck/tip = trapezoid widths (tip wider than neck => can't pull
+// straight out), depth = radial protrusion, clr = print clearance on the groove, bossDepth = how far the
+// female socket reaches into the box past the wall. All print-test-tunable.
+const DT = { neck:3.5, tip:6.0, depth:3.5, clr:0.35, bossDepth:6.5 };
 
 function grilleCut(cx, cy, z, hh) {
   const parts = [];
@@ -462,6 +506,24 @@ function cableHook(gx, gy, rot, z0) {
   return union(post, arm);
 }
 
+// --- box-joining features: geometry helpers (all fuse to the FRONT cover, which carries the walls) ---
+// world frame of a wall segment: outward normal, tangent, wall midpoint, outer wall face point.
+function wallFrame(gx, gy, side) {
+  const on = { N:[0,1], S:[0,-1], E:[1,0], W:[-1,0] }[side], tan = [-on[1], on[0]];
+  const wm = wallMid(gx, gy, side);
+  const outFace = { x: wm.x + on[0]*(WALL_GAP+BOX.wallT), y: wm.y + on[1]*(WALL_GAP+BOX.wallT) };
+  return { on, tan, wm, outFace, alongY:(side==='E'||side==='W') };
+}
+// dovetail trapezoid (geom2) at a wall face: narrow neck (nw) at the wall widening to tip (tw) over depth
+// dp. Points OUTWARD from the wall for the male rail; INWARD (into the box) for the female groove cutter.
+function dovetailPoly(f, nw, tw, dp, inward) {
+  const s = inward ? -1 : 1, { on, tan, outFace } = f;
+  const base = [ outFace.x - on[0]*0.6*s, outFace.y - on[1]*0.6*s ];   // 0.6 mm overlap into material for a clean weld/cut
+  const tipC = [ outFace.x + on[0]*dp*s,  outFace.y + on[1]*dp*s ];
+  const P = (c,w) => [ c[0]+tan[0]*w, c[1]+tan[1]*w ];
+  return polygon({ points: [ P(base,-nw/2), P(tipC,-tw/2), P(tipC,tw/2), P(base,nw/2) ] });
+}
+
 // Build the box from the current layout. Returns { front, back, H }.
 function buildBox(assembled) {
   const { frontT, backT, wallT, postR, pegR, pegLen, socketR } = BOX;
@@ -577,6 +639,27 @@ function buildBox(assembled) {
       front = subtract(front, cuboid({ size: alongY?[wallT+2,armW+0.8,2.8]:[armW+0.8,wallT+2,2.8], center:[mid.x - ix*wallT/2, mid.y - iy*wallT/2, zDet] }));
     }
   }
+
+  // ---- box-joining features (all on the FRONT cover, which carries the walls) ----
+  // MALE dovetail rails: a trapezoid fused to the OUTSIDE of the chosen wall, full wall height. Prints as
+  // a clean vertical rail (undercut is horizontal => no supports); slides down into another box's groove.
+  for (const key of dtMale) { const [gx,gy,s] = key.split(','); const f = wallFrame(+gx,+gy,s);
+    front = union(front, translate([0,0,backT], extrudeLinear({ height: H-backT }, dovetailPoly(f, DT.neck, DT.tip, DT.depth, false)))); }
+  // FEMALE dovetail sockets: a solid boss grown inward from the wall (fills the reserved tile), with the
+  // matching groove carved into it and cut up THROUGH the top plate, so the other box's rail drops in from
+  // above. Slot bottoms out on the back plate; both boxes rest on the same surface -> aligned.
+  for (const key of dtFemale) { const [gx,gy,s] = key.split(','); const f = wallFrame(+gx,+gy,s);
+    const Ld = BOX.wallT + WALL_GAP + DT.bossDepth, bw = DT.tip + 2*DT.clr + 3.0;   // boss reach & tangential width (fits inside the 10 mm tile)
+    const bcx = f.outFace.x - f.on[0]*Ld/2, bcy = f.outFace.y - f.on[1]*Ld/2;
+    front = union(front, cuboid({ size: f.alongY?[Ld,bw,H-backT]:[bw,Ld,H-backT], center:[bcx, bcy, backT+(H-backT)/2] }));
+    const groove = dovetailPoly(f, DT.neck+2*DT.clr, DT.tip+2*DT.clr, DT.depth+DT.clr, true);
+    front = subtract(front, translate([0,0,backT], extrudeLinear({ height: (H-backT)+2 }, groove))); }   // +2 => also cuts the entry slot through the top plate
+  // CABLE openings: remove most of a wall segment, open at the floor line (front plate left as a lintel),
+  // so a cable passes between two joined boxes. Lay the cable in, then close the covers.
+  for (const key of openings) { const [gx,gy,s] = key.split(','); const f = wallFrame(+gx,+gy,s);
+    const wc = { x: f.wm.x + f.on[0]*(WALL_GAP+BOX.wallT/2), y: f.wm.y + f.on[1]*(WALL_GAP+BOX.wallT/2) };
+    const owW = GRID - 2.0, thick = BOX.wallT + 4, owB = backT - 0.5, owT = H - frontT;
+    front = subtract(front, cuboid({ size: f.alongY?[thick,owW,owT-owB]:[owW,thick,owT-owB], center:[wc.x, wc.y, (owB+owT)/2] })); }
 
   // dome-mount variant: add the female thread ring on the INSIDE of the top cover (projects down into
   // the box, around the light opening), so the outer face stays flat and prints without supports.
@@ -733,10 +816,12 @@ document.getElementById('labelSize').addEventListener('input', (e) => {
   labelSize = +e.target.value; document.getElementById('labelSizeVal').textContent = labelSize.toFixed(1);
 });
 document.getElementById('addLabel').addEventListener('click', addOrUpdateLabel);
-document.getElementById('resetBox').addEventListener('click', () => { autoBox = true; holes = new Set(); latches = new Set(); update(); });
-document.querySelectorAll('#wallMode button').forEach(b => b.addEventListener('click', () => {
+document.getElementById('resetBox').addEventListener('click', () => {
+  autoBox = true; holes = new Set(); latches = new Set(); dtMale = new Set(); dtFemale = new Set(); openings = new Set(); update();
+});
+document.querySelectorAll('#wallMode button, #joinMode button').forEach(b => b.addEventListener('click', () => {
   wallMode = b.dataset.mode;
-  document.querySelectorAll('#wallMode button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('#wallMode button, #joinMode button').forEach(x => x.classList.toggle('on', x === b));
 }));
 document.querySelectorAll('#cellMode button').forEach(b => b.addEventListener('click', () => {
   cellMode = b.dataset.mode;

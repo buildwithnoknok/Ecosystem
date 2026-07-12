@@ -36,6 +36,27 @@ cover** buttons export each on its own (they're also separate disconnected bodie
 file, so a slicer's "Split to objects/parts" separates them for printing individually or in
 different colours).
 
+## Joining two boxes (dovetails + cable openings)
+
+Two separately-printed boxes can be joined side by side. You design each box on its own and match the
+feature positions yourself (the 10 mm grid keeps that simple). All three are **wall clicks** under
+*Join to another box*:
+
+- **Male dovetail** — a vertical trapezoidal rail fused to the *outside* of a wall. Prints as a clean
+  vertical rail (the undercut is horizontal, so no supports).
+- **Female dovetail** — a solid boss grown *inward* from the wall (it reserves that tile, so no module
+  sits there), with the matching groove carved in and cut up **through the top plate** so the other
+  box's rail drops in from above.
+- **Cable opening** — most of a wall segment removed at the floor line (front plate left as a lintel),
+  so a cable passes between the two boxes. Lay the cable in, then close the covers.
+
+**Assembly:** put the male rail on one box and the female groove at the mirror position on the other,
+then **slide the second box straight down** onto the first. The dovetail locks the boxes against pulling
+apart sideways; they lift straight up to separate (no tools, nothing to break). Line up a cable opening
+on each box to route wiring between them — keep joins off the power/latch walls. Dovetail dimensions
+live in the `DT` constant in `main.js` (neck/tip widths, depth, print clearance) and want a test print
+to tune the slide fit.
+
 ## noknok Dome Mount ø58 (screw-in tops)
 
 The **USB LEDs +dome** variant is a 70 × 70 mm housing (the tile is oversized so the ~62 mm ring can't
