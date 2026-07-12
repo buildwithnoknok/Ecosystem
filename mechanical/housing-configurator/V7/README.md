@@ -23,10 +23,11 @@ A single monolithic box of uniform height:
   module first and only the bare cable is laid into the slot before closing.
 - **Cover latches** — flexing snap arms (tapered base) on user-picked walls; press from outside
   to release. Nothing internal is trapped.
-- **Cable hooks** — half-arc **arches** on the bottom cover, placed on empty in-box tiles (toggle to
-  "cable hook" mode; click a tile to add, click again to rotate, a full turn removes). Route a cable
-  under the arch. The arch prints without support (feet rise vertically, the short apex bridges) — it
-  replaced an earlier 90° arm that cantilevered and drooped.
+- **Cable hooks** — **open half-arcs** on the bottom cover, placed on empty in-box tiles (toggle to
+  "cable hook" mode; click a tile to add, click again to rotate, a full turn removes). Only the near
+  foot reaches the plate; the far end is free, so you lay a cable in from the open side (a closed arch
+  would trap it — a fitted plug can't thread through). These are an **assembly aid** for holding cable
+  slack while the box is closed; a little droop at the free end and later loosening don't matter.
 - **2 mm clearance** between each module and the outer wall for easy assembly.
 - **Engraved text labels** on the top cover (built-in single-stroke font, bold, 0.8 mm deep),
   along a chosen module edge; the labelled tiles are reserved so no module can sit under the text.

@@ -257,13 +257,13 @@ function render() {
   // cable hooks (on empty in-box tiles): a post + an arm pointing in the rotation direction
   for (const h of hooks) {
     const cx=(h.gx+0.5)*GRID, cy=VBH-(h.gy+0.5)*GRID;
-    const d = { 0:[0,-1], 90:[1,0], 180:[0,1], 270:[-1,0] }[h.rot];   // SVG arch-span dir (0 = N = up)
-    const R = 3.2, col='#c07be0';
-    const f1=[cx+d[0]*R, cy+d[1]*R], f2=[cx-d[0]*R, cy-d[1]*R];       // the two arch feet
+    const d = { 0:[0,-1], 90:[1,0], 180:[0,1], 270:[-1,0] }[h.rot];   // SVG arch-span dir; shank on the -d side
+    const R = 2.6, col='#c07be0';
+    const foot=[cx-d[0]*R, cy-d[1]*R], tip=[cx+d[0]*R, cy+d[1]*R];    // grounded foot (solid) + free end (open)
     const hg = el('g', { 'pointer-events':'none' }, svg);
-    el('path', { d:`M ${f1[0]} ${f1[1]} A ${R} ${R} 0 0 1 ${f2[0]} ${f2[1]}`, fill:'none', stroke:col, 'stroke-width':1.6, 'stroke-linecap':'round' }, hg);
-    el('circle', { cx:f1[0], cy:f1[1], r:1.1, fill:col }, hg);
-    el('circle', { cx:f2[0], cy:f2[1], r:1.1, fill:col }, hg);
+    el('path', { d:`M ${foot[0]} ${foot[1]} A ${R} ${R} 0 0 1 ${tip[0]} ${tip[1]}`, fill:'none', stroke:col, 'stroke-width':1.6, 'stroke-linecap':'round' }, hg);
+    el('circle', { cx:foot[0], cy:foot[1], r:1.2, fill:col }, hg);
+    el('circle', { cx:tip[0], cy:tip[1], r:1.1, fill:'none', stroke:col, 'stroke-width':0.7 }, hg);
   }
   renderLabelList();
   document.getElementById('addLabel').disabled = !(selId!==null && document.getElementById('labelText').value.trim());
@@ -496,21 +496,20 @@ function labelEngraving(l, H, flipX) {
   return translate([0,0, H-depth], text3d);
 }
 
-// A cable hook that rises from the bottom cover in an empty tile: a post + a top arm (⌐) with a gap
-// under it to tuck a cable. The arm points in `rot` (0/90/180/270); it stays within the 10 mm tile so it
-// can't foul a neighbouring module, and prints as a short overhang plate-down. z0 = top of the back plate.
-const HOOK = { R:3.2, tube:1.1, legH:1.6 };   // arch centre radius, tube radius, straight-leg height
+// A cable hook that rises from the bottom cover in an empty tile. It is an OPEN half-arc: only the near
+// foot is carried down to the plate by a shank, the far end is free — so a cable with a plug already
+// fitted can be laid in from the open side (a closed arch would trap it, the plug can't thread through).
+// These are just an ASSEMBLY AID (hold slack while you close the box), so a little droop at the free end
+// and the cable loosening later don't matter. Spans along `rot`, centred so it stays inside the 10 mm tile.
+const HOOK = { Rc:2.6, tube:1.0, shankH:2.5 };   // arch radius, tube radius, foot/shank height (cable room beneath)
 function cableHook(gx, gy, rot, z0) {
-  const cx=(gx+0.5)*GRID, cy=(gy+0.5)*GRID, { R, tube:tr, legH } = HOOK;
-  // A half-arc ARCH instead of the old 90° arm: revolve a tube-circle 180° into a semicircle, stand it
-  // up, and set it on two short vertical legs. Feet print straight up from the bed and the apex is a short
-  // self-supporting bridge — no flat cantilever, no sharp inside corner. The cable runs under the arch.
-  let arch = extrudeRotate({ angle: Math.PI, segments: 28 }, circle({ radius: tr, center:[R,0], segments:18 }));
-  arch = rotate([Math.PI/2,0,0], arch);                 // XY semicircle -> upright arch in XZ, feet at x=±R
-  arch = translate([0,0,legH], arch);                   // lift onto the legs
-  const leg = (sx)=>cylinder({ radius:tr, height:legH+tr, segments:16, center:[sx, 0, (legH-tr)/2] });
-  let hook = union(arch, leg(R), leg(-R));
-  const d = { 0:[0,1], 90:[1,0], 180:[0,-1], 270:[-1,0] }[rot] || [0,1];   // arch spans along this direction
+  const cx=(gx+0.5)*GRID, cy=(gy+0.5)*GRID, { Rc, tube:tr, shankH } = HOOK;
+  let arch = extrudeRotate({ angle: Math.PI, segments: 32 }, circle({ radius: tr, center:[Rc,0], segments:18 }));
+  arch = rotate([Math.PI/2,0,0], arch);                 // XY semicircle -> upright ∩, feet at x=±Rc, apex up
+  arch = translate([0,0,shankH], arch);                 // lift so the feet-line clears the plate for the cable
+  const shank = cylinder({ radius:tr, height:shankH+tr+0.6, segments:16, center:[-Rc, 0, (shankH-0.6)/2] });  // near foot down into the plate; far foot stays free
+  const hook = union(arch, shank);
+  const d = { 0:[0,1], 90:[1,0], 180:[0,-1], 270:[-1,0] }[rot] || [0,1];   // arch spans along this direction (shank on the -d side)
   return translate([cx, cy, z0], rotate([0,0, Math.atan2(d[1], d[0])], hook));
 }
 
@@ -840,7 +839,7 @@ document.querySelectorAll('#cellMode button').forEach(b => b.addEventListener('c
   cellMode = b.dataset.mode;
   document.querySelectorAll('#cellMode button').forEach(x => x.classList.toggle('on', x === b));
   document.getElementById('cellModeNote').innerHTML = cellMode === 'hook'
-    ? '<b>Cable hook:</b> click an empty in-box tile to add a hook; click it again to rotate; a full turn removes it. It prints as an arch on the bottom cover — route the cable under it.'
+    ? '<b>Cable hook:</b> click an empty in-box tile to add a hook; click it again to rotate; a full turn removes it. It prints as an open half-arc on the bottom cover — an assembly aid to lay a cable into (open side, so a plug fits) while you close the box.'
     : '<b>Reshape box:</b> click empty cells to hug, notch, or bridge modules into one box.';
 }));
 // show the overlay with a message, yield a frame so it paints, then run the (blocking) work, then hide it.
