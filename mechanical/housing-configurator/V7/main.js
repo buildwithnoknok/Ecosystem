@@ -521,7 +521,12 @@ function dovetailPoly(f, nw, tw, dp, inward) {
   const base = [ outFace.x - on[0]*0.6*s, outFace.y - on[1]*0.6*s ];   // 0.6 mm overlap into material for a clean weld/cut
   const tipC = [ outFace.x + on[0]*dp*s,  outFace.y + on[1]*dp*s ];
   const P = (c,w) => [ c[0]+tan[0]*w, c[1]+tan[1]*w ];
-  return polygon({ points: [ P(base,-nw/2), P(tipC,-tw/2), P(tipC,tw/2), P(base,nw/2) ] });
+  let pts = [ P(base,-nw/2), P(tipC,-tw/2), P(tipC,tw/2), P(base,nw/2) ];
+  // Keep the outline counter-clockwise. Mirroring for the inward (female) case flips the winding, which
+  // makes the extruded cutter malformed so the subtract eats the WHOLE top cover (not just the groove).
+  let a = 0; for (let i=0; i<pts.length; i++) { const j=(i+1)%pts.length; a += pts[i][0]*pts[j][1] - pts[j][0]*pts[i][1]; }
+  if (a < 0) pts.reverse();
+  return polygon({ points: pts });
 }
 
 // Build the box from the current layout. Returns { front, back, H }.
