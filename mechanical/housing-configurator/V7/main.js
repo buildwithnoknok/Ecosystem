@@ -23,7 +23,7 @@ const TAU = Math.PI * 2;
 // the top. The 60 mm form factor is sized so the 40x40 board sits inside the ring bore. threadMajor =
 // male crest OD; depth = radial tooth; lead = 3-start => 2.5 mm crest spacing; opening = light hole in
 // the plate (>= board diagonal 56.6 so the board fits inside); form = module footprint (mm).
-const DOME = { threadMajor:59.5, depth:1.2, height:6, lead:7.5, starts:3, clearance:0.4, opening:58, form:70 };   // form 70 = lid globe fills the 70 mm tile; flange rests on a wider frame
+const DOME = { threadMajor:59.5, depth:1.2, height:6, lead:7.5, starts:3, clearance:0.4, opening:58, form:70 };   // form 70 = lid globe fills the 70 mm tile; 45° skirt flares out to the wider cap
 const domeThread = (grow=0) => threadSolid({ majorD:DOME.threadMajor, depth:DOME.depth, height:DOME.height, lead:DOME.lead, starts:DOME.starts }, grow);
 
 // ---- Module library (mm). footprint w×h, payload height, plenum, M2.5 holes, connectors, top opening.
@@ -415,27 +415,31 @@ function domeRing() {
   return subtract(cylinder({ radius: ringOR, height: DOME.height, segments:72, center:[0,0,DOME.height/2] }),
                   domeThread(DOME.clearance));
 }
-const domeGlobeOR = () => DOME.form/2 - 0.5;   // dome globe / flange outer radius
+const domeGlobeOR = () => DOME.form/2 - 0.5;   // dome globe / skirt outer radius
 const domeBoreR   = () => DOME.threadMajor/2 - DOME.depth - 1.8;   // clear light bore through the lid
-// Reference lid (screws INTO the ring): a MALE-threaded tube (bored for light) + a flange that rests on
-// the cover + a domed translucent cap. Base at z=0.
+const domeSkirtTop = () => DOME.height + (domeGlobeOR() - DOME.threadMajor/2);   // z where the 45° skirt meets the globe equator (run = rise => 45°)
+// Reference lid (screws INTO the ring): a MALE-threaded tube (bored for light) + a flared SKIRT + a domed
+// translucent cap. Base at z=0. The skirt is a 45° cone (not a flat flange) so its underside is a printable
+// slope, not a horizontal ledge cantilevered off the thread — the whole lid prints thread-down, no support.
 function referenceDome() {
-  const wall = 1.8, gOR = domeGlobeOR(), boreR = domeBoreR(), fz = DOME.height, gz = DOME.height + 1.6;
+  const wall = 1.8, gOR = domeGlobeOR(), boreR = domeBoreR(), rMaj = DOME.threadMajor/2, sTop = domeSkirtTop(), gz = sTop;
   const tube = subtract(domeThread(0), cylinder({ radius: boreR, height: DOME.height+2, segments:64, center:[0,0,DOME.height/2] }));
-  const flange = subtract(cylinder({ radius: gOR, height:1.6, segments:72, center:[0,0,fz+0.8] }),
-                          cylinder({ radius: boreR, height:2,   segments:64, center:[0,0,fz+0.8] }));
+  // 45° conical skirt (bored), revolved from its (r,z) cross-section: bottom edge flush with the thread OD
+  // (rMaj) so nothing overhangs, flaring out to the cap OD (gOR) at the skirt top = globe equator.
+  const skirt = extrudeRotate({ segments:72 }, polygon({ points: [
+    [boreR, DOME.height], [rMaj, DOME.height], [gOR, sTop], [boreR, sTop] ] }));
   const cap = intersect(
     subtract(sphere({ radius: gOR, segments:40, center:[0,0,gz] }), sphere({ radius: gOR-wall, segments:40, center:[0,0,gz] })),
-    cylinder({ radius: gOR+1, height: gOR+2, segments:64, center:[0,0,gz+gOR/2] }));
-  return union(tube, flange, cap);
+    cylinder({ radius: gOR+1, height: gOR+1, segments:64, center:[0,0, gz+(gOR+1)/2] }));   // keep the cap from the equator UP (matches the skirt top => no ledge)
+  return union(tube, skirt, cap);
 }
 // Honeycomb variant: the same lid with hex holes punched radially through the globe cap (thread/flange
 // intact), so it works as a light-shade in opaque filament too. Holes are hex-packed on rings of latitude.
 function referenceDomeHoney() {
-  const wall = 1.8, gOR = domeGlobeOR(), gz = DOME.height + 1.6, R = gOR - wall/2, holeR = 3.4, cutterPolys = [];
+  const wall = 1.8, gOR = domeGlobeOR(), gz = domeSkirtTop(), R = gOR - wall/2, holeR = 3.4, cutterPolys = [];
   let ring = 0;
   // ~1 mm walls (spacing 2.35·holeR) + rings down to near the equator so the perforation starts right
-  // above the thread/flange instead of a solid band. The hex cutters are disjoint, so we collect their
+  // above the thread/skirt instead of a solid band. The hex cutters are disjoint, so we collect their
   // polygons into ONE geom3 and do a single subtract — a 100+-way union() here is ~20 s, this is ~9 s.
   const punch = (h) => { for (const p of geom3.toPolygons(h)) cutterPolys.push(p); };
   for (let deg = 16; deg <= 84; deg += 13) {
