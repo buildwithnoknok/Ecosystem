@@ -60,7 +60,7 @@ let latches = new Set();  // "gx,gy,side" walls carrying an assembly latch (user
 let wallMode = 'hole';    // clicking a wall adds: 'hole' or 'latch'
 let labels = [];          // { id, modId, side, text, size } — engraved text on the top cover
 let nextLabelId = 1, labelSide = 'N', labelSize = 5;
-let hooks = [];           // { gx, gy, rot } — cable hooks on the bottom cover, in empty in-box tiles
+let hooks = [];           // { gx, gy } — mushroom cable retainers on the bottom cover, in empty in-box tiles
 let cellMode = 'box';     // clicking an empty in-box cell: 'box' = reshape outline, 'hook' = place cable hook
 // ---- box-joining features (join two separately-printed boxes) — all keyed "gx,gy,side" like holes/latches
 let dtMale = new Set();    // male dovetail RAIL on the OUTSIDE of a wall (slides down into another box's groove)
@@ -254,16 +254,12 @@ function render() {
     }
     if (open)  el('rect', { x:mx-(oS[0]?2:4), y:my-(oS[1]?2:4), width:oS[0]?4:8, height:oS[1]?4:8, rx:1, fill:OPEN_COL, 'fill-opacity':0.25, stroke:OPEN_COL, 'stroke-width':0.6, 'pointer-events':'none' }, wg);
   }
-  // cable hooks (on empty in-box tiles): a post + an arm pointing in the rotation direction
+  // cable retainers (on empty in-box tiles): a mushroom, drawn top-down as cap + stem (radially symmetric)
   for (const h of hooks) {
-    const cx=(h.gx+0.5)*GRID, cy=VBH-(h.gy+0.5)*GRID;
-    const d = { 0:[0,-1], 90:[1,0], 180:[0,1], 270:[-1,0] }[h.rot];   // SVG arch-span dir; shank on the -d side
-    const R = 2.6, col='#c07be0';
-    const foot=[cx-d[0]*R, cy-d[1]*R], tip=[cx+d[0]*R, cy+d[1]*R];    // grounded foot (solid) + free end (open)
+    const cx=(h.gx+0.5)*GRID, cy=VBH-(h.gy+0.5)*GRID, col='#c07be0';
     const hg = el('g', { 'pointer-events':'none' }, svg);
-    el('path', { d:`M ${foot[0]} ${foot[1]} A ${R} ${R} 0 0 1 ${tip[0]} ${tip[1]}`, fill:'none', stroke:col, 'stroke-width':1.6, 'stroke-linecap':'round' }, hg);
-    el('circle', { cx:foot[0], cy:foot[1], r:1.2, fill:col }, hg);
-    el('circle', { cx:tip[0], cy:tip[1], r:1.1, fill:'none', stroke:col, 'stroke-width':0.7 }, hg);
+    el('circle', { cx, cy, r:MUSH.capR, fill:col, 'fill-opacity':0.30, stroke:col, 'stroke-width':0.6 }, hg);   // cap
+    el('circle', { cx, cy, r:MUSH.stemR, fill:col }, hg);                                                       // stem
   }
   renderLabelList();
   document.getElementById('addLabel').disabled = !(selId!==null && document.getElementById('labelText').value.trim());
@@ -325,11 +321,11 @@ svg.addEventListener('pointerdown', (e) => {
     const mm = toMM(e); drag = { id, ox: mm.x-p.x, oy: mm.y-p.y }; svg.setPointerCapture(e.pointerId); render(); return; }
   const mm = toMM(e); const gx = Math.floor(mm.x/GRID), gy = Math.floor(mm.y/GRID); selId = null;
   if (gx<0 || gy<0 || gx>=VBW/GRID || gy>=VBH/GRID) { render(); return; }
-  if (cellMode === 'hook') {                                    // place / rotate / remove a cable hook
+  if (cellMode === 'hook') {                                    // place / remove a mushroom cable retainer
     const h = hooks.find(q => q.gx===gx && q.gy===gy);
-    if (h) { h.rot = (h.rot + 90) % 360; if (h.rot === 0) hooks = hooks.filter(q => q !== h); }   // rotate; a full turn removes it
+    if (h) hooks = hooks.filter(q => q !== h);                   // click again to remove (it's symmetric, no rotation)
     else if (region.has(ck(gx,gy)) && !moduleCells().has(ck(gx,gy)) && !allLabelCells().has(ck(gx,gy)))
-      hooks.push({ gx, gy, rot: 0 });                           // only on an empty in-box tile
+      hooks.push({ gx, gy });                                    // only on an empty in-box tile
     render(); return;
   }
   if (requiredCells().has(ck(gx,gy))) { render(); return; }   // never carve a module or label cell
@@ -496,21 +492,22 @@ function labelEngraving(l, H, flipX) {
   return translate([0,0, H-depth], text3d);
 }
 
-// A cable hook that rises from the bottom cover in an empty tile. It is an OPEN half-arc: only the near
-// foot is carried down to the plate by a shank, the far end is free — so a cable with a plug already
-// fitted can be laid in from the open side (a closed arch would trap it, the plug can't thread through).
-// These are just an ASSEMBLY AID (hold slack while you close the box), so a little droop at the free end
-// and the cable loosening later don't matter. Spans along `rot`, centred so it stays inside the 10 mm tile.
-const HOOK = { Rc:2.6, tube:1.0, shankH:2.5 };   // arch radius, tube radius, foot/shank height (cable room beneath)
-function cableHook(gx, gy, rot, z0) {
-  const cx=(gx+0.5)*GRID, cy=(gy+0.5)*GRID, { Rc, tube:tr, shankH } = HOOK;
-  let arch = extrudeRotate({ angle: Math.PI, segments: 32 }, circle({ radius: tr, center:[Rc,0], segments:18 }));
-  arch = rotate([Math.PI/2,0,0], arch);                 // XY semicircle -> upright ∩, feet at x=±Rc, apex up
-  arch = translate([0,0,shankH], arch);                 // lift so the feet-line clears the plate for the cable
-  const shank = cylinder({ radius:tr, height:shankH+tr+0.6, segments:16, center:[-Rc, 0, (shankH-0.6)/2] });  // near foot down into the plate; far foot stays free
-  const hook = union(arch, shank);
-  const d = { 0:[0,1], 90:[1,0], 180:[0,-1], 270:[-1,0] }[rot] || [0,1];   // arch spans along this direction (shank on the -d side)
-  return translate([cx, cy, z0], rotate([0,0, Math.atan2(d[1], d[0])], hook));
+// A cable retainer that rises from the bottom cover in an empty tile — a MUSHROOM (solid of revolution):
+// a wide base (strong root + bed adhesion), a strong stem, and a thick cap whose lip catches a cable
+// wrapped/tucked around the stem. Radially symmetric, so no orientation is needed. It prints WITHOUT
+// support: every angle is gradual — the base narrows going up (self-supporting), the stem is vertical, and
+// the only overhang is the cap's underside, a ~45° cone. It's an ASSEMBLY AID (hold cable slack while you
+// close the box); the cable can be looser afterwards. Profile points are [radius, height] (mm above plate).
+const MUSH = { baseR:4.0, stemR:1.9, capR:3.6, baseH:1.3, stemTop:5.0, capUnder:6.7, capRim:7.9, domeR:2.2, domeZ:8.6, apex:8.8 };
+function cableHook(gx, gy, z0) {
+  const cx=(gx+0.5)*GRID, cy=(gy+0.5)*GRID, m=MUSH;
+  // right-half silhouette (r>=0), revolved 360°. Order: base bottom -> up the outside -> over the cap -> axis.
+  const prof = polygon({ points: [
+    [0,0], [m.baseR,0], [m.stemR,m.baseH], [m.stemR,m.stemTop],   // wide base narrowing to the stem, then straight stem
+    [m.capR,m.capUnder], [m.capR,m.capRim],                        // cap: ~45° underside flare, then a thick vertical rim
+    [m.domeR,m.domeZ], [0,m.apex] ] });                            // rounded top back to the axis
+  const mush = extrudeRotate({ segments:40 }, prof);               // full revolution -> solid mushroom on the Z axis
+  return translate([cx, cy, z0-0.4], mush);                        // sink the base 0.4 mm into the plate to fuse it
 }
 
 // --- box-joining features: geometry helpers (all fuse to the FRONT cover, which carries the walls) ---
@@ -623,7 +620,7 @@ function buildBox(assembled) {
   }
 
   // user-placed cable hooks rise from the bottom cover in empty tiles
-  for (const h of hooks) back = union(back, cableHook(h.gx, h.gy, h.rot, backT));
+  for (const h of hooks) back = union(back, cableHook(h.gx, h.gy, backT));
 
   // cover-to-cover JOIN — flexing latches on the walls the USER picked: a spring arm on the back
   // cover clicks a detent into a window in the front-cover wall. Press the detent through the
@@ -839,7 +836,7 @@ document.querySelectorAll('#cellMode button').forEach(b => b.addEventListener('c
   cellMode = b.dataset.mode;
   document.querySelectorAll('#cellMode button').forEach(x => x.classList.toggle('on', x === b));
   document.getElementById('cellModeNote').innerHTML = cellMode === 'hook'
-    ? '<b>Cable hook:</b> click an empty in-box tile to add a hook; click it again to rotate; a full turn removes it. It prints as an open half-arc on the bottom cover — an assembly aid to lay a cable into (open side, so a plug fits) while you close the box.'
+    ? '<b>Cable hook:</b> click an empty in-box tile to add a mushroom; click it again to remove it. It prints on the bottom cover as a support-free mushroom (wide base, strong stem, thick cap) — an assembly aid: wrap or tuck cable slack under the cap while you close the box.'
     : '<b>Reshape box:</b> click empty cells to hug, notch, or bridge modules into one box.';
 }));
 // show the overlay with a message, yield a frame so it paints, then run the (blocking) work, then hide it.
