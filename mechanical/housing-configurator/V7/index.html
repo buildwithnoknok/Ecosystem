@@ -125,6 +125,21 @@
         shut — keep them on separate walls.</div>
     </div>
 
+    <div>
+      <label>Join to another box (optional)</label>
+      <div class="seg" id="joinMode">
+        <button data-mode="maleDT">◤ male</button>
+        <button data-mode="femaleDT">◣ female</button>
+        <button data-mode="opening">▭ cable</button>
+      </div>
+      <div class="note">Click a wall to add a <span style="color:#38bdf8">dovetail</span> or a
+        <span style="color:#fb7185">cable opening</span>. Put the <b>male</b> rail on one box and the
+        <b>female</b> groove at the mirror position on the other, then slide the boxes together top-down.
+        A female fills its tile (no module there) — add an empty cell with <b>Reshape box</b> if no wall
+        tile is free. Keep joins off the power/latch walls. You design each box separately and match the
+        positions yourself.</div>
+    </div>
+
     <hr/>
     <button class="primary" id="generate" disabled>Generate 3D box</button>
     <button class="primary" id="download" disabled style="background:#3a4050;color:var(--ink);">Download STL (both covers)</button>
