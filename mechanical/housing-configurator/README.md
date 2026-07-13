@@ -34,6 +34,11 @@ A single monolithic box of uniform height:
   along a chosen module edge; the labelled tiles are reserved so no module can sit under the text.
   Mirrored in the print build so they read correctly on the face-down-printed cover.
 
+- **Save / load** — the 2D layout can be saved to a `.json` file (plain text: modules, box shape,
+  power/latch, dovetails, cable openings, labels, cable mushrooms) and loaded back later to keep editing
+  or to share a design. Loading is tolerant — it rejects non-noknok files and skips any module key the
+  build doesn't recognise.
+
 Modules can't overlap. The **Download STL** button exports both covers; **top cover** / **bottom
 cover** buttons export each on its own (they're also separate disconnected bodies in the combined
 file, so a slicer's "Split to objects/parts" separates them for printing individually or in

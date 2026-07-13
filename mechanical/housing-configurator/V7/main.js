@@ -872,6 +872,58 @@ document.getElementById('dlDome').addEventListener('click', () => busyThen('Buil
 document.getElementById('dlDomeHoney').addEventListener('click', () => busyThen('Building honeycomb dome… (a few seconds)',
   () => downloadBlob(toSTL(referenceDomeHoney()), `noknok_dome_mount_${DOME.threadMajor}_lid_honeycomb.stl`)));   // hex-perforated (any filament)
 
+// ---- save / load the 2D design (JSON) ----
+// Serialise everything that defines the layout (Sets -> arrays). UI-only state (selection, active modes,
+// label-editor fields) is intentionally left out.
+function serializeDesign() {
+  return {
+    type: 'noknok-housing-configurator', version: 1,
+    placed, autoBox, labels, hooks,
+    region: [...region],
+    holes: [...holes], latches: [...latches],
+    dtMale: [...dtMale], dtFemale: [...dtFemale], openings: [...openings],
+  };
+}
+function saveDesign() {
+  const json = JSON.stringify(serializeDesign(), null, 2);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([json], { type:'application/json' }));
+  a.download = `noknok_housing_${placed.length}mod.json`; a.click();
+  setStatus(`saved design · ${placed.length} module${placed.length!==1?'s':''} (.json)`);
+}
+// Restore a design. Tolerant: rejects non-noknok files, and skips any module key this build doesn't know
+// (so a newer file can't crash an older tool) rather than throwing.
+function loadDesign(data) {
+  if (!data || data.type !== 'noknok-housing-configurator' || !Array.isArray(data.placed)) {
+    setStatus('⚠ not a noknok design file'); return;
+  }
+  const unknown = [...new Set(data.placed.filter(p => !MODULES[p.key]).map(p => p.key))];
+  placed  = data.placed.filter(p => MODULES[p.key]).map(p => ({ id:+p.id, key:p.key, x:+p.x, y:+p.y, rot:+p.rot||0 }));
+  const keptIds = new Set(placed.map(p => p.id));
+  labels  = (data.labels || []).filter(l => keptIds.has(l.modId)).map(l => ({ id:+l.id, modId:+l.modId, side:l.side, text:String(l.text), size:+l.size }));
+  hooks   = (data.hooks || []).map(h => ({ gx:+h.gx, gy:+h.gy }));
+  region  = new Set(data.region || []);
+  holes   = new Set(data.holes || []);   latches  = new Set(data.latches || []);
+  dtMale  = new Set(data.dtMale || []);  dtFemale = new Set(data.dtFemale || []);  openings = new Set(data.openings || []);
+  autoBox = data.autoBox !== false;
+  selId   = null;
+  nextId      = placed.reduce((m,p) => Math.max(m, p.id), 0) + 1;
+  nextLabelId = labels.reduce((m,l) => Math.max(m, l.id), 0) + 1;
+  update();
+  setStatus(unknown.length
+    ? `⚠ loaded, but skipped unknown module(s): ${unknown.join(', ')}`
+    : `loaded design · ${placed.length} module${placed.length!==1?'s':''}`);
+}
+document.getElementById('saveDesign').addEventListener('click', saveDesign);
+document.getElementById('loadDesign').addEventListener('click', () => document.getElementById('designFile').click());
+document.getElementById('designFile').addEventListener('change', (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => { try { loadDesign(JSON.parse(r.result)); } catch(err) { setStatus('⚠ could not read that file: ' + err.message); } };
+  r.readAsText(f);
+  e.target.value = '';   // let the same file be chosen again
+});
+
 buildPalette();
 update();
 setStatus('add a module from the left');

@@ -69,6 +69,17 @@
     </h1>
 
     <div>
+      <label>Design file</label>
+      <div class="row">
+        <button id="saveDesign">💾 save</button>
+        <button id="loadDesign">📂 load</button>
+      </div>
+      <input type="file" id="designFile" accept="application/json,.json" style="display:none" />
+      <div class="note">Save the current 2D layout to a <b>.json</b> file (plain text), and load it back
+        later to keep editing. Shares a design with someone else, too.</div>
+    </div>
+
+    <div>
       <label>Add a module</label>
       <div class="palette" id="palette"></div>
     </div>
