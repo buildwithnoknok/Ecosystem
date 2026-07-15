@@ -1,0 +1,157 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/buildwithnoknok/Ecosystem/main/software/product-manifest.schema.json",
+  "title": "noknok Product Manifest",
+  "description": "Schema for a noknok product manifest (poc/manifests/*.json). A manifest declares everything the noknok app needs to provision a product onto a Pico brain: which modules are required, which firmware to flash, and which product.py to install. See authoring-products.md for the full guide.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id", "name", "version", "author", "brain_type", "setup_pattern",
+    "description", "modules_required", "module_firmware", "files"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*-v[0-9]+$",
+      "description": "Unique product id, kebab-case, ending in -v<major>. Must match the id used in catalog.json. Example: 'whack-a-mole-v1'."
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-facing product name shown in the app. Example: 'Whack-a-Mole'."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic version of the product (manifest + script together)."
+    },
+    "author": {
+      "type": "string",
+      "description": "Publisher. 'buildwithnoknok' for first-party products; a maker handle for community products."
+    },
+    "brain_type": {
+      "type": "string",
+      "enum": ["pico_w", "pico"],
+      "description": "Which brain the product runs on. 'pico_w' is the standard (Wi-Fi enabled) brain."
+    },
+    "price": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Price in the app's currency. 0.0 for free products."
+    },
+    "setup_pattern": {
+      "type": "string",
+      "enum": [
+        "Setup 1 (I2C only)",
+        "Setup 2 (USB-C only)",
+        "Setup 2b (USB-C + I2C)",
+        "Setup 3 (USB-C + I2C)"
+      ],
+      "description": "Controlled vocabulary describing the bus topology. Pick by which buses the product's modules use. I2C-only products use 'Setup 1'."
+    },
+    "description": {
+      "type": "string",
+      "description": "One-paragraph plain-language pitch shown in the app store listing."
+    },
+    "modules_required": {
+      "type": "array",
+      "minItems": 1,
+      "description": "The modules a customer must own to run this product. The app checks these against what enumerates on the brain.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "count"],
+        "properties": {
+          "type": { "$ref": "#/definitions/moduleType" },
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "How many of this module type are needed. Identical modules are fine — enumeration gives each a unique address (scales to ~20 total)."
+          }
+        }
+      }
+    },
+    "module_firmware": {
+      "type": "object",
+      "description": "For each module type used, the firmware version and .bin URL the app should flash/verify. Keys must be module type strings that also appear in modules_required.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["version", "url"],
+        "properties": {
+          "version": { "type": "string", "description": "Firmware version to pin, e.g. '2.1.0'." },
+          "url": { "type": "string", "format": "uri", "description": "Raw URL to the .bin in the module repo's firmware/bin/." }
+        }
+      }
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Files the app installs onto the brain's CIRCUITPY drive. At minimum a product.py.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["dest", "url", "version", "required"],
+        "properties": {
+          "dest": { "type": "string", "description": "Destination filename on CIRCUITPY, e.g. 'product.py'." },
+          "url": { "type": "string", "format": "uri", "description": "Raw URL to the source file (usually in poc/scripts/)." },
+          "version": { "type": "string", "description": "Version of this file." },
+          "required": { "type": "boolean", "description": "If true, provisioning fails when the file can't be fetched." }
+        }
+      }
+    },
+    "3d_files": {
+      "type": "array",
+      "description": "Optional 3D-printable housing files (STL/3MF/STEP) shipped with the product. Empty if the product has no housing yet.",
+      "items": { "type": "object" }
+    },
+    "assembly_guide": {
+      "type": "array",
+      "description": "Ordered plain-language assembly steps shown in the app.",
+      "items": { "type": "string" }
+    },
+    "roles": {
+      "type": "array",
+      "description": "Role assignments the app should collect during setup, binding a stable name to a specific physical module by UID. LEAVE EMPTY for products that treat modules of a type symmetrically (access them via the c.<type> list instead). See roles.md.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "module_type", "prompt"],
+        "properties": {
+          "id": { "type": "string", "description": "Role name used in product.py as c.role[\"<id>\"]." },
+          "module_type": { "$ref": "#/definitions/moduleType" },
+          "prompt": { "type": "string", "description": "Instruction shown to the customer to select this module (press it / turn it — input modules; a cue-and-confirm beep — output modules)." }
+        }
+      }
+    },
+    "config_schema": {
+      "type": "array",
+      "description": "Declared customer-configurable settings. NOTE: as of 2026-07 these are NOT yet delivered to product.py by provisioning — treat as forward-looking. Products needing runtime input should use a physical control (e.g. a knob) or their own saved-state file instead.",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "label"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "description": "Widget type, e.g. 'slider'." },
+          "label": { "type": "string" },
+          "min": { "type": "number" },
+          "max": { "type": "number" }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "moduleType": {
+      "type": "string",
+      "enum": [
+        "buzzer",
+        "knob",
+        "led_button",
+        "usb_leds",
+        "usb_datahub",
+        "usb_powerhub",
+        "usb_picohub"
+      ],
+      "description": "Controlled vocabulary of module type strings. Must match the names the Conductor exposes (c.buzzer, c.knob, c.ledbutton, c.leds ...). The 1.42\" display is not yet listed because its driver is not integrated into noknok.py."
+    }
+  }
+}

@@ -172,6 +172,8 @@ Power cycle: enumerate() → modules not at saved addresses → full 0x7F scan
 
 ## 9. Related Documentation
 
+- [Authoring a noknok Product](authoring-products.md) — how to build a new product (manifest + product.py)
+- [Product Manifest schema](product-manifest.schema.json) — machine-checkable manifest spec
 - [Enumeration Protocol — full spec](enumeration.md)
 - [Firmware Updates (I2C Bootloader)](firmware-update.md)
 - [Firmware Updates (USB Bootloader)](firmware-update-usb.md)
