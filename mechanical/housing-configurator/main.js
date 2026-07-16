@@ -16,6 +16,7 @@ const { extrudeLinear, extrudeHelical, extrudeRotate } = extrusions;
 const { offset, expand } = expansions;
 const { path2, geom3 } = jscad.geometries;
 const { vectorText } = jscad.text;   // built-in single-stroke font for engraved labels
+import { LOGO } from './logo-data.js';   // noknok square logo (2-line "nok/nok"), flattened vector contours
 const TAU = Math.PI * 2;
 // "noknok Dome Mount ø58" — coarse jar-style thread for screw-in tops over the USB LEDs. The thread is a
 // FEMALE (internal) ring that projects DOWN into the box from the top cover (same way as walls/columns,
@@ -46,6 +47,8 @@ const MODULES = {
 const USBC_W = 9, USBC_H = 4.5;   // USB-C power slot: width along the wall × height (click a wall)
 const GRID = 10;         // mm per cell
 const WALL_GAP = 2;      // clearance between a module and the outer wall (so it's easy to drop in)
+const LOGO_SIZE = 7.6;   // mm, the noknok logo's larger axis (fits a 10 mm tile with margin)
+const LOGO_DEPTH = 0.6;  // mm, deboss depth into the top cover
 
 const statusEl = document.getElementById('status');
 const setStatus = (t) => { statusEl.textContent = t; };
@@ -66,6 +69,8 @@ let cellMode = 'box';     // clicking an empty in-box cell: 'box' = reshape outl
 let dtMale = new Set();    // male dovetail RAIL on the OUTSIDE of a wall (slides down into another box's groove)
 let dtFemale = new Set();  // female dovetail GROOVE — grows a boss inward and reserves that tile for the socket
 let openings = new Set();  // cable pass-through — most of the wall removed at the floor line
+let logos = [];            // { gx, gy } — noknok logo debossed on the TOP cover, on empty in-box tiles
+let logoDismissed = false; // true once the user removes the logo, so the default-on placement won't re-add it
 
 // footprint accounting for rotation (90/270 swaps w/h)
 function footprint(p) { const m = MODULES[p.key]; return (p.rot % 180 === 0) ? { w:m.w, h:m.h } : { w:m.h, h:m.w }; }
@@ -130,6 +135,18 @@ function recomputeBox() {          // auto box = bounding rectangle of the modul
   const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
   for (let gx=x0; gx<=x1; gx++) for (let gy=y0; gy<=y1; gy++) region.add(ck(gx,gy));
 }
+// Default-ON branding (opt-out): if the user hasn't removed the logo and there's an empty in-box tile with
+// solid top plate, drop one noknok logo in an unobtrusive corner. Removing it sets logoDismissed so it
+// won't come back. Not mandatory — a design with no free tile just goes un-branded (with a gentle nudge).
+function ensureDefaultLogo() {
+  if (logoDismissed || logos.length || !placed.length) return;
+  const mc = moduleCells(), lc = allLabelCells(), hc = new Set(hooks.map(h => ck(h.gx,h.gy)));
+  const free = [...region].map(c => c.split(',').map(Number))
+    .filter(([gx,gy]) => !mc.has(ck(gx,gy)) && !lc.has(ck(gx,gy)) && !hc.has(ck(gx,gy)));
+  if (!free.length) return;
+  free.sort((a,b) => b[1]-a[1] || b[0]-a[0]);   // top-most then right-most = a quiet corner
+  logos.push({ gx: free[0][0], gy: free[0][1] });
+}
 const update = () => { if (autoBox) recomputeBox(); render(); };
 const NB = { N:[0,1], S:[0,-1], E:[1,0], W:[-1,0] };
 function boundaryWalls() {          // edges where an in-region cell meets an out-region cell
@@ -147,9 +164,11 @@ function pruneWalls() {
   for (const k of [...dtMale])   if (!valid.has(k)) dtMale.delete(k);
   for (const k of [...dtFemale]) if (!valid.has(k)) dtFemale.delete(k);
   for (const k of [...openings]) if (!valid.has(k)) openings.delete(k);
-  // drop cable hooks whose tile is no longer an empty in-box cell (module moved onto it, or tile removed)
+  // drop cable hooks / logos whose tile is no longer an empty in-box cell (module moved onto it, tile removed)
   const mc = moduleCells(), lc = allLabelCells();
-  hooks = hooks.filter(h => region.has(ck(h.gx,h.gy)) && !mc.has(ck(h.gx,h.gy)) && !lc.has(ck(h.gx,h.gy)));
+  const stillFree = (o) => region.has(ck(o.gx,o.gy)) && !mc.has(ck(o.gx,o.gy)) && !lc.has(ck(o.gx,o.gy));
+  hooks = hooks.filter(stillFree);
+  logos = logos.filter(stillFree);
 }
 function wallXY(gx,gy,s) {          // SVG endpoints of a wall segment (Y flipped)
   const x0=gx*GRID, x1=(gx+1)*GRID, ya=VBH-(gy+1)*GRID, yb=VBH-gy*GRID;
@@ -178,6 +197,7 @@ function svgDovetail(mx, my, oS, tS, nw, tw, dp, inward) {
 function render() {
   svg.innerHTML = '';
   pruneWalls();          // keep power slots / latches only on walls that still exist
+  ensureDefaultLogo();   // default-on branding: drop a logo in a free tile unless the user removed it
   // grid lines
   const g = el('g', { stroke:'var(--grid)', 'stroke-width':0.25 }, svg);
   for (let x=0; x<=VBW; x+=GRID) el('line', {x1:x,y1:0,x2:x,y2:VBH}, g);
@@ -261,6 +281,12 @@ function render() {
     el('circle', { cx, cy, r:MUSH.capR, fill:col, 'fill-opacity':0.30, stroke:col, 'stroke-width':0.6 }, hg);   // cap
     el('circle', { cx, cy, r:MUSH.stemR, fill:col }, hg);                                                       // stem
   }
+  // noknok logo tiles (debossed on the top cover) — draw the real mark via a compound path (evenodd = holes)
+  for (const lo of logos) {
+    const cx=(lo.gx+0.5)*GRID, cy=VBH-(lo.gy+0.5)*GRID;
+    const dpath = LOGO.contours.map(c => 'M'+c.map(p=>`${(cx+p[0]*LOGO_SIZE).toFixed(2)},${(cy-p[1]*LOGO_SIZE).toFixed(2)}`).join('L')+'Z').join(' ');
+    el('path', { d:dpath, fill:'#8B00F3', 'fill-rule':'evenodd', 'fill-opacity':0.9, 'pointer-events':'none' }, svg);
+  }
   renderLabelList();
   document.getElementById('addLabel').disabled = !(selId!==null && document.getElementById('labelText').value.trim());
   // status + generate enable
@@ -326,6 +352,14 @@ svg.addEventListener('pointerdown', (e) => {
     if (h) hooks = hooks.filter(q => q !== h);                   // click again to remove (it's symmetric, no rotation)
     else if (region.has(ck(gx,gy)) && !moduleCells().has(ck(gx,gy)) && !allLabelCells().has(ck(gx,gy)))
       hooks.push({ gx, gy });                                    // only on an empty in-box tile
+    render(); return;
+  }
+  if (cellMode === 'logo') {                                    // place / remove the noknok logo (top cover)
+    const l = logos.find(q => q.gx===gx && q.gy===gy);
+    if (l) { logos = logos.filter(q => q !== l); logoDismissed = true; }   // removing = opt out (don't auto-re-add)
+    else if (region.has(ck(gx,gy)) && !moduleCells().has(ck(gx,gy)) && !allLabelCells().has(ck(gx,gy))) {
+      logos.push({ gx, gy }); logoDismissed = false;            // only on an empty in-box tile (solid top plate)
+    }
     render(); return;
   }
   if (requiredCells().has(ck(gx,gy))) { render(); return; }   // never carve a module or label cell
@@ -494,6 +528,32 @@ function labelEngraving(l, H, flipX) {
   if (!solids.length) return null;
   const text3d = solids.length>1 ? union(...solids) : solids[0];
   return translate([0,0, H-depth], text3d);
+}
+
+// The noknok logo debossed into the top cover on tile (gx,gy). Built from the flattened LOGO contours
+// (union of the letter outlines, minus the two 'o' counters). Returns a solid to SUBTRACT from `front`.
+// flipX mirrors it in world X for the PRINT build (top cover prints face-down), same as the labels.
+function logoEngraving(gx, gy, H, flipX) {
+  const cx=(gx+0.5)*GRID, cy=(gy+0.5)*GRID;
+  const map = (p) => [ cx + (flipX ? -p[0] : p[0])*LOGO_SIZE, cy + p[1]*LOGO_SIZE ];   // normalized (±0.5) -> world
+  // build a clean, counter-clockwise polygon from a contour: map -> world, drop coincident + closing dup,
+  // then force CCW (the y-flip in the baked data and the print-mirror both flip winding, so normalise here).
+  const poly = (c) => {
+    let pts = c.map(map).filter((p,i,a) => i===0 || Math.hypot(p[0]-a[i-1][0], p[1]-a[i-1][1]) > 1e-3);
+    if (pts.length>2 && Math.hypot(pts[0][0]-pts[pts.length-1][0], pts[0][1]-pts[pts.length-1][1]) < 1e-3) pts = pts.slice(0,-1);
+    let ar=0; for (let i=0;i<pts.length;i++){ const j=(i+1)%pts.length; ar += pts[i][0]*pts[j][1]-pts[j][0]*pts[i][1]; }
+    if (ar < 0) pts.reverse();
+    return polygon({ points: pts });
+  };
+  const outers = [];
+  LOGO.contours.forEach((c, i) => { if (LOGO.holes.includes(i)) return;
+    try { outers.push(extrudeLinear({ height: LOGO_DEPTH+0.6 }, poly(c))); } catch(_) {} });
+  if (!outers.length) return null;
+  let ink = outers.length>1 ? union(...outers) : outers[0];
+  for (const i of LOGO.holes) {                                    // carve the 'o' counters back out
+    try { ink = subtract(ink, extrudeLinear({ height: LOGO_DEPTH+1.2 }, poly(LOGO.contours[i]))); } catch(_) {}
+  }
+  return translate([0,0, H-LOGO_DEPTH], ink);
 }
 
 // A cable retainer that rises from the bottom cover in an empty tile — a MUSHROOM (solid of revolution):
@@ -685,6 +745,9 @@ function buildBox(assembled) {
   // it reads correctly once the face-down-printed cover is flipped up.
   for (const l of labels) { try { const eng = labelEngraving(l, H, !assembled); if (eng) front = subtract(front, eng); }
     catch(e) { console.warn('label skipped:', l.text, e.message); } }
+  // deboss the noknok logo(s) into the top cover
+  for (const lo of logos) { try { const eng = logoEngraving(lo.gx, lo.gy, H, !assembled); if (eng) front = subtract(front, eng); }
+    catch(e) { console.warn('logo skipped:', e.message); } }
 
   if (assembled) return { front, back, H };
   // PRINT layout: front plate down; back laid out as a MIRROR IMAGE across the fold line to its
@@ -841,6 +904,8 @@ document.querySelectorAll('#cellMode button').forEach(b => b.addEventListener('c
   document.querySelectorAll('#cellMode button').forEach(x => x.classList.toggle('on', x === b));
   document.getElementById('cellModeNote').innerHTML = cellMode === 'hook'
     ? '<b>Cable hook:</b> click an empty in-box tile to add a mushroom; click it again to remove it. It prints on the bottom cover as a support-free mushroom (wide base, strong stem, thick cap) — an assembly aid: wrap or tuck cable slack under the cap while you close the box.'
+    : cellMode === 'logo'
+    ? '<b>noknok logo:</b> the noknok mark is debossed on the top cover. It’s added by default in a spare tile — click an empty in-box tile to move it, or click it again to remove it. Show you’re part of the noknok ecosystem 💜'
     : '<b>Reshape box:</b> click empty cells to hug, notch, or bridge modules into one box.';
 }));
 // show the overlay with a message, yield a frame so it paints, then run the (blocking) work, then hide it.
@@ -878,7 +943,7 @@ document.getElementById('dlDomeHoney').addEventListener('click', () => busyThen(
 function serializeDesign() {
   return {
     type: 'noknok-housing-configurator', version: 1,
-    placed, autoBox, labels, hooks,
+    placed, autoBox, labels, hooks, logos, logoDismissed,
     region: [...region],
     holes: [...holes], latches: [...latches],
     dtMale: [...dtMale], dtFemale: [...dtFemale], openings: [...openings],
@@ -902,6 +967,8 @@ function loadDesign(data) {
   const keptIds = new Set(placed.map(p => p.id));
   labels  = (data.labels || []).filter(l => keptIds.has(l.modId)).map(l => ({ id:+l.id, modId:+l.modId, side:l.side, text:String(l.text), size:+l.size }));
   hooks   = (data.hooks || []).map(h => ({ gx:+h.gx, gy:+h.gy }));
+  logos   = (data.logos || []).map(l => ({ gx:+l.gx, gy:+l.gy }));
+  logoDismissed = !!data.logoDismissed;
   region  = new Set(data.region || []);
   holes   = new Set(data.holes || []);   latches  = new Set(data.latches || []);
   dtMale  = new Set(data.dtMale || []);  dtFemale = new Set(data.dtFemale || []);  openings = new Set(data.openings || []);
