@@ -1,6 +1,6 @@
 // noknok square logo (two-line "nok/nok") flattened from brand/logo/noknok-square-blackpurple.svg.
 // Contours are centered at (0,0), oriented y-up, normalized so the larger axis spans 1.0. holes = indices
-// of the two 'o' counters (subtracted). Regenerate via scratchpad/gen_logo_data.mjs if the logo changes.
+// of the two 'o' counters (subtracted). Regenerate via logo-data.gen.mjs if the logo changes.
 export const LOGO = {
   aspect: 1.223,
   holes: [0, 4],

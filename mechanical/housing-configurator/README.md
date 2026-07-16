@@ -38,7 +38,7 @@ A single monolithic box of uniform height:
   1×1 tile. It's **on by default** (dropped into a spare tile) but **opt-out** — click an empty in-box tile
   in *noknok logo* mode to move it, or click it again to remove it. Not a hard gate: a design with no free
   tile just goes un-branded. The mark is a flattened vector of `brand/logo/noknok-square-blackpurple.svg`
-  (baked into `logo-data.js`, regenerated via `scratchpad/gen_logo_data.mjs`).
+  (baked into `logo-data.js`, regenerated via `logo-data.gen.mjs`).
 - **Save / load** — the 2D layout can be saved to a `.json` file (plain text: modules, box shape,
   power/latch, dovetails, cable openings, labels, cable mushrooms) and loaded back later to keep editing
   or to share a design. Loading is tolerant — it rejects non-noknok files and skips any module key the
