@@ -281,12 +281,15 @@ function render() {
     el('circle', { cx, cy, r:MUSH.capR, fill:col, 'fill-opacity':0.30, stroke:col, 'stroke-width':0.6 }, hg);   // cap
     el('circle', { cx, cy, r:MUSH.stemR, fill:col }, hg);                                                       // stem
   }
-  // noknok logo tiles (debossed on the top cover) — draw the real mark via a compound path (evenodd = holes)
-  for (const lo of logos) {
+  // noknok logo tiles (debossed on the top cover). The whole tile is a transparent drag handle (grab it
+  // like a module); the mark is drawn on top via a compound path (evenodd = holes), events passing through.
+  logos.forEach((lo, i) => {
     const cx=(lo.gx+0.5)*GRID, cy=VBH-(lo.gy+0.5)*GRID;
+    const lg = el('g', { 'data-logo': i, style:'cursor:grab' }, svg);
+    el('rect', { x:lo.gx*GRID, y:VBH-(lo.gy+1)*GRID, width:GRID, height:GRID, fill:'transparent' }, lg);
     const dpath = LOGO.contours.map(c => 'M'+c.map(p=>`${(cx+p[0]*LOGO_SIZE).toFixed(2)},${(cy-p[1]*LOGO_SIZE).toFixed(2)}`).join('L')+'Z').join(' ');
-    el('path', { d:dpath, fill:'#8B00F3', 'fill-rule':'evenodd', 'fill-opacity':0.9, 'pointer-events':'none' }, svg);
-  }
+    el('path', { d:dpath, fill:'#8B00F3', 'fill-rule':'evenodd', 'fill-opacity':0.9, 'pointer-events':'none' }, lg);
+  });
   renderLabelList();
   document.getElementById('addLabel').disabled = !(selId!==null && document.getElementById('labelText').value.trim());
   // status + generate enable
@@ -345,6 +348,10 @@ svg.addEventListener('pointerdown', (e) => {
   const grp = e.target.closest('g[data-id]');
   if (grp) { const id = +grp.dataset.id; selId = id; const p = placed.find(q=>q.id===id);
     const mm = toMM(e); drag = { id, ox: mm.x-p.x, oy: mm.y-p.y }; svg.setPointerCapture(e.pointerId); render(); return; }
+  const lg = e.target.closest('[data-logo]');       // the noknok logo drags like a module (any mode)
+  if (lg) { const lo = logos[+lg.dataset.logo];
+    if (lo) { selId = null; drag = { logo: lo, moved: false }; try { svg.setPointerCapture(e.pointerId); } catch(_){} render(); }
+    return; }
   const mm = toMM(e); const gx = Math.floor(mm.x/GRID), gy = Math.floor(mm.y/GRID); selId = null;
   if (gx<0 || gy<0 || gx>=VBW/GRID || gy>=VBH/GRID) { render(); return; }
   if (cellMode === 'hook') {                                    // place / remove a mushroom cable retainer
@@ -367,13 +374,26 @@ svg.addEventListener('pointerdown', (e) => {
 });
 svg.addEventListener('pointermove', (e) => {
   if (!drag) return;
+  if (drag.logo) {                                  // drag the logo to whatever empty in-box tile it's over
+    const mm = toMM(e), gx = Math.floor(mm.x/GRID), gy = Math.floor(mm.y/GRID);
+    if (gx<0||gy<0||gx>=VBW/GRID||gy>=VBH/GRID) return;
+    if (!region.has(ck(gx,gy)) || moduleCells().has(ck(gx,gy)) || allLabelCells().has(ck(gx,gy))) return;
+    if (logos.some(l => l!==drag.logo && l.gx===gx && l.gy===gy)) return;
+    if (drag.logo.gx!==gx || drag.logo.gy!==gy) { drag.logo.gx = gx; drag.logo.gy = gy; drag.moved = true; logoDismissed = false; render(); }
+    return;
+  }
   const p = placed.find(q=>q.id===drag.id); const mm = toMM(e);
   const nx = snap(mm.x-drag.ox), ny = snap(mm.y-drag.oy), fp = footprint(p);
   // don't drop onto another module or another module's label (no overlaps)
   if (!fits(nx/GRID, ny/GRID, fp.w/GRID, fp.h/GRID, occupiedBy(p.id))) return;
   p.x = nx; p.y = ny; update();
 });
-svg.addEventListener('pointerup', (e) => { drag = null; try { svg.releasePointerCapture(e.pointerId); } catch(_){} });
+svg.addEventListener('pointerup', (e) => {
+  if (drag && drag.logo && !drag.moved && cellMode === 'logo') {   // a click (no drag) in logo mode removes it
+    logos = logos.filter(l => l !== drag.logo); logoDismissed = true; render();
+  }
+  drag = null; try { svg.releasePointerCapture(e.pointerId); } catch(_){}
+});
 
 // ================= 3D box generation =================
 const BOX = { frontT:1.2, backT:2.0, wallT:1.5, postR:2.0, pegR:1.15, pegLen:1.6, socketR:1.8 };   // backT 2.0: thicker, more rigid bottom cover
@@ -653,11 +673,14 @@ function buildBox(assembled) {
       const pegZ = pcbFrontZ - m.pcb/2;   // PCB mid-plane
       const blocked = holeInOpening(m, hx, hy);   // a front post here would jut into the payload opening
       if (frontLen > 0.3 && !blocked) {
-        // front post presses the PCB front, back post presses the back, the peg locates it.
+        // front post presses the PCB front, back post presses the back. The locating peg goes on the BACK
+        // post — the PCB rests on the back cover, so the pin should locate it there (the front post just
+        // clamps down onto it). Previously the peg was on the front, leaving the back columns pin-less.
         front = union(front,
-          cylinder({ radius:postR, height:frontLen, segments:24, center:[w.x,w.y, pcbFrontZ + frontLen/2] }),
+          cylinder({ radius:postR, height:frontLen, segments:24, center:[w.x,w.y, pcbFrontZ + frontLen/2] }));
+        back = union(back,
+          cylinder({ radius:postR, height:backLen, segments:24, center:[w.x,w.y, backT + backLen/2] }),
           cylinder({ radius:pegR, height:pegLen, segments:16, center:[w.x,w.y, pegZ] }));
-        back = union(back, cylinder({ radius:postR, height:backLen, segments:24, center:[w.x,w.y, backT + backLen/2] }));
       } else {
         // flush payload, OR the hole sits under the opening -> no front post; hold from the back only
         // (peg rides on the back post). Recessed boards are also clamped by the collar added below.
@@ -905,7 +928,7 @@ document.querySelectorAll('#cellMode button').forEach(b => b.addEventListener('c
   document.getElementById('cellModeNote').innerHTML = cellMode === 'hook'
     ? '<b>Cable hook:</b> click an empty in-box tile to add a mushroom; click it again to remove it. It prints on the bottom cover as a support-free mushroom (wide base, strong stem, thick cap) — an assembly aid: wrap or tuck cable slack under the cap while you close the box.'
     : cellMode === 'logo'
-    ? '<b>noknok logo:</b> the noknok mark is debossed on the top cover. It’s added by default in a spare tile — click an empty in-box tile to move it, or click it again to remove it. Show you’re part of the noknok ecosystem 💜'
+    ? '<b>noknok logo:</b> the noknok mark is debossed on the top cover, added by default in a spare tile. <b>Drag it</b> to move it anywhere (like a module) — that works in any mode. In this mode, click an empty tile to add one, or click the logo to remove it. Show you’re part of the noknok ecosystem 💜'
     : '<b>Reshape box:</b> click empty cells to hug, notch, or bridge modules into one box.';
 }));
 // show the overlay with a message, yield a frame so it paints, then run the (blocking) work, then hide it.
