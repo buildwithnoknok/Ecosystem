@@ -764,20 +764,21 @@ function buildBox(assembled) {
       front = union(front, translate([w.x, w.y, (H-frontT)-DOME.height], domeRing())); } }
 
   // engrave the module labels into the top cover (subtract shallow grooves). Guard each one so a single
-  // troublesome label can never crash the whole box. Mirror the text for the PRINT build (!assembled) so
-  // it reads correctly once the face-down-printed cover is flipped up.
-  for (const l of labels) { try { const eng = labelEngraving(l, H, !assembled); if (eng) front = subtract(front, eng); }
+  // troublesome label can never crash the whole box. Text is engraved NORMALLY (no pre-mirror) — the print
+  // layout flips the cover with a rotation, which keeps the text correct once it's flipped back to assemble.
+  for (const l of labels) { try { const eng = labelEngraving(l, H, false); if (eng) front = subtract(front, eng); }
     catch(e) { console.warn('label skipped:', l.text, e.message); } }
   // deboss the noknok logo(s) into the top cover
-  for (const lo of logos) { try { const eng = logoEngraving(lo.gx, lo.gy, H, !assembled); if (eng) front = subtract(front, eng); }
+  for (const lo of logos) { try { const eng = logoEngraving(lo.gx, lo.gy, H, false); if (eng) front = subtract(front, eng); }
     catch(e) { console.warn('logo skipped:', e.message); } }
 
   if (assembled) return { front, back, H };
-  // PRINT layout: front plate down; back laid out as a MIRROR IMAGE across the fold line to its
-  // right, so folding it over onto the front realigns every column (fixes the flip mismatch).
+  // PRINT layout: flip the FRONT show-face-down with a ROTATION (180° about Y), NOT a mirror — a mirror
+  // reflects the part, so the printed+assembled cover came out left-right mirrored from the design. The
+  // back is already plate-down (print-ready), so it stays as-is. The front sits to the right for a book-
+  // fold: fold it left over the spine onto the back and every column lines up, matching the 2D design.
   const bb = jscad.measurements.measureBoundingBox(foot2d);
-  front = translate([0,0,H], mirror({ normal:[0,0,1] }, front));
-  back  = mirror({ normal:[1,0,0], origin:[bb[1][0] + 8, 0, 0] }, back);
+  front = translate([2*bb[1][0] + 8, 0, H], rotate([0, Math.PI, 0], front));
   return { front, back, H };
 }
 
