@@ -47,7 +47,7 @@ const MODULES = {
 const USBC_W = 9, USBC_H = 4.5;   // USB-C power slot: width along the wall × height (click a wall)
 const GRID = 10;         // mm per cell
 const WALL_GAP = 2;      // clearance between a module and the outer wall (so it's easy to drop in)
-const LOGO_SIZE = 7.6;   // mm, the noknok logo's larger axis (fits a 10 mm tile with margin)
+const LOGO_SIZE = 9.5;   // mm, the noknok logo's larger axis — nearly fills the 10 mm tile (~0.25 mm margin)
 const LOGO_DEPTH = 0.6;  // mm, deboss depth into the top cover
 
 const statusEl = document.getElementById('status');
