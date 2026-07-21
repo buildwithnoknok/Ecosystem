@@ -151,6 +151,173 @@
 		)
 		(embedded_fonts no)
 	)
+	(symbol "noknok_FlashPads_USB-module"
+		(pin_names
+			(offset 1.016)
+		)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "J"
+			(at -10.16 6.35 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "noknok_FlashPads_USB-module"
+			(at 1.905 -7.62 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "noknok:noknok_FlashPads_USB-module_1x4_M2.5"
+			(at 0 0 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "noknok pogo flashing interface for CH32V203 USB modules (2-wire SWD). 4 pads: 1=GND, 2=SWDIO, 3=VCC, 4=SWCLK. No RESET pad - WCH-LinkE connects via SWDIO+SWCLK alone, same reasoning as the I2C single-wire variant. NOTE: the footprint INCLUDES an M2.5 mounting hole that fixes the hole-to-pad spacing and acts as the pogo-clamp orientation key. Bottom-side pads (flip footprint to B.Cu). Place the hole >=3mm from the board edge. Reuses the noknok_FlashPads_I2C-module jig geometry - SWCLK sits +2.54mm past VCC, so the same 4-pogo jig services both I2C (3 pogos used) and USB (all 4) modules."
+			(at 0 0 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "noknok flash pogo SWDIO SWCLK CH32V203 USB programming"
+			(at 0 0 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_fp_filters" "noknok_FlashPads_USB-module*"
+			(at 0 0 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "noknok_FlashPads_USB-module_0_1"
+			(rectangle
+				(start -5.08 5.08)
+				(end 8.89 -6.35)
+				(stroke
+					(width 0.254)
+					(type default)
+				)
+				(fill
+					(type background)
+				)
+			)
+			(text "Footprint incl. M2.5 mounting hole"
+				(at 1.905 -7.22 0)
+				(effects
+					(font
+						(size 0.7 0.7)
+					)
+				)
+			)
+		)
+		(symbol "noknok_FlashPads_USB-module_1_1"
+			(pin passive line
+				(at -10.16 3.81 0)
+				(length 5.08)
+				(name "GND"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at -10.16 1.27 0)
+				(length 5.08)
+				(name "SWDIO"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at -10.16 -1.27 0)
+				(length 5.08)
+				(name "VCC"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "3"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at -10.16 -3.81 0)
+				(length 5.08)
+				(name "SWCLK"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "4"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
 	(symbol "noknok_MountingHole"
 		(pin_names
 			(offset 1.016)
