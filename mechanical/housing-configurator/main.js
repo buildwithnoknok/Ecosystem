@@ -41,8 +41,13 @@ const MODULES = {
     holes:[[4,4],[36,4],[4,36],[36,36]], conn:[['W',3,20,'usb'],['E',36.5,20]], top:{type:'window', x:20, y:20, w:38, h:38} },  // square opening so the corner LEDs aren't clipped
   usbleddome:{ name:'USB LEDs +dome', w:70, h:70, clearance_top:1.6, pcb:1.6, clearance_bottom:9.0,   // 70×70 variant: 40×40 board centred, female thread ring (ø62) stays inside the tile so it can't overlap a neighbour
     holes:[[19,19],[51,19],[19,51],[51,51]], conn:[['W',18,35,'usb'],['E',51.5,35]], top:{type:'dome_mount', x:35, y:35, dia:58} },
-  display:   { name:'display',    w:40, h:30, clearance_top:2.0,  pcb:1.6, clearance_bottom:3.0,
-    holes:[[2.25,2.25],[2.25,27.75],[37.75,2.25],[37.75,27.75]], conn:[['W',3.1,15],['S',20,3.1]], top:{type:'window', x:19.8, y:15, w:32.35, h:16.18} },
+  // 1.42" display: the ONE module whose payload side is KiCad's BOTTOM (panel bonded there, FPC wraps
+  // round the E edge to top-side pads). Coords below are the PAYLOAD view = KiCad top view mirrored in Y
+  // (v' = 30 - v), same convention as the other modules -> the 2nd JST lands on the N edge, not the S.
+  // clearance_top 2.2 = 2.08 mm panel + 0.12 bond/tolerance, so the bezel frames the glass without
+  // pressing on it. Both JSTs open straight off their nearest edge (W and N).
+  display:   { name:'display',    w:40, h:30, clearance_top:2.2,  pcb:1.6, clearance_bottom:3.0,
+    holes:[[2.25,2.25],[2.25,27.75],[37.75,2.25],[37.75,27.75]], conn:[['W',3.1,15],['N',20,26.9]], top:{type:'window', x:19.8, y:15, w:32.35, h:16.18} },
 };
 const USBC_W = 9, USBC_H = 4.5;   // USB-C power slot: width along the wall × height (click a wall)
 const GRID = 10;         // mm per cell
