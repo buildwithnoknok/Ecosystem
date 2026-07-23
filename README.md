@@ -101,6 +101,12 @@ Topics include:
 - Flashing Interface: 4‑pad flashing interface for MCUs  
 - I2C addressing rules and best practices  
 
+### 🔧 ECAD Tools
+
+**[Check the ECAD tools](electrical/tools/readme.md)** — small read-only helper scripts for designing and reviewing modules in KiCad.
+
+- **`kicad_netlist.ps1`** — reconstructs the full netlist from a `.kicad_sch` file and lists every net with its member pins, so you can verify connectivity without clicking through the schematic. Flags single-pin nets (usually a missed connection) and unconnected pins. Useful as a pre-fab review pass. Does not require KiCad to be installed, and does not replace KiCad's own ERC.
+
 ---
 
 # 🛠️Mechanical & 3D Guidelines

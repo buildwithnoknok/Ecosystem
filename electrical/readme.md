@@ -118,8 +118,16 @@ Shared custom symbols and footprints live in this repo:
 - Footprints: `electrical/noknok.pretty/`
 
 Add both to KiCad with the library nickname **`noknok`**. Current parts:
-- `noknok_FlashPads_I2C-module` (symbol) + `noknok_FlashPads_I2C-module_1x3_M2.5` (footprint) — the flashing interface, see §6.
+- `noknok_FlashPads_I2C-module` (symbol) + `noknok_FlashPads_I2C-module_1x3_M2.5` (footprint) — the flashing interface for CH32V003 I2C modules, see §6.
+- `noknok_FlashPads_USB-module` (symbol) + `noknok_FlashPads_USB-module_1x4_M2.5` (footprint) — the flashing interface for CH32V203 USB modules (2-wire SWD), see §6. Shares the I2C part's jig geometry.
 - `noknok_MountingHole` (symbol) + `noknok_MountingHole_2.5mm_M2.5` (footprint) — the standard mounting hole, see [Mechanical guidelines](../mechanical/readme.md).
+- `noknok_UART_debug_1x3_pogo` — 3 pogo pads (GND / TX / RX) for UART bring-up debugging.
+- Display panels: `noknok_ER-TFT1.42-1`, `noknok_ER-TFT020-7`, `noknok_ER-OLED0.96-1B` (+ matching footprints where the panel is soldered).
+
+### **ECAD Tools**
+Read-only helper scripts for reviewing a design live in **[`electrical/tools/`](tools/readme.md)**.
+
+- **`kicad_netlist.ps1`** — reconstructs the full netlist from a `.kicad_sch` and lists every net with its member pins. Flags **single-pin nets** (almost always a missed connection) and pins sitting on no wire. Handy as a review pass before sending a board to fab, or to confirm a rework landed where you intended. It does **not** replace KiCad's ERC — see the tool readme for its limits.
 
 ### **General PCB Rules**
 - Module interconnect is via the **JST-SH (Qwiic / Stemma QT) connectors**. **Castellated edges are no longer used** — both the castellated I2C edge and the castellated flashing edge proved too unreliable to contact/clamp and have been removed.  
