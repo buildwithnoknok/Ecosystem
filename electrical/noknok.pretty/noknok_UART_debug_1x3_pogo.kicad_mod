@@ -46,6 +46,11 @@
 		(fill solid)
 		(layer "F.SilkS")
 	)
+	(fp_text user "UART"
+		(at 2.54 -1.35 0)
+		(layer "F.SilkS")
+		(effects (font (size 0.8 0.8) (thickness 0.15)))
+	)
 	(fp_text user "GND"
 		(at 0 1.35 0)
 		(layer "F.SilkS")
