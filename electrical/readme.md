@@ -151,7 +151,7 @@ Footprint: **`noknok:noknok_FlashPads_I2C-module_1x3_M2.5`**
 - 3 round Ø1.5 mm SMD pads, **2.54 mm pitch**, on the **bottom side**, copper + soldermask only (no paste), **ENIG finish** for repeated pogo contact.
 - Pin order: **1 = GND, 2 = SWIO, 3 = VCC**.
 - The CH32V003 uses WCH **single-wire** debug (SWIO only); reset/halt is handled in-protocol by the WCH-LinkE, so **no RST or SWCLK pad is needed**.
-- Recovery of a read-protected / factory chip: `minichlink -p` over SWIO (clears RDPR + mass-erase), then flash.
+- Recovery of a read-protected / factory chip: `minichlink -p` over SWIO (clears RDPR + mass-erase), then flash. **noknok modules ship read-protection OFF** (firmware is open/MIT; RDPR only adds bench-recovery friction).
 
 ### **Orientation key (the embedded mounting hole)**
 The flashing footprint **embeds one of the board's two M2.5 mounting holes** (at the part origin), at a fixed offset from the pads. This:
@@ -169,8 +169,7 @@ Footprint: **`noknok:noknok_FlashPads_USB-module_1x4_M2.5`**
 Every CH32V003 module carries a **status LED on PD1 — the SWIO line — using zero extra GPIO**:
 - Wiring (active-low): `+3V3_PROT → 2.2 kΩ → LED anode; LED cathode → PD1/SWIO`.
 - Parts: red 0603 LED (LCSC **C2286**) + 2.2 kΩ 0603 resistor (LCSC **C4190**). The 2.2 kΩ keeps the load on the SWD line minimal (~0.6 mA) while red stays clearly visible.
-- Driven by the bootloader: **off** = app running, **slow pulse** = updating / recovering, **solid** = error.
-- SWD flashing still works with the LED fitted (the WCH-LinkE halts via SWIO at connect).
+- **PD1 is the SWIO debug pin**, so firmware must release it before driving the LED: while SWD/SDI is enabled the debug module owns PD1 and GPIO writes do nothing (bench-proven, DEV-20). The bootloader disables SDI (`AFIO->PCFR1` `SWCFG = 0b100`) **after a ~2 s SWD flashing window**, then drives the LED; recovery is that window or `minichlink -u`. Full sequence + LED state scheme: [Firmware Updates (I2C Bootloader)](../software/firmware-update.md). Validated on hardware 18 Aug 2026.
 
 ---
 
