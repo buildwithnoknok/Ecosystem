@@ -1,14 +1,14 @@
 (footprint "noknok_ER-TFT1.42-1_13pin_solder_proto"
 	(version 20260206)
-	(generator "noknok_sam")
+	(generator "pcbnew")
 	(generator_version "10.0")
 	(layer "F.Cu")
 	(descr "PROTOTYPE-ONLY variant of noknok_ER-TFT1.42-1_13pin_solder with STRETCHED pads (3.5mm long vs 1.7mm finger) to absorb FPC fold/placement error along the tail (~+/-0.9mm slack). Pitch (0.70mm) and count (13) are UNCHANGED and still must match the FPC exactly - only the length is extended. Align the FINGER CENTRE to the PAD CENTRE. Switch back to noknok_ER-TFT1.42-1_13pin_solder (datasheet-exact 2.0mm pads) once the fold geometry is confirmed on a prototype. EastRising ER-TFT1.42-1, 80x160 NV3022B, 4-wire SPI. PAD ORDER CORRECTED 2026-07-23: pad 1 is on the RIGHT (+X) end. The original release had it reversed and the first fabricated boards came back with the whole row mirrored about pad 7 - dead panel, dead backlight, everything on the wrong pin. Verified against the FPC's printed pin-1/pin-13 labels on real hardware. ALWAYS check the physical FPC labels against this footprint before releasing a board.")
 	(tags "TFT NV3022B ER-TFT1.42 80x160 IPS FPC noknok proto stretched")
-	(attr smd)
 	(property "Reference" "REF**"
 		(at 0 -3.3 0)
 		(layer "F.SilkS")
+		(uuid "c9c94102-7cc1-49d5-96bc-503577cf227a")
 		(effects
 			(font
 				(size 0.8 0.8)
@@ -19,6 +19,7 @@
 	(property "Value" "noknok_ER-TFT1.42-1_13pin_solder_proto"
 		(at 0 3.3 0)
 		(layer "F.Fab")
+		(uuid "d11d6ffa-caf5-4e80-8cb7-bd479865bd09")
 		(effects
 			(font
 				(size 0.8 0.8)
@@ -30,6 +31,7 @@
 		(at 0 0 0)
 		(layer "F.Fab")
 		(hide yes)
+		(uuid "8586917c-8e2a-4bbc-82d1-fad9a030ba17")
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -40,25 +42,131 @@
 		(at 0 0 0)
 		(layer "F.Fab")
 		(hide yes)
+		(uuid "2e5c782c-c9fe-4d99-a60b-c2ccb40c3222")
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 		)
 	)
-	(fp_text user "Pin1"
-		(at 4.2 -2.65 0)
-		(layer "F.SilkS")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
+	(attr smd)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_line
+		(start -7.85 0)
+		(end -6.55 0)
+		(stroke
+			(width 0.15)
+			(type solid)
 		)
-	)
-	(fp_text user "PROTO pads (3.5mm)"
-		(at 0 2.6 0)
 		(layer "F.SilkS")
+		(uuid "248ead77-14d5-4b33-8db9-d98e7f01ee97")
+	)
+	(fp_line
+		(start -7.45 -1.75)
+		(end -6.95 -1.75)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "b9b7ad68-d1d0-43f6-81d0-8bffb41aea4a")
+	)
+	(fp_line
+		(start -7.45 1.75)
+		(end -6.95 1.75)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "f932fd50-fde0-4fc0-b5f2-adb1ea60f60e")
+	)
+	(fp_line
+		(start -7.2 -1.75)
+		(end -7.2 1.75)
+		(stroke
+			(width 0.15)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "b3234f6a-164d-468e-bc7b-e881fec0b6a3")
+	)
+	(fp_line
+		(start 5 -1.9)
+		(end 5 1.9)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "101df0c5-6dfb-40c1-b278-cb94cecbe57e")
+	)
+	(fp_line
+		(start 6.55 0)
+		(end 7.85 0)
+		(stroke
+			(width 0.15)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "cbd7e093-3216-46e6-be64-270eea540ac1")
+	)
+	(fp_line
+		(start 6.95 -1.75)
+		(end 7.45 -1.75)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "5afe0bec-bbff-419f-a239-495902d4d2bd")
+	)
+	(fp_line
+		(start 6.95 1.75)
+		(end 7.45 1.75)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "00098f50-9319-4521-bf2b-b4c468d7cf90")
+	)
+	(fp_line
+		(start 7.2 -1.75)
+		(end 7.2 1.75)
+		(stroke
+			(width 0.15)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "935bab07-ba8e-45e3-a575-0739cbcc3c4b")
+	)
+	(fp_rect
+		(start -4.85 -2)
+		(end 4.85 2)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.CrtYd")
+		(uuid "3115ed0a-dda9-4d9b-9805-76370efb4370")
+	)
+	(fp_rect
+		(start -4.7 -1.85)
+		(end 4.7 1.85)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.Fab")
+		(uuid "96ce9793-3c20-4919-bc28-88988a119b39")
+	)
+	(fp_text user "PAD CTR"
+		(at -8.85 0 0)
+		(layer "F.SilkS")
+		(uuid "c408cbc4-3cf4-43dd-8db0-dfbdeb37a4bd")
 		(effects
 			(font
 				(size 0.6 0.6)
@@ -66,33 +174,116 @@
 			)
 		)
 	)
-	(fp_line (start 5.0 -1.9) (end 5.0 1.9) (stroke (width 0.12) (type solid)) (layer "F.SilkS"))
-	(fp_rect (start -4.85 -2.0) (end 4.85 2.0) (stroke (width 0.05) (type solid)) (fill no) (layer "F.CrtYd"))
-	(fp_rect (start -4.7 -1.85) (end 4.7 1.85) (stroke (width 0.1) (type solid)) (fill no) (layer "F.Fab"))
-	(fp_line (start 7.2 -1.75) (end 7.2 1.75) (stroke (width 0.15) (type solid)) (layer "F.SilkS"))
-	(fp_line (start 6.55 0) (end 7.85 0) (stroke (width 0.15) (type solid)) (layer "F.SilkS"))
-	(fp_line (start 6.95 1.75) (end 7.45 1.75) (stroke (width 0.12) (type solid)) (layer "F.SilkS"))
-	(fp_line (start 6.95 -1.75) (end 7.45 -1.75) (stroke (width 0.12) (type solid)) (layer "F.SilkS"))
-	(fp_text user "PAD CTR" (at 8.85 0 0) (layer "F.SilkS") (effects (font (size 0.6 0.6) (thickness 0.1))))
-	(fp_text user "pad length ref (3mm from pad1)" (at 7.2 -2.6 0) (layer "F.SilkS") (effects (font (size 0.45 0.45) (thickness 0.08))))
-	(fp_line (start -7.2 -1.75) (end -7.2 1.75) (stroke (width 0.15) (type solid)) (layer "F.SilkS"))
-	(fp_line (start -7.85 0) (end -6.55 0) (stroke (width 0.15) (type solid)) (layer "F.SilkS"))
-	(fp_line (start -7.45 1.75) (end -6.95 1.75) (stroke (width 0.12) (type solid)) (layer "F.SilkS"))
-	(fp_line (start -7.45 -1.75) (end -6.95 -1.75) (stroke (width 0.12) (type solid)) (layer "F.SilkS"))
-	(fp_text user "PAD CTR" (at -8.85 0 0) (layer "F.SilkS") (effects (font (size 0.6 0.6) (thickness 0.1))))
-	(fp_text user "pad length ref (3mm from pad13)" (at -7.2 -2.6 0) (layer "F.SilkS") (effects (font (size 0.45 0.45) (thickness 0.08))))
-	(pad "13" smd rect (at -4.2 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
-	(pad "12" smd rect (at -3.5 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
-	(pad "11" smd rect (at -2.8 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
-	(pad "10" smd rect (at -2.1 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
-	(pad "9" smd rect (at -1.4 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
-	(pad "8" smd rect (at -0.7 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
-	(pad "7" smd rect (at 0 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
-	(pad "6" smd rect (at 0.7 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
-	(pad "5" smd rect (at 1.4 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
-	(pad "4" smd rect (at 2.1 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
-	(pad "3" smd rect (at 2.8 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
-	(pad "2" smd rect (at 3.5 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
-	(pad "1" smd rect (at 4.2 0) (size 0.4 3.5) (layers "F.Cu" "F.Paste" "F.Mask"))
+	(fp_text user "PROTO pads (3.5mm)"
+		(at 0 2.6 0)
+		(layer "F.SilkS")
+		(uuid "fdb5f061-016f-484a-b71e-0e6a400c4683")
+		(effects
+			(font
+				(size 0.6 0.6)
+				(thickness 0.1)
+			)
+		)
+	)
+	(fp_text user "Pin1"
+		(at 4.2 -2.65 0)
+		(layer "F.SilkS")
+		(uuid "99cceb6e-1efd-458d-929d-8dc0191a3a44")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+		)
+	)
+	(fp_text user "PAD CTR"
+		(at 8.85 0 0)
+		(layer "F.SilkS")
+		(uuid "215d13ea-1a6d-4787-a0f3-767aa6fe9b5f")
+		(effects
+			(font
+				(size 0.6 0.6)
+				(thickness 0.1)
+			)
+		)
+	)
+	(pad "1" smd rect
+		(at 4.2 0)
+		(size 0.4 3.5)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "c3b14a9a-af54-4465-972a-b7a377d91195")
+	)
+	(pad "2" smd rect
+		(at 3.5 0)
+		(size 0.4 3.5)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "c30abdfc-3081-4682-9ccf-06f56d921d23")
+	)
+	(pad "3" smd rect
+		(at 2.8 0)
+		(size 0.4 3.5)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "72265fea-5758-4fc6-a3e7-ecb02dbf2f0a")
+	)
+	(pad "4" smd rect
+		(at 2.1 0)
+		(size 0.4 3.5)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "20fed79f-fa90-42f8-b153-b517739eb07a")
+	)
+	(pad "5" smd rect
+		(at 1.4 0)
+		(size 0.4 3.5)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "5896364b-d850-4595-a6fe-5788da18a50c")
+	)
+	(pad "6" smd rect
+		(at 0.7 0)
+		(size 0.4 3.5)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "6939b37b-fe9a-49f2-ae14-25903326256b")
+	)
+	(pad "7" smd rect
+		(at 0 0)
+		(size 0.4 3.5)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "24ac4e05-44cb-4402-a85a-4487554d2c61")
+	)
+	(pad "8" smd rect
+		(at -0.7 0)
+		(size 0.4 3.5)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "440cf0bf-7234-40f7-9e76-672ea5369492")
+	)
+	(pad "9" smd rect
+		(at -1.4 0)
+		(size 0.4 3.5)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "2f6e43c0-0f99-4299-af41-238e2f0b6e23")
+	)
+	(pad "10" smd rect
+		(at -2.1 0)
+		(size 0.4 3.5)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "1e58b09f-403f-44ba-a615-cd2eaa8f08bf")
+	)
+	(pad "11" smd rect
+		(at -2.8 0)
+		(size 0.4 3.5)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "9138b3e5-1d2e-4f97-95c3-58fa781da271")
+	)
+	(pad "12" smd rect
+		(at -3.5 0)
+		(size 0.4 3.5)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "f17b7473-b6a4-43c4-bd7d-521dfa5ee1cb")
+	)
+	(pad "13" smd rect
+		(at -4.2 0)
+		(size 0.4 3.5)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "2e7ff516-c5d7-451c-9639-1a22e95750b0")
+	)
 	(embedded_fonts no)
 )
