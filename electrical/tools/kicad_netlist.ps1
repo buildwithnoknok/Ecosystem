@@ -116,11 +116,29 @@ foreach($pk in @($allPts.Keys)){
   }
 }
 # ---------- merge nets sharing a label ----------
+# A label attaches to the net at its (x,y). KiCad accepts a label sitting at a wire
+# ENDPOINT *or mid-span on a wire* (or on a pin). We resolve the endpoint case directly;
+# for the mid-span case we find the wire segment the label lies on and union onto it -
+# without this, labels placed mid-wire are missed and their pins look disconnected.
 $labelRoots=@{}
 foreach($m in [regex]::Matches($text,'\((?:label|global_label|hierarchical_label) "([^"]+)"\s*\r?\n\s*\(at ([-\d.]+) ([-\d.]+)')){
   $nm=$m.Groups[1].Value
-  $k="{0:F2},{1:F2}" -f [double]$m.Groups[2].Value,[double]$m.Groups[3].Value
-  if(-not $parent.ContainsKey($k)){continue}
+  $lx=[double]$m.Groups[2].Value; $ly=[double]$m.Groups[3].Value
+  $k="{0:F2},{1:F2}" -f $lx,$ly
+  if(-not $parent.ContainsKey($k)){
+    # not a known node - is the label mid-span on a wire? if so, adopt that wire's endpoint
+    $found=$false
+    for($i=0;$i -lt $wx1.Count;$i++){
+      $dx=$wx2[$i]-$wx1[$i];$dy=$wy2[$i]-$wy1[$i];$l2=$dx*$dx+$dy*$dy
+      if($l2 -eq 0){continue}
+      $tt=(($lx-$wx1[$i])*$dx+($ly-$wy1[$i])*$dy)/$l2
+      if($tt -lt -0.01 -or $tt -gt 1.01){continue}
+      if([math]::Abs($wx1[$i]+$tt*$dx-$lx) -lt 0.3 -and [math]::Abs($wy1[$i]+$tt*$dy-$ly) -lt 0.3){
+        $k="{0:F2},{1:F2}" -f $wx1[$i],$wy1[$i]; $found=$true; break
+      }
+    }
+    if(-not $found){continue}   # truly dangling label - leave unmerged (real issue worth seeing)
+  }
   $r=$k;while($parent[$r] -ne $r){$r=$parent[$r]}
   if($labelRoots.ContainsKey($nm)){
     $ra=$labelRoots[$nm];while($parent[$ra] -ne $ra){$ra=$parent[$ra]}
