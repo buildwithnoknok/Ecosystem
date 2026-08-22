@@ -106,6 +106,7 @@ Topics include:
 **[Check the ECAD tools](electrical/tools/readme.md)** — small read-only helper scripts for designing and reviewing modules in KiCad.
 
 - **`kicad_netlist.ps1`** — reconstructs the full netlist from a `.kicad_sch` file and lists every net with its member pins, so you can verify connectivity without clicking through the schematic. Flags single-pin nets (usually a missed connection) and unconnected pins. Useful as a pre-fab review pass. Does not require KiCad to be installed, and does not replace KiCad's own ERC.
+- **`kicad_pcb_check.ps1`** — the PCB counterpart. Reports board outline, F.Cu/B.Cu layer split, vias per net, copper zones (net / layer / priority / pad-connection mode / filled), track widths, decoupling-cap proximity, and the noknok flash-pad keying (pads inward so a flipped clamp can't reverse-power the board). A pre-fab placement review; does not replace KiCad's DRC.
 
 ---
 

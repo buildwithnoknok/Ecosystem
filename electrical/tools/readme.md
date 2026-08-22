@@ -59,6 +59,40 @@ Tested on KiCad 10 schematics.
 
 ---
 
+## `kicad_pcb_check.ps1` — PCB structural & placement checker
+
+Parses a `.kicad_pcb` and reports the things worth eyeballing before fab — the layout counterpart to the netlist checker. Answers *"is the board the right shape, are the caps close to their pins, are the pours and vias set up right, is the flash pad keyed correctly?"* without hunting through the PCB editor.
+
+### Usage
+
+```powershell
+.\kicad_pcb_check.ps1 -Path "MyBoard.kicad_pcb"
+.\kicad_pcb_check.ps1 -Path "MyBoard.kicad_pcb" -OutFile "pcb_report.txt"
+```
+
+KiCad does **not** need to be installed.
+
+### What you get
+
+1. **Board outline** — round (dia + centre) or rectangular/polygon.
+2. **Footprint layer split** — F.Cu vs B.Cu counts, and the list of B.Cu parts (the payload-side / MCU-side check).
+3. **Vias per net** — for sizing power-transfer between layers (e.g. is the LED rail carried by enough vias, and does the ground return match?).
+4. **Copper zones** — each zone's net, layer(s), priority, **pad-connection mode (SOLID / THERMAL / NONE)**, and whether it's actually filled. Catches an unfilled pour, a heatsink zone left on thermal relief, or a priority that lets GND swallow a power pour.
+5. **Track widths** — overall distribution and min/max per power net.
+6. **Decoupling proximity** — every 2-pad cap's power pad to the nearest same-net pad on another footprint, flagged OK (≤2mm) / ok (≤3.5mm) / FAR. Confirms bypass caps sit close to what they serve. *Interpret the matched ref:pin — a bulk cap may correctly match a neighbouring cap or a FET pad rather than an IC.*
+7. **noknok flash-pad orientation** — checks the pogo pads are keyed **inward** (hole toward the board corner, pads toward centre) so a 180°-flipped clamp can't seat reversed and back-power the board. Reports each flash footprint's hole radius, pad radius, edge gap, and INWARD/OUTWARD verdict.
+
+### Limits — read before trusting a result
+
+- **Not a DRC.** It does not check clearances, spacing, courtyard overlaps, unconnected pads, or manufacturing rules. **Run KiCad's own DRC before generating fab files** — this tool complements it, never replaces it.
+- Distances are pad-centre to pad-centre from the footprint placement + rotation, validated against known 0603 spacing (~1.55mm) → good to ~±0.2mm. Fine for "2mm vs 5mm", not for sub-mm work.
+- Reports zone *config*, not copper-fill quality or actual thermal performance.
+- If a result surprises you, **verify it in KiCad before acting on it.**
+
+Tested on KiCad 10 PCBs.
+
+---
+
 ## License
 
 MIT — see the SPDX header in each script.
