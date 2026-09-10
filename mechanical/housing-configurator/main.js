@@ -48,6 +48,19 @@ const MODULES = {
   // pressing on it. Both JSTs open straight off their nearest edge (W and N).
   display:   { name:'display',    w:40, h:30, clearance_top:2.2,  pcb:1.6, clearance_bottom:3.0,
     holes:[[2.25,2.25],[2.25,27.75],[37.75,2.25],[37.75,27.75]], conn:[['W',3.1,15],['N',20,26.9]], top:{type:'window', x:19.8, y:15, w:32.35, h:16.18} },
+  // PicoHub: the Pico carrier. Geometry from the V2.0 production files (outline gerber, NPTH drill,
+  // pick&place) — EasyEDA exports those in a top-view Y-up frame and the payload side IS the top side,
+  // so NO Y-mirror here (unlike the display). Six JST-SH (3 on S, 3 on N) + USB-C power in on E and
+  // USB-C host out on W. clearance_top 19.0 = Christopher's measured 17.0 (PCB top -> highest part of a
+  // plugged-in Pico) + 2.0 so a micro-USB plug in the Pico isn't crushed. The Pico is ALWAYS part of the
+  // stack — the board is useless without one — which is why this is the tallest module by far (see the
+  // mixed-box note in render()). Mount holes are ø2.8 here, not the usual ø2.5, so the pegs are loose.
+  picohub:   { name:'PicoHub',    w:60, h:40, clearance_top:19.0, pcb:1.6, clearance_bottom:2.0,
+    holes:[[3,3],[37,3],[57,3],[3,37],[37,37],[57,37]],
+    conn:[['S',12.637,3.219],['S',29.229,3.219],['S',47.501,3.219],
+          ['N',12.637,36.82],['N',29.229,36.82],['N',47.501,36.82],
+          ['W',5.001,20,'usb'],['E',55.137,20,'usb']],
+    top:{type:'grille', x:30, y:20, w:48, h:16.5, hole:3.0, pitch:4.5, nx:11, ny:4} },   // ventilation over the Pico, ~39% open
 };
 const USBC_W = 9, USBC_H = 4.5;   // USB-C power slot: width along the wall × height (click a wall)
 const GRID = 10;         // mm per cell
@@ -153,6 +166,25 @@ function ensureDefaultLogo() {
   logos.push({ gx: free[0][0], gy: free[0][1] });
 }
 const update = () => { if (autoBox) recomputeBox(); render(); };
+// The box has ONE uniform interior height, set by the tallest board's stack. Mixing a very tall module
+// (the PicoHub, which is 22.6 mm because a Pico is always plugged into it) with flat ones therefore
+// inflates the whole housing. We don't forbid it — a single box is sometimes exactly what the designer
+// wants — but we say what it costs and point at the alternative (separate boxes, joined by a dovetail).
+const stackOf = (p) => { const m = MODULES[p.key]; return m.clearance_top + m.pcb + m.clearance_bottom; };
+const MIX_WARN = 8;   // mm of stack difference before it's worth mentioning (knob-over-display is ~6.8 = normal)
+function renderMixNote() {
+  const note = document.getElementById('mixNote'); if (!note) return;
+  if (placed.length < 2) { note.hidden = true; return; }
+  const tall = placed.reduce((a,b) => stackOf(b) > stackOf(a) ? b : a);
+  const spread = stackOf(tall) - Math.min(...placed.map(stackOf));
+  if (spread < MIX_WARN) { note.hidden = true; return; }
+  note.hidden = false;
+  note.innerHTML = `<b>Note:</b> the <b>${MODULES[tall.key].name}</b> is ${spread.toFixed(1)} mm taller than the `
+    + `flattest module here, and the box is one uniform height — so every module in it gets that height. `
+    + `That's fine if you want a single enclosure. If you'd rather keep the others slim, put the `
+    + `${MODULES[tall.key].name} in its own box and join the two with a <b>dovetail</b>.`;
+}
+
 const NB = { N:[0,1], S:[0,-1], E:[1,0], W:[-1,0] };
 function boundaryWalls() {          // edges where an in-region cell meets an out-region cell
   const w = [];
@@ -297,6 +329,7 @@ function render() {
   });
   renderLabelList();
   document.getElementById('addLabel').disabled = !(selId!==null && document.getElementById('labelText').value.trim());
+  renderMixNote();
   // status + generate enable
   const mods = placed.length, nh = holes.size, nl = latches.size;
   const uncovered = [...requiredCells()].some(c => !region.has(c));
@@ -409,16 +442,23 @@ const SOCKET_H = 2.95;   // JST-SH socket body height above the PCB (support col
 // female socket reaches into the box past the wall. All print-test-tunable.
 const DT = { neck:3.5, tip:6.0, depth:3.5, clr:0.35, bossDepth:6.5 };
 
-function grilleCut(cx, cy, z, hh) {
-  const parts = [];
-  for (let ix=0; ix<5; ix++) for (let iy=0; iy<5; iy++)
-    parts.push(cylinder({ radius:0.85, height:hh, segments:16, center:[cx+(ix-2)*2.5, cy+(iy-2)*2.5, z] }));
+// Matrix of round holes in the front plate. Defaults = the buzzer's validated acoustic grille
+// (5×5 of ø1.7 at 2.5 mm => ~0.8 mm webs); a profile can override nx/ny/pitch/hole for a bigger
+// VENT (the PicoHub uses 11×4 of ø3 at 4.5 mm over the Pico). rot90 swaps the matrix with the
+// module so a non-square grille still lands over the payload after a rotate.
+function grilleCut(f, cx, cy, z, hh, rot90) {
+  let nx = f.nx ?? 5, ny = f.ny ?? 5;
+  if (rot90) [nx, ny] = [ny, nx];
+  const pitch = f.pitch ?? 2.5, r = (f.hole ?? 1.7) / 2, parts = [];
+  for (let ix=0; ix<nx; ix++) for (let iy=0; iy<ny; iy++)
+    parts.push(cylinder({ radius:r, height:hh, segments:16,
+      center:[cx + (ix-(nx-1)/2)*pitch, cy + (iy-(ny-1)/2)*pitch, z] }));
   return union(...parts);
 }
 function topCut(p, H) {                                  // front-plate opening (rotates with the module)
   const m = MODULES[p.key], f = m.top, w = loc(p, f.x, f.y);
   const z = H - BOX.frontT/2, hh = BOX.frontT + 1.2;
-  if (f.type === 'grille')     return grilleCut(w.x, w.y, z, hh);
+  if (f.type === 'grille')     return grilleCut(f, w.x, w.y, z, hh, p.rot % 180 !== 0);
   if (f.type === 'round_hole' || f.type === 'dome_mount') return cylinder({ radius:f.dia/2, height:hh, segments:48, center:[w.x, w.y, z] });
   const sw = (p.rot%180===0)? f.w : f.h, sh = (p.rot%180===0)? f.h : f.w;   // rect: swap if rotated
   return cuboid({ size:[sw, sh, hh], center:[w.x, w.y, z] });
@@ -431,7 +471,8 @@ function wallMid(gx,gy,s) {                              // world midpoint of a 
 // front column there would jut into the opening and block the payload — hold that corner differently.
 function holeInOpening(m, hx, hy, margin) {
   const f = m.top; if (!f) return false; const g = (margin ?? BOX.postR);
-  if (f.type === 'grille' || f.type === 'round_hole' || f.type === 'dome_mount') { const r = f.dia/2 + g; return (hx-f.x)**2 + (hy-f.y)**2 < r*r; }
+  // circular openings are tested by radius; a grille given w/h (a rectangular vent) falls through to the rect test
+  if (f.dia && (f.type === 'grille' || f.type === 'round_hole' || f.type === 'dome_mount')) { const r = f.dia/2 + g; return (hx-f.x)**2 + (hy-f.y)**2 < r*r; }
   return Math.abs(hx-f.x) < f.w/2 + g && Math.abs(hy-f.y) < f.h/2 + g;
 }
 // A recessed board whose mount holes sit under the opening can't use front posts (they'd block the
