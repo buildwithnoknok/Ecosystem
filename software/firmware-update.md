@@ -24,8 +24,8 @@ These are fixed across the ecosystem — every CH32V003 module honours them:
 
 | Item | Value |
 |------|-------|
-| Bootloader region | 4 KB at `0x0000` (immutable in the field) |
-| Application offset | `0x1000` (apps relinked here, 12 KB region) |
+| Bootloader region | 4 KB at `0x0000` — since DEV-31 (Sep 2026) split into a **frozen 1 KB stage-0** and a **field-updatable 3 KB stage-1** at `0x0400`. See [Bootloader Updates & World Migration](bootloader-update.md). |
+| Application offset | `0x1000` (apps relinked here, ~12 KB region) — **unchanged** by the split |
 | Bootloader I2C address | `0x7E` |
 | `ENTER_BOOTLOADER` command | `0xB0` |
 | Handoff RAM cell | `0x200007F0` (top 16 B of RAM, reserved in every module) |
@@ -33,9 +33,13 @@ These are fixed across the ecosystem — every CH32V003 module honours them:
 | Status LED | SWIO / PD1 (active-low); firmware disables SDI to drive it — see below |
 
 Every updatable application MUST be linked at the `0x1000` offset, reserve the handoff
-RAM cell, and implement `0xB0`. The manifest `.bin` for a module is this offset-linked
-application image — the bootloader is a separate binary and is never part of the OTA
-payload.
+RAM cell, implement `0xB0`, **run the independent watchdog, and clear the boot-attempt
+counter once its I2C address is assigned** (the app-side contract in
+[bootloader-update.md §3](bootloader-update.md) — this is what lets a module survive a
+broken application release). The manifest `.bin` for a module is this offset-linked
+application image — the bootloader is a separate binary and is never part of the
+application OTA payload. A stage-1 (bootloader) image is a separate payload delivered by
+the same transport.
 
 ## Status LED & the SWIO flashing window (Flashing Interface V3)
 
@@ -92,6 +96,7 @@ design page — this file stays a high-level overview to avoid drift:
 
 ## Related documentation
 
+- [Bootloader Updates & World Migration](bootloader-update.md) — updating the bootloader itself; the runbook
 - [Software Guidelines](readme.md)
 - [Firmware Updates (USB Bootloader)](firmware-update-usb.md)
 - [Enumeration Protocol](enumeration.md)

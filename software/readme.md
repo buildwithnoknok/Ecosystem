@@ -98,8 +98,10 @@ Command bytes **`0xB0` through `0xBF` are reserved ecosystem-wide** for standard
 | Command | Byte | Direction | Description |
 |---------|------|-----------|-------------|
 | `ENTER_BOOTLOADER` | `0xB0` | write | Warm-reset into the shared I²C bootloader for an over-the-wire firmware update. See the [bootloader repo](https://github.com/buildwithnoknok/module-I2C-bootloader). |
-| `GET_VERSION` | `0xB1` | write, then read 4 bytes | Report protocol + firmware version (see below). |
-| *reserved* | `0xB2`–`0xBF` | — | Reserved for future standard commands. Do not use. |
+| `GET_VERSION` | `0xB1` | write, then read 4 bytes | Report protocol + firmware version (see below). **Also answered by the bootloader at `0x7E`** (stage-1 version, same 4-byte shape) — a bootloader that stays silent on `0xB1` is the legacy monolithic one. |
+| `GET_DIAGNOSTIC` | `0xB2` | write, then read | USB bootloader only — DEV-12 boot-decision diagnostic. |
+| `GET_UID` | `0xB3` | write, then read 8 bytes | **Bootloader only** (`0x7E`): the chip UID, same bytes and order as the enumeration reply, so a module parked in its bootloader can be matched to the type it enumerated as. See [bootloader-update.md](bootloader-update.md). |
+| *reserved* | `0xB4`–`0xBF` | — | Reserved for future standard commands. Do not use. |
 
 ### `GET_VERSION` (`0xB1`) — mandatory for all modules
 
@@ -134,6 +136,8 @@ After the read, the module returns to its normal read behaviour (its status/data
 - **Interrupt on new command**: Any new command immediately overrides what is currently playing/running.
 - **Startup confirmation**: Every module plays or signals a startup sequence on boot (e.g. a chime or LED flash) to confirm it is alive. This runs during the backoff period before I2C is enabled.
 - **CRC on UID response**: The 10‑byte enumeration response must always include a valid CRC8 byte.
+- **Watchdog + health handshake (DEV-31, mandatory)**: Start the independent watchdog right after `SystemInit()` (~2 s) and kick it every main-loop iteration; write `0` to `0x200007F8` the moment an I2C address is assigned. Stage-1 counts boots and parks an app that crashes three times in a row, so the module waits for help instead of dying. Full contract in [bootloader-update.md §3](bootloader-update.md).
+- **Reserved RAM**: the top 16 B (`0x200007F0`–`0x200007FF`) belong to the bootloader chain — handoff cell, stage-0 attempt counter, app boot-attempt counter. Every linker script excludes them from the stack.
 
 ---
 
@@ -164,7 +168,9 @@ Power cycle: enumerate() → modules not at saved addresses → full 0x7F scan
 | UID size | 64‑bit (8 bytes) |
 | Enumeration response | 10 bytes (UID + type + CRC8) |
 | Standard system commands | `0xB0`–`0xBF` reserved ecosystem-wide |
-| Version reporting | `GET_VERSION` (`0xB1`) → 4 bytes `[protocol, major, minor, patch]` |
+| Version reporting | `GET_VERSION` (`0xB1`) → 4 bytes `[protocol, major, minor, patch]` — apps and the bootloader alike |
+| Bootloader | frozen 1 KB stage-0 + field-updatable 3 KB stage-1; app at `0x1000` unchanged |
+| App health | IWDG ~2 s + clear `0x200007F8` on address assignment — mandatory |
 | Max modules per bus | ~20 (total boot time ≈ 3–4 s) |
 | Hardcoded addresses | **Never** |
 
@@ -176,6 +182,7 @@ Power cycle: enumerate() → modules not at saved addresses → full 0x7F scan
 - [Product Manifest schema](product-manifest.schema.json) — machine-checkable manifest spec
 - [Enumeration Protocol — full spec](enumeration.md)
 - [Firmware Updates (I2C Bootloader)](firmware-update.md)
+- [Bootloader Updates & World Migration](bootloader-update.md) — updating the bootloader itself; the DEV-31 runbook
 - [Firmware Updates (USB Bootloader)](firmware-update-usb.md)
 - [Role Assignment](roles.md)
 - [Electrical Guidelines](../electrical/readme.md)
