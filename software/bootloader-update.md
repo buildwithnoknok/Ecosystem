@@ -60,8 +60,9 @@ and `0xB1`), every application **must**:
    I2C address has been assigned (`DEV_ASSIGNING → DEV_ASSIGNED`). That is the strongest
    "I work" signal an app has: enumeration completed, so I2C demonstrably works.
 
-Why: stage-1 counts every boot of the app and, after **three** consecutive warm resets
-without the counter being cleared, stops booting it and parks in the bootloader with
+Why: stage-1 counts every boot of the app and, after **three** consecutive **watchdog** resets
+without the counter being cleared (any other reset cause — power-on, software, SWD — starts a
+fresh series), stops booting it and parks in the bootloader with
 `last_error = 7` ("app unhealthy"). Without these two lines, an application with a *valid
 CRC* that crashes or hangs is booted forever and the module is dead until SWD. With them, it
 gets three tries (~6 s) and then waits at `0x7E` for the Conductor to rescue it (§6).
@@ -156,18 +157,18 @@ through this, no exceptions:
 1. **Build with a version bump** (`S1_VERSION_*` in `noknok_stage1.c`, or
    `make build EXTRA_CFLAGS=-DS1_VERSION_PATCH=n` for test payloads). The image header
    carries the version; `GET_VERSION` reports it.
-2. **Bench, over SWD:** `build_test_images.py` + `run_swd_tests.sh` — must be 10/10 with the
-   new stage-1 in `test_chain`.
-3. **Bench, over I2C:** `i2c_regress.sh` — a real self-update from the previous release to
-   the new one, cross-checked over SWD.
-4. **Bench, through the Conductor:** `bench_conductor_stage1.py` — the product-shaped flow,
-   app restored, module re-enumerated.
-5. **Staged rollout:** one module, then one product, then the fleet. The Conductor reads
+2. **Run the regression:** `sh firmware/stage0/test/regress_all.sh` on the bench Pi (module-
+   I2C-bootloader repo). One command, ~4 min, must end in `ALL PASS`. It builds stage-0 and
+   stage-1 from source and runs the ten stage-0 SWD images (`test_chain` with the new
+   stage-1), the real self-update over I2C cross-checked over SWD, the Conductor's
+   `stage1_update()` with app restore, the wrong-file refusal, the hanging-app park and the
+   parked-module rescue. What each step proves and what a FAIL means: `TESTS.md` next to it.
+3. **Staged rollout:** one module, then one product, then the fleet. The Conductor reads
    `bootloader_version()` and only pushes to modules below the target.
-6. **Record** the version, sizes, and bench results in the bootloader repo's spec and on
+4. **Record** the version, sizes, and regression result in the bootloader repo's spec and on
    DEV-31 before anything ships.
 
-Stage-1 is at ~94 % of its 3 KB today. If a future release will not fit, the reservation
+Stage-1 is at ~95 % of its 3 KB today (2908 B). If a future release will not fit, the reservation
 can be grown by moving the application base (stage-0 reads it as data) — but that is a
 combined stage-1 + all-apps release, and a decision, not a build flag.
 
@@ -205,6 +206,7 @@ bricked, and the next start-up rescues it.
 | Unhealthy app (valid CRC, hangs) | booted exactly 3 times, then parked with error 7 |
 | Rescue of a parked module by UID | identified, re-flashed, back at its address |
 | Wrong file as a stage-1 (valid CRC, no header) | refused, error 8, nothing armed |
+| Full regression `regress_all.sh` (all of the above, one command, stage-1 2908 B) | 6/6 PASS, 11 Sep 2026 evening |
 
 ## Related documentation
 

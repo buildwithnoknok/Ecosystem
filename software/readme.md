@@ -136,7 +136,7 @@ After the read, the module returns to its normal read behaviour (its status/data
 - **Interrupt on new command**: Any new command immediately overrides what is currently playing/running.
 - **Startup confirmation**: Every module plays or signals a startup sequence on boot (e.g. a chime or LED flash) to confirm it is alive. This runs during the backoff period before I2C is enabled.
 - **CRC on UID response**: The 10‑byte enumeration response must always include a valid CRC8 byte.
-- **Watchdog + health handshake (DEV-31, mandatory)**: Start the independent watchdog right after `SystemInit()` (~2 s) and kick it every main-loop iteration; write `0` to `0x200007F8` the moment an I2C address is assigned. Stage-1 counts boots and parks an app that crashes three times in a row, so the module waits for help instead of dying. Full contract in [bootloader-update.md §3](bootloader-update.md).
+- **Watchdog + health handshake (DEV-31, mandatory)**: Start the independent watchdog right after `SystemInit()` (~2 s) and kick it every main-loop iteration; write `0` to `0x200007F8` the moment an I2C address is assigned. Stage-1 counts watchdog resets and parks an app that crashes three times in a row, so the module waits for help instead of dying. Full contract in [bootloader-update.md §3](bootloader-update.md).
 - **Reserved RAM**: the top 16 B (`0x200007F0`–`0x200007FF`) belong to the bootloader chain — handoff cell, stage-0 attempt counter, app boot-attempt counter. Every linker script excludes them from the stack.
 
 ---
