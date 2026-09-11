@@ -69,12 +69,39 @@ returns `None` for a legacy bootloader (it does not implement `0xB1`) and a
 version tuple for stage-0/stage-1. Silence means old world. See
 `bootloader-update.md`.
 
+## Finding it — the module registry
+
+A product manifest names module *types*, not repos, so the brain needs one lookup
+from type to index URL. That is [`modules.json`](modules.json) in this directory:
+
+```json
+{
+  "registry_version": "1.0.0",
+  "modules": {
+    "buzzer": {
+      "repo": "module-I2C-buzzer",
+      "index": "https://raw.githubusercontent.com/buildwithnoknok/module-I2C-buzzer/main/firmware/index.json"
+    }
+  }
+}
+```
+
+One file, one fetch, and the only place a module repo's location is written down.
+Adding a module type to the ecosystem is a line here — **not** a change to every
+product manifest, and not a Pico library update.
+
+> **A module's repo must be public** for the brain to fetch its index over a raw
+> URL. `module-I2C-1.42-display` is private, so it has no registry entry yet and
+> the brain will not manage its firmware; add the entry when the repo goes
+> public. A type missing from the registry is a safe no-op — it is logged and no
+> firmware is installed for it.
+
 ## How the brain uses it
 
 At provisioning, for each module type the product needs:
 
 1. Read the product manifest's floor — `module_firmware: { "buzzer": { "min": "3.3.1" } }`.
-2. Fetch the module's `index.json`.
+2. Look the type up in `modules.json` and fetch the module's `index.json`.
 3. If `index.version` is **below** the product's `min`, refuse: the product needs
    a firmware feature that has not shipped. This should never happen in practice
    and means someone published a product against an unreleased firmware.
