@@ -72,14 +72,17 @@
     },
     "module_firmware": {
       "type": "object",
-      "description": "For each module type used, the firmware version and .bin URL the app should flash/verify. Keys must be module type strings that also appear in modules_required.",
+      "description": "For each module type used, the MINIMUM firmware version this product needs. Keys must be module type strings that also appear in modules_required. A manifest does NOT name a version to install or a .bin URL: firmware is backwards compatible, so the brain installs whatever the module's own firmware index declares as current (see firmware-index.md) and this floor only guards against a module too old to run the product. Keeping the version and the binary in the same repo is what stops the two drifting apart.",
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["version", "url"],
+        "required": ["min"],
         "properties": {
-          "version": { "type": "string", "description": "Firmware version to pin, e.g. '2.1.0'." },
-          "url": { "type": "string", "format": "uri", "description": "Raw URL to the .bin in the module repo's firmware/bin/." }
+          "min": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+            "description": "Oldest firmware version this product works against, e.g. '2.1.0'. Provisioning refuses to install if the module's current published firmware is older than this. Raise it only when the product starts relying on a newer firmware feature."
+          }
         }
       }
     },
@@ -149,9 +152,10 @@
         "usb_leds",
         "usb_datahub",
         "usb_powerhub",
-        "usb_picohub"
+        "usb_picohub",
+        "display"
       ],
-      "description": "Controlled vocabulary of module type strings. Must match the names the Conductor exposes (c.buzzer, c.knob, c.ledbutton, c.leds ...). The 1.42\" display is not yet listed because its driver is not integrated into noknok.py."
+      "description": "Controlled vocabulary of module type strings. Must match the names the Conductor exposes (c.buzzer, c.knob, c.ledbutton, c.leds, c.display ...)."
     }
   }
 }

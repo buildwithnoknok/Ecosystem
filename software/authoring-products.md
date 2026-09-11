@@ -33,9 +33,9 @@ rather than duplicating them (duplication drifts out of date).
 | 3 | `poc/manifests/catalog.json` | Add one `{ id, manifest-url }` line so the app lists the product. Bump `catalog_version` + `updated`. |
 | 4 | *(optional)* housing files + `README` | 3D housing (Theo) and docs, added when the physical product is designed. |
 
-Both files live in the **public `poc` repo**. The manifest's `files[].url` and
-`module_firmware[].url` are **raw GitHub URLs** the app fetches at provision
-time, so your script must be pushed to `main` for the product to install.
+Both files live in the **public `poc` repo**. The manifest's `files[].url` are
+**raw GitHub URLs** the app fetches at provision time, so your script must be
+pushed to `main` for the product to install.
 
 ---
 
@@ -50,11 +50,13 @@ The parts that trip people up:
 - **`modules_required[].type`** and the **`module_firmware`** keys are a
   *controlled vocabulary* too (`buzzer`, `knob`, `led_button`, `usb_leds`, …) —
   they must match what the Conductor exposes. See the schema `moduleType` enum.
-- **`module_firmware`** pins a version + `.bin` URL **per module type**. These
-  are hand-copied from each module repo's `firmware/bin/`. There is no single
-  source, so when a module's firmware is bumped, every manifest using it must be
-  updated. Copy the current values from a recent manifest (e.g.
-  `two-button-box.json`) unless you have a reason to pin older firmware.
+- **`module_firmware`** declares a **floor**, not a pin: `{ "buzzer": { "min":
+  "3.3.1" } }`. Module firmware is backwards compatible, so the brain installs
+  whatever each module repo currently publishes (see
+  [`firmware-index.md`](firmware-index.md)) and `min` only guards the case where
+  a module is too old to run your product. Set it to the version you actually
+  developed against and then leave it alone — you do **not** need to touch
+  manifests when a module's firmware is bumped.
 - **`roles`** — leave it **`[]`** unless the product needs to tell *identical*
   modules apart by their physical position. See "Modules: lists vs roles" below.
 - **`config_schema`** — you may declare it, but **it is not yet plumbed to
@@ -156,13 +158,8 @@ Full mechanism: **[enumeration.md](enumeration.md)**.
   a limited number of physical ports, so high module counts need Qwiic
   branches / a hub to fan out. Electrically fine (that's what enumeration is
   for) — but it needs a wiring plan.
-- **Firmware URLs drift.** `module_firmware` versions are copied by hand into
-  each manifest. When a module's firmware is bumped, existing manifests keep
-  pointing at the old version until updated.
-- **Not every module has a library driver yet.** The 1.42" display is a real
-  module but its driver isn't in `noknok.py` yet — a product can't use it until
-  that lands. Check `noknok.py` for a `Noknok<Module>` class before you rely on
-  a module.
+- **Not every module has a library driver yet.** Check `noknok.py` for a
+  `Noknok<Module>` class before you rely on a module.
 - **File header.** Start scripts with the SPDX header
   (`# SPDX-License-Identifier: MIT`) followed by a `# <filename> — <title>`
   comment block. (Some older scripts predate this — match the newer ones.)
@@ -180,7 +177,8 @@ The cleanest reference for the **symmetric-modules** pattern:
   on the knob at runtime (not app config), screen-free score via buzzer + LEDs.
 
 For a **role-based** product instead, read
-[`poc/scripts/two_button_box.py`](https://github.com/buildwithnoknok/poc/blob/main/scripts/two_button_box.py).
+[`poc/scripts/smart_lamp.py`](https://github.com/buildwithnoknok/poc/blob/main/scripts/smart_lamp.py)
+— two identical knobs told apart by role, plus a combined USB + I2C setup.
 
 ---
 
@@ -188,7 +186,8 @@ For a **role-based** product instead, read
 
 1. Script in `poc/scripts/`, manifest in `poc/manifests/`.
 2. Manifest validates against `product-manifest.schema.json`.
-3. Manifest `files[].url` / `module_firmware[].url` point at raw `main` URLs.
+3. Manifest `files[].url` point at raw `main` URLs; `module_firmware` declares a
+   `min` per module type.
 4. Added to `catalog.json` (new product line + bump `catalog_version` + `updated`).
 5. `git push` — the app fetches from `main`, so unpushed = uninstallable.
 6. Bench-test on real hardware: enumerate, run, verify behaviour.
