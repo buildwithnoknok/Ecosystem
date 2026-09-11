@@ -105,7 +105,9 @@ Command bytes **`0xB0` through `0xBF` are reserved ecosystem-wide** for standard
 
 ### `GET_VERSION` (`0xB1`) — mandatory for all modules
 
-Lets the Conductor read a module's **installed** firmware version so it can compare it against the version **required** by the product manifest (`module_firmware[type].version`) and decide whether an update is needed. This is the prerequisite for the module-firmware update flow (PoC v1: log "update available"; PoC v2: flash over the I²C bootloader).
+Lets the Conductor read a module's **installed** firmware version so it can compare it against the **current published** version — the `version` field of that module's [`firmware/index.json`](firmware-index.md) — and decide whether an update is needed. This is the prerequisite for the module-firmware update flow (PoC v1: log "update available"; PoC v2: flash over the I²C bootloader).
+
+> The product manifest does **not** name a version to install. It declares only a *floor* (`module_firmware[type].min`); what actually gets installed is whatever the module repo currently publishes. See [Module Firmware Index](firmware-index.md).
 
 **Wire sequence** (at the module's runtime address, after enumeration):
 
@@ -123,7 +125,7 @@ After the read, the module returns to its normal read behaviour (its status/data
 
 **Why a dedicated command and not part of enumeration:** the 10-byte enumeration response (`[UID×8][TYPE][CRC8]`) is a fixed, stable wire format. Version reporting is kept separate so the enumeration format never has to change and the version can be re-read whenever needed.
 
-**Semantic versioning:** firmware versions follow [semver](https://semver.org) — `MAJOR.MINOR.PATCH` — matching the manifest convention. The Conductor logs "update available" when the reported version is lower than the manifest's required version (PoC v1); PoC v2 triggers the I²C-bootloader OTA flash.
+**Semantic versioning:** firmware versions follow [semver](https://semver.org) — `MAJOR.MINOR.PATCH`. The version reported here **must equal** the `version` in that module's `firmware/index.json`; that equality is what lets the Conductor decide whether an update is needed without downloading the binary first. The Conductor logs "update available" when the reported version is lower than the published one (PoC v1); PoC v2 triggers the I²C-bootloader OTA flash.
 
 **Firmware implementation notes (CH32V003):** the command is recognised in the `DEV_ASSIGNED` state. Receiving `0xB1` sets a one-shot `version_pending` latch **inside the I²C ISR at the STOP condition** — the same place the `0x1D` assign command is handled — so the very next read returns the version bytes race-free (no dependency on the main loop running first). `PROTOCOL_VERSION` and `FW_VERSION_{MAJOR,MINOR,PATCH}` are `#define`d at the top of each module's firmware and kept equal to the module's released version tag.
 
@@ -179,7 +181,9 @@ Power cycle: enumerate() → modules not at saved addresses → full 0x7F scan
 ## 9. Related Documentation
 
 - [Authoring a noknok Product](authoring-products.md) — how to build a new product (manifest + product.py)
+- [Product Manifest — structure reference](product-manifest.md) — every field, what it means, full annotated example
 - [Product Manifest schema](product-manifest.schema.json) — machine-checkable manifest spec
+- [Module Firmware Index](firmware-index.md) — how the brain decides which firmware to install (`firmware/index.json` + `modules.json`)
 - [Enumeration Protocol — full spec](enumeration.md)
 - [Firmware Updates (I2C Bootloader)](firmware-update.md)
 - [Bootloader Updates & World Migration](bootloader-update.md) — updating the bootloader itself; the DEV-31 runbook
