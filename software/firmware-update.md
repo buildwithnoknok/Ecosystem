@@ -24,15 +24,15 @@ These are fixed across the ecosystem — every CH32V003 module honours them:
 
 | Item | Value |
 |------|-------|
-| Bootloader region | 4 KB at `0x0000` — since DEV-31 (Sep 2026) split into a **frozen 1 KB stage-0** and a **field-updatable 3 KB stage-1** at `0x0400`. See [Bootloader Updates & World Migration](bootloader-update.md). |
-| Application offset | `0x1000` (apps relinked here, ~12 KB region) — **unchanged** by the split |
+| Bootloader region | 5 KB at `0x0000` — since DEV-31 (Sep 2026) a **frozen 1 KB stage-0** plus a **field-updatable 4 KB stage-1** at `0x0400` (layout 2; the original monolithic bootloader was 4 KB with apps at `0x1000`). See [Bootloader Updates & World Migration](bootloader-update.md). |
+| Application offset | `0x1400` (layout 2, apps relinked here, ~10.9 KB region). Layout-1 / legacy apps at `0x1000` do not run on a layout-2 module. |
 | Bootloader I2C address | `0x7E` |
 | `ENTER_BOOTLOADER` command | `0xB0` |
 | Handoff RAM cell | `0x200007F0` (top 16 B of RAM, reserved in every module) |
 | CRC32 | zlib (polynomial `0xEDB88320`) |
 | Status LED | SWIO / PD1 (active-low); firmware disables SDI to drive it — see below |
 
-Every updatable application MUST be linked at the `0x1000` offset, reserve the handoff
+Every updatable application MUST be linked at the `0x1400` offset, reserve the handoff
 RAM cell, implement `0xB0`, **run the independent watchdog, and clear the boot-attempt
 counter once its I2C address is assigned** (the app-side contract in
 [bootloader-update.md §3](bootloader-update.md) — this is what lets a module survive a
@@ -79,8 +79,8 @@ only repeat *bench SWD* reflash of an already-programmed module is: catch the wi
 **Read protection:** noknok modules ship **unprotected** — firmware is open (MIT), so RDPR
 only adds bench-recovery friction. A protected board just needs one `minichlink -p` first.
 
-**Bench restore without a Pico (SWD):** flash ONE combined 16 KB image = bootloader@`0x0000` +
-app@`0x1000` + metadata@`0x3FC0` `{magic 0xB007C0DE, app_len, zlib.crc32(app)}` (little-endian),
+**Bench restore without a Pico (SWD):** flash ONE combined 16 KB image = stage-0@`0x0000` + stage-1@`0x0400` +
+app@`0x1400` + metadata@`0x3FC0` `{magic 0xB007C0DE, app_len, zlib.crc32(app)}` (little-endian) — `mk_full.py` in the bootloader repo builds exactly this —
 then `minichlink -w combined.bin flash -b`. This hand-writes the same validity marker the OTA
 `VERIFY` normally writes.
 

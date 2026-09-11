@@ -169,7 +169,7 @@ Power cycle: enumerate() → modules not at saved addresses → full 0x7F scan
 | Enumeration response | 10 bytes (UID + type + CRC8) |
 | Standard system commands | `0xB0`–`0xBF` reserved ecosystem-wide |
 | Version reporting | `GET_VERSION` (`0xB1`) → 4 bytes `[protocol, major, minor, patch]` — apps and the bootloader alike |
-| Bootloader | frozen 1 KB stage-0 + field-updatable 3 KB stage-1; app at `0x1000` unchanged |
+| Bootloader | frozen 1 KB stage-0 + field-updatable 4 KB stage-1 (layout 2); apps linked at `0x1400` |
 | App health | IWDG ~2 s + clear `0x200007F8` on address assignment — mandatory |
 | Max modules per bus | ~20 (total boot time ≈ 3–4 s) |
 | Hardcoded addresses | **Never** |

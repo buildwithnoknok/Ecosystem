@@ -21,8 +21,8 @@ So the bootloader is split in two:
 | | | Field-updatable? |
 |---|---|---|
 | **Stage-0** | 1 KB at `0x0000`, frozen at manufacture. Only two jobs: install a pending stage-1 update (verified copy from a staging area), then jump to stage-1. Speaks no bus. | **Never** — and it never needs to |
-| **Stage-1** | 3 KB at `0x0400`. The real bootloader: I2C flashing, app validation, and now its own replacement. | Yes, via stage-0 |
-| Application | `0x1000`, unchanged. | Yes, via stage-1 |
+| **Stage-1** | **4 KB** at `0x0400` (layout 2, since 11 Sep 2026; was 3 KB). The real bootloader: I2C flashing, app validation, and now its own replacement. | Yes, via stage-0 |
+| Application | `0x1400` (layout 2; `0x1000` under layout 1 and the legacy monolithic bootloader). | Yes, via stage-1 |
 
 **Stage-0 never speaks a bus.** The *running stage-1* receives its own replacement into the
 app region (used as staging), CRC-verifies it, writes a control block, and warm-resets.
@@ -38,8 +38,8 @@ Additions to the [firmware-update](firmware-update.md) table. Fixed ecosystem-wi
 | Item | Value |
 |---|---|
 | Stage-0 region | 1 KB at `0x0000` — frozen forever |
-| Stage-1 region | 3 KB at `0x0400` — **base must be 1 KB aligned** (the vector table lives there and `mtvec` ignores the low bits) |
-| Application offset | `0x1000` — **unchanged** by the split; existing apps need no relinking |
+| Stage-1 region | 4 KB at `0x0400` — **base must be 1 KB aligned** (the vector table lives there and `mtvec` ignores the low bits) |
+| Application offset | `0x1400` (layout 2). Every app is linked here; a layout-1 / legacy-bootloader app (`0x1000`) cannot run on a layout-2 module and vice versa — the fleet moves together. The stage-1 image header carries the layout id, so `VERIFY_STAGE1` refuses a cross-layout stage-1 (error 8). |
 | Bootloader control block | 64 B at `0x3F80` (stage-1 writes, stage-0 clears) |
 | App metadata | 64 B at `0x3FC0` (unchanged) |
 | Reserved no-init RAM | top 16 B, `0x200007F0`–`0x200007FF`, kept out of every linker's stack: `…F0` handoff cell (app → bootloader), `…F4` stage-0 install-attempt counter, `…F8` app boot-attempt counter |
@@ -50,7 +50,7 @@ Additions to the [firmware-update](firmware-update.md) table. Fixed ecosystem-wi
 
 ## 3. What every module firmware must do (the app-side contract)
 
-Beyond the existing rules (link at `0x1000`, reserve the top 16 B of RAM, implement `0xB0`
+Beyond the existing rules (link at `0x1400`, reserve the top 16 B of RAM, implement `0xB0`
 and `0xB1`), every application **must**:
 
 1. **Run the independent watchdog.** Start the IWDG right after `SystemInit()` (~2 s: LSI/64,
@@ -93,7 +93,7 @@ installed stage-1 version. Both are I2C-only until the USB port lands.
 
 | Check | Where | Refuses with |
 |---|---|---|
-| Staged image fits the stage-1 region (3 KB) | stage-1, `VERIFY_STAGE1` | error 4 |
+| Staged image fits the stage-1 region (4 KB) | stage-1, `VERIFY_STAGE1` | error 4 |
 | Staged image CRC matches what the host declared | stage-1 | error 5 |
 | Staged image **is a stage-1 for this layout** (header at `+0x100`: `NKS1`, base `0x0400`, layout 1) | stage-1 | error 8 |
 | Control block descriptor intact (its own CRC) | **stage-0** | not pending → boots old stage-1 |
@@ -168,9 +168,11 @@ through this, no exceptions:
 4. **Record** the version, sizes, and regression result in the bootloader repo's spec and on
    DEV-31 before anything ships.
 
-Stage-1 is at ~95 % of its 3 KB today (2908 B). If a future release will not fit, the reservation
-can be grown by moving the application base (stage-0 reads it as data) — but that is a
-combined stage-1 + all-apps release, and a decision, not a build flag.
+Stage-1 v1.1.0 is 2928 B in its 4 KB (layout 2, 11 Sep 2026 — grown from 3 KB exactly this
+way when the hardening round left 164 B and DEV-22 still had to land). If it ever has to grow
+again, the same procedure applies: move the application base (stage-0 reads it as data), bump
+the header layout id, relink every app — a combined stage-1 + all-apps release, and a
+decision, not a build flag.
 
 ## 8. World migration (v1 → v2 protocol / identity)
 
@@ -206,7 +208,8 @@ bricked, and the next start-up rescues it.
 | Unhealthy app (valid CRC, hangs) | booted exactly 3 times, then parked with error 7 |
 | Rescue of a parked module by UID | identified, re-flashed, back at its address |
 | Wrong file as a stage-1 (valid CRC, no header) | refused, error 8, nothing armed |
-| Full regression `regress_all.sh` (all of the above, one command, stage-1 2908 B) | 6/6 PASS, 11 Sep 2026 evening |
+| Full regression `regress_all.sh` (all of the above, one command, stage-1 2908 B, layout 1) | 6/6 PASS, 11 Sep 2026 evening |
+| Layout 2 (stage-1 4 KB, apps at `0x1400`) | full image boots, LED Button 2.4.0 enumerates, `bootloader_version()` 1.1.1, boots back (smoke test; full regression pending) |
 
 ## Related documentation
 
