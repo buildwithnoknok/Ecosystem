@@ -132,7 +132,50 @@ product manifest, and not a Pico library update.
 > public. A type missing from the registry is a safe no-op — it is logged and no
 > firmware is installed for it.
 
-## How the brain uses it
+## The bootloader has an index too
+
+The stage-1 bootloader is a field-updatable component (DEV-31), shared by every
+CH32V003 module, and it is distributed exactly like an app image. Its index
+lives in `module-I2C-bootloader/firmware/index.json`, in the same commit as
+`firmware/bin/noknok_stage1.bin`:
+
+```json
+{
+  "format": 1,
+  "component": "stage1",
+  "version": "1.2.0",
+  "url": "https://raw.githubusercontent.com/buildwithnoknok/module-I2C-bootloader/main/firmware/bin/noknok_stage1.bin",
+  "layout": 2,
+  "size": 2984,
+  "crc32": "5b0f52d3",
+  "released": "2026-09-12"
+}
+```
+
+The registry names it under `bootloader.stage1`. **All of `version`, `url`,
+`layout`, `size` and `crc32` are required** — a bootloader update destroys the
+app region and has no rollback, so nothing about it is guessed.
+
+How the brain applies it, on a due check, **before** the app pass:
+
+- Each I²C module's installed stage-1 version is read **once** (a bootloader
+  round-trip: `0xB0`, `0xB1`, `BOOT`, re-enumerate) and remembered in
+  `noknok_state.json` (`"bl": [proto, major, minor, patch, layout]`, or `null`
+  for a legacy monolithic bootloader). After that, a newer published stage-1 is
+  a free comparison.
+- A module below the published version gets the new stage-1 **and its current
+  app back in the same transaction** (the staging area is the app region) —
+  so the module's app image must already be in the cache, for the **same
+  layout** as the new stage-1.
+- **Same layout only.** A stage-1 for a different layout is refused by the
+  module itself (`VERIFY_STAGE1`, error 8), so the brain refuses it first
+  rather than transferring it. A layout change is a combined stage-1 + all-apps
+  release — see `bootloader-update.md` §7.
+- A legacy bootloader (no `0xB1`) cannot self-update; it is logged once and
+  left for SWD.
+
+Outcomes go to `noknok_events.txt` as `[BL]` lines, and a refusal or failure
+triggers the customer alert like any other.
 
 **When:** on the first connected boot after provisioning, then at most **once
 every 24 hours** (the time of the last completed check is kept in the brain's

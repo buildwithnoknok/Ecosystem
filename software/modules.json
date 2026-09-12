@@ -1,8 +1,14 @@
 {
   "format": 1,
-  "registry_version": "1.1.0",
+  "registry_version": "1.2.0",
   "updated": "2026-09-12",
-  "_comment": "Official noknok module registry: maps each module type string to its firmware index. The brain fetches this, then each module's index.json, to decide what firmware to install. See firmware-index.md. A module's repo must be PUBLIC for the brain to reach its index; private-repo modules are listed here only once their repo is public.",
+  "_comment": "Official noknok module registry: maps each module type string to its firmware index, and names the current stage-1 bootloader index. The brain fetches this, then each index.json, to decide what firmware to install. See firmware-index.md. A repo must be PUBLIC for the brain to reach its index; private-repo modules are listed here only once their repo is public.",
+  "bootloader": {
+    "stage1": {
+      "repo": "module-I2C-bootloader",
+      "index": "https://raw.githubusercontent.com/buildwithnoknok/module-I2C-bootloader/main/firmware/index.json"
+    }
+  },
   "modules": {
     "buzzer": {
       "repo": "module-I2C-buzzer",
