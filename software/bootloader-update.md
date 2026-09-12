@@ -174,12 +174,20 @@ through this, no exceptions:
    stage-1), the real self-update over I2C cross-checked over SWD, the Conductor's
    `stage1_update()` with app restore, the wrong-file refusal, the hanging-app park, the silent-app park
    (stage-1 v1.2.0 arms the IWDG before the jump) and the parked-module rescue. What each step proves and what a FAIL means: `TESTS.md` next to it.
-3. **Staged rollout:** one module, then one product, then the fleet. The Conductor reads
-   `bootloader_version()` and only pushes to modules below the target. Since stage-1 v1.2.0
-   the bootloader's `0xB1` reply carries the **flash layout id as a 5th byte**
-   (`[proto, major, minor, patch, layout]`; `0` = pre-1.2.0, did not say) — use it to pick
-   the app image for the module's actual layout instead of inferring the layout from the
-   stage-1 version (the 12 Sep 2026 incident: a layout-2 app pushed onto a layout-1 module).
+3. **Publish it: update `firmware/index.json` in the same commit as the binary** — `version`,
+   `layout`, `size`, `crc32` (all required; generate from the binary, never type). That file
+   is what every brain in the field reads (registry `bootloader.stage1`, see
+   [firmware-index.md](firmware-index.md)). Pushing it **is** the rollout: on each brain's next
+   due check (≤ once/24 h) the stage-1 pass takes every I²C module below that version to it,
+   restoring the module's current app in the same transaction — same layout only. The
+   bootloader's `0xB1` reply carries the **flash layout id as a 5th byte** since v1.2.0
+   (`[proto, major, minor, patch, layout]`; `0` = pre-1.2.0, did not say); the brain
+   compares it to the index rather than inferring anything from the version (the 12 Sep 2026
+   incident: a layout-2 app pushed onto a layout-1 module). A brain reads each module's
+   stage-1 version once and remembers it in `noknok_state.json` (`"bl"`).
+   **There is no canary channel** — the index reaches every brain at once. The staging is
+   steps 1–2: nothing goes into `index.json` that has not passed the regression and a
+   bench install through `bench_stage1_rollout.py`.
 4. **Record** the version, sizes, and regression result in the bootloader repo's spec and on
    DEV-31 before anything ships.
 
