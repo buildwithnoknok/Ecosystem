@@ -59,6 +59,7 @@ Two conclusions shape this file:
 | `size` | yes | Byte length of the `.bin`. |
 | `crc32` | yes | zlib CRC32 of the `.bin`, lower-case hex, no prefix (`python3 -c "import zlib,sys;print('%08x'%zlib.crc32(open(sys.argv[1],'rb').read()))" firmware/bin/x.bin`). |
 | `released` | no | ISO date, for humans reading the file. |
+| `format` | no | Schema version of this file; absent means `1`. A brain skips an index (or registry) whose `format` is newer than it understands — fail closed, so a future schema change can never be misread by an older brain in the field. Bump it only when a change would break an old reader. |
 
 `size` and `crc32` are what let the brain **verify a download before it touches
 a module**. The bootloader's own CRC cannot catch a truncated or corrupted
@@ -132,6 +133,18 @@ product manifest, and not a Pico library update.
 > firmware is installed for it.
 
 ## How the brain uses it
+
+**When:** on the first connected boot after provisioning, then at most **once
+every 24 hours** (the time of the last completed check is kept in the brain's
+non-volatile memory, not its filesystem, and survives a power cycle). Other
+boots make no GitHub round-trips at all; a parked module is still rescued from
+the on-device cache. On that first boot the brain also **warms the cache** —
+fetches the current image for every I²C type the product uses — so any of them
+can be rescued later without the internet.
+
+**Per module, not per type:** if a type has several modules and one cannot
+run the new image (wrong flash layout), only that one is refused; the others
+still update.
 
 At provisioning, for each module type the product needs:
 
