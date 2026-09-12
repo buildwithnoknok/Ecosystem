@@ -146,19 +146,28 @@ can be rescued later without the internet.
 run the new image (wrong flash layout), only that one is refused; the others
 still update.
 
-At provisioning, for each module type the product needs:
+On a due check, for each module type the product needs:
 
 1. Read the product manifest's floor — `module_firmware: { "buzzer": { "min": "3.3.1" } }`.
 2. Look the type up in `modules.json` and fetch the module's `index.json`.
 3. If `index.version` is **below** the product's `min`, refuse: the product needs
    a firmware feature that has not shipped. This should never happen in practice
    and means someone published a product against an unreleased firmware.
-4. Compare `index.version` to what the module reports installed. Equal or newer
-   installed → nothing to do.
-5. Otherwise check `layout` against the module's actual bootloader layout —
-   exact match. Mismatch → refuse and log it, rather than flashing an image the
-   module cannot run.
-6. Fetch and flash.
+4. If the on-device cache for this type is not already `index.version` with the
+   matching `crc32`, download the image, verify it against `size` and `crc32`,
+   and store it with a sidecar. **All downloads happen here, before the brain
+   talks to any module** — a download attempted after the module bus has been
+   brought up can hang on this board.
+5. Bring up the bus. Compare `index.version` to what each module reports
+   installed. Equal or newer installed → nothing to do.
+6. For each outdated module, check `layout` against that module's own
+   bootloader layout — exact match. Mismatch → refuse that module and tell the
+   customer (buzzer error motif, LED Buttons red), rather than flashing an image
+   it cannot run. The other modules of the type still update.
+7. Flash from the cache. The network is not involved from here on.
+
+The cache is kept: it is also the source for rescuing a module parked in its
+bootloader when there is no internet.
 
 Net effect: **modules converge on the newest firmware automatically**, products
 never need editing when firmware improves, and the one case that bricks a module
