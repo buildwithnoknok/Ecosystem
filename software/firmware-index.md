@@ -44,6 +44,8 @@ Two conclusions shape this file:
   "version": "3.5.0",
   "url": "https://raw.githubusercontent.com/buildwithnoknok/module-I2C-buzzer/main/firmware/bin/buzzer_firmware.bin",
   "layout": 2,
+  "size": 2980,
+  "crc32": "7dc9883d",
   "released": "2026-09-11"
 }
 ```
@@ -54,7 +56,17 @@ Two conclusions shape this file:
 | `version` | yes | Semver of the binary at `url`. **Must match what the firmware reports over `0xB1 GET_VERSION`** — that equality is what lets the brain decide without downloading anything. |
 | `url` | yes | Raw URL to the `.bin`. Pointing at `main` is fine: index and binary move together in one commit, so there is nothing to drift. |
 | `layout` | I²C: yes | The **flash layout this image is linked for**. See below. Omit for USB (CH32V203) modules until the stage-0 port lands. |
+| `size` | yes | Byte length of the `.bin`. |
+| `crc32` | yes | zlib CRC32 of the `.bin`, lower-case hex, no prefix (`python3 -c "import zlib,sys;print('%08x'%zlib.crc32(open(sys.argv[1],'rb').read()))" firmware/bin/x.bin`). |
 | `released` | no | ISO date, for humans reading the file. |
+
+`size` and `crc32` are what let the brain **verify a download before it touches
+a module**. The bootloader's own CRC cannot catch a truncated or corrupted
+download — it is computed over whatever bytes the brain sends — so without them
+a short download would be flashed, pass verification, hang the module, get
+parked, and be downloaded again. The brain checks both when present and logs a
+warning when absent. Generate them from the binary in the same commit; never
+type them by hand.
 
 ### `layout` — the flash layout the image is linked for
 
@@ -149,6 +161,11 @@ Same commit, every time:
 3. Set `version` in `index.json` to the same number.
 4. Set `layout` to match the image's `app.ld` `ORIGIN` — it changes only when
    the app is relinked for a new stage-1.
+5. Regenerate `size` and `crc32` from the new binary (see the field table).
+
+A CI check in each module repo — `layout` matches `app.ld` `ORIGIN`, `size` and
+`crc32` match the committed binary, `version` matches the source — catches the
+human error at the source, before a brain ever fetches it.
 
 If step 3 is skipped, the fleet simply does not see the release — the brain
 never downloads a binary it has not been told about. That is the intended
