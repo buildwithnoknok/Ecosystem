@@ -129,8 +129,8 @@ someone published a product against firmware that never shipped.
 
 Where "current" comes from: the brain reads
 [`modules.json`](modules.json) to find the module's repo, then that repo's
-`firmware/index.json`. Full mechanism, including the `requires_bootloader`
-safety gate, is in [`firmware-index.md`](firmware-index.md).
+`firmware/index.json`. Full mechanism, including the flash-`layout` safety
+gate, is in [`firmware-index.md`](firmware-index.md).
 
 ## `files` — what gets installed on the brain
 

@@ -98,7 +98,7 @@ Command bytes **`0xB0` through `0xBF` are reserved ecosystem-wide** for standard
 | Command | Byte | Direction | Description |
 |---------|------|-----------|-------------|
 | `ENTER_BOOTLOADER` | `0xB0` | write | Warm-reset into the shared I²C bootloader for an over-the-wire firmware update. See the [bootloader repo](https://github.com/buildwithnoknok/module-I2C-bootloader). |
-| `GET_VERSION` | `0xB1` | write, then read 4 bytes | Report protocol + firmware version (see below). **Also answered by the bootloader at `0x7E`** (stage-1 version; **5 bytes since stage-1 v1.2.0** — the 5th is the flash layout id, `0` if the stage-1 predates it) — a bootloader that stays silent on `0xB1` is the legacy monolithic one. |
+| `GET_VERSION` | `0xB1` | write, then read 4 bytes (5 from the bootloader) | Report protocol + firmware version (see below). **Also answered by the bootloader at `0x7E`** (stage-1 version; **5 bytes since stage-1 v1.2.0** — the 5th is the flash layout id, `0` if the stage-1 predates it) — a bootloader that stays silent on `0xB1` is the legacy monolithic one. |
 | `GET_DIAGNOSTIC` | `0xB2` | write, then read | USB bootloader only — DEV-12 boot-decision diagnostic. |
 | `GET_UID` | `0xB3` | write, then read 8 bytes | **Bootloader only** (`0x7E`): the chip UID, same bytes and order as the enumeration reply, so a module parked in its bootloader can be matched to the type it enumerated as. See [bootloader-update.md](bootloader-update.md). |
 | *reserved* | `0xB4`–`0xBF` | — | Reserved for future standard commands. Do not use. |
