@@ -73,21 +73,24 @@ Read it off the module's `app.ld` `ORIGIN`: `0x1000` under stage-1 1.0.x is
 layout 1, `0x1400` is layout 2.
 
 **The match is exact.** A "newer" bootloader is not a "compatible" one:
-layouts 1 and 2 both answer `0xB1` and are mutually unrunnable. The brain
-derives a module's layout from the stage-1 version it reports
-(`Conductor.bootloader_layout()`, table `Conductor.STAGE1_LAYOUTS`), refuses on
-a mismatch, and **fails closed** — an index with no `layout` for an I²C module,
-or a stage-1 version the Conductor does not know, is refused rather than
-guessed at. A module on the wrong layout must be moved over SWD; it cannot get
-there over the bus.
+layouts 1 and 2 both answer `0xB1` and are mutually unrunnable. **The
+bootloader states its own layout** — byte 4 of stage-1's `0xB1` reply, since
+stage-1 1.2.0 — and the brain (`Conductor.bootloader_layout()`) compares it to
+the index. Nothing host-side infers a layout from a version number. It refuses
+on a mismatch and **fails closed**: an index with no `layout` for an I²C module,
+a legacy bootloader (no `0xB1`), or a stage-1 older than 1.2.0 (answers `0` for
+the layout byte — "did not say") is refused rather than guessed at. A module on
+the wrong layout, or on a stage-1 too old to say, must be moved with a stage-1
+update or over SWD; it cannot receive an app until it can state its layout.
 
 > This field replaced an earlier `requires_bootloader: legacy | stage1 | any`
 > on 12 Sep 2026, after the coarser check passed a layout-2 image to a layout-1
 > buzzer on the bench and hung it. Legacy-vs-stage-1 was one level too coarse.
+> The same day, stage-1 1.2.0 started reporting its layout on the bus, so the
+> interim host-side version→layout table was retired before it shipped anywhere.
 
-Every new layout is a new stage-1 minor version and a new row in
-`Conductor.STAGE1_LAYOUTS`. Longer term the bootloader should report its layout
-id directly over the bus so the table can go.
+Every new layout is a new stage-1 minor version; the bootloader reports it and
+the index declares it, and that is the whole contract.
 
 ## Finding it — the module registry
 
