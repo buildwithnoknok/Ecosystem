@@ -43,7 +43,7 @@ Two conclusions shape this file:
   "module": "buzzer",
   "version": "3.5.0",
   "url": "https://raw.githubusercontent.com/buildwithnoknok/module-I2C-buzzer/main/firmware/bin/buzzer_firmware.bin",
-  "requires_bootloader": "stage1",
+  "layout": 2,
   "released": "2026-09-11"
 }
 ```
@@ -53,21 +53,41 @@ Two conclusions shape this file:
 | `module` | yes | Module type string, from the manifest controlled vocabulary (`buzzer`, `knob`, `led_button`, `usb_leds`, `display`, …). |
 | `version` | yes | Semver of the binary at `url`. **Must match what the firmware reports over `0xB1 GET_VERSION`** — that equality is what lets the brain decide without downloading anything. |
 | `url` | yes | Raw URL to the `.bin`. Pointing at `main` is fine: index and binary move together in one commit, so there is nothing to drift. |
-| `requires_bootloader` | yes | What must be on the module for this image to be installable. See below. |
+| `layout` | I²C: yes | The **flash layout this image is linked for**. See below. Omit for USB (CH32V203) modules until the stage-0 port lands. |
 | `released` | no | ISO date, for humans reading the file. |
 
-### `requires_bootloader`
+### `layout` — the flash layout the image is linked for
 
-| Value | Meaning |
-| --- | --- |
-| `legacy` | Runs under the original monolithic bootloader (CH32V003 app base `0x1000`). |
-| `stage1` | Needs the stage-0 / stage-1 bootloader, layout 2 (app base `0x1400`). A module on the legacy bootloader must be re-flashed over SWD first — it cannot get there over the bus. |
-| `any` | Installability does not depend on the bootloader generation. Use this for the USB (CH32V203) modules until the stage-0 port lands. |
+An application image is linked for one place in flash (its *app base*). The
+bootloader writes at the base **it** knows. The CRC is computed over image
+bytes, not the link address. So an image linked for the wrong layout passes
+every check the bootloader has and then hangs the module the moment it runs.
 
-The brain resolves this by asking the module directly: `Conductor.bootloader_version()`
-returns `None` for a legacy bootloader (it does not implement `0xB1`) and a
-version tuple for stage-0/stage-1. Silence means old world. See
-`bootloader-update.md`.
+| `layout` | Bootloader | App base | Stage-1 version |
+| --- | --- | --- | --- |
+| `0` | legacy monolithic | `0x1000` | none — does not answer `0xB1` |
+| `1` | stage-0 / stage-1 | `0x1000` | 1.0.x |
+| `2` | stage-0 / stage-1 | `0x1400` | 1.1.x |
+
+Read it off the module's `app.ld` `ORIGIN`: `0x1000` under stage-1 1.0.x is
+layout 1, `0x1400` is layout 2.
+
+**The match is exact.** A "newer" bootloader is not a "compatible" one:
+layouts 1 and 2 both answer `0xB1` and are mutually unrunnable. The brain
+derives a module's layout from the stage-1 version it reports
+(`Conductor.bootloader_layout()`, table `Conductor.STAGE1_LAYOUTS`), refuses on
+a mismatch, and **fails closed** — an index with no `layout` for an I²C module,
+or a stage-1 version the Conductor does not know, is refused rather than
+guessed at. A module on the wrong layout must be moved over SWD; it cannot get
+there over the bus.
+
+> This field replaced an earlier `requires_bootloader: legacy | stage1 | any`
+> on 12 Sep 2026, after the coarser check passed a layout-2 image to a layout-1
+> buzzer on the bench and hung it. Legacy-vs-stage-1 was one level too coarse.
+
+Every new layout is a new stage-1 minor version and a new row in
+`Conductor.STAGE1_LAYOUTS`. Longer term the bootloader should report its layout
+id directly over the bus so the table can go.
 
 ## Finding it — the module registry
 
@@ -107,9 +127,9 @@ At provisioning, for each module type the product needs:
    and means someone published a product against an unreleased firmware.
 4. Compare `index.version` to what the module reports installed. Equal or newer
    installed → nothing to do.
-5. Otherwise check `requires_bootloader` against the module's actual bootloader.
-   Mismatch → refuse and log it, rather than flashing an image the module cannot
-   run.
+5. Otherwise check `layout` against the module's actual bootloader layout —
+   exact match. Mismatch → refuse and log it, rather than flashing an image the
+   module cannot run.
 6. Fetch and flash.
 
 Net effect: **modules converge on the newest firmware automatically**, products
@@ -124,7 +144,8 @@ Same commit, every time:
 2. Bump the version in the source (the `GET_VERSION` reply) **and** in the
    README changelog.
 3. Set `version` in `index.json` to the same number.
-4. Set `requires_bootloader` if the relink/layout situation changed.
+4. Set `layout` to match the image's `app.ld` `ORIGIN` — it changes only when
+   the app is relinked for a new stage-1.
 
 If step 3 is skipped, the fleet simply does not see the release — the brain
 never downloads a binary it has not been told about. That is the intended
