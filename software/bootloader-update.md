@@ -56,6 +56,17 @@ and `0xB1`), every application **must**:
 1. **Run the independent watchdog.** Start the IWDG right after `SystemInit()` (~2 s: LSI/64,
    reload 4095) and kick it once per main-loop iteration — and inside any loop that can
    legitimately run for a while. A hang thereby becomes a warm reset that stage-1 can count.
+   **Since stage-1 v1.2.0 (12 Sep 2026) this is enforced, not merely required:** stage-1
+   arms the IWDG itself (same ~2 s) immediately before jumping to the app, so the app
+   *inherits a running watchdog*. Its own `iwdg_init()` just re-configures it (PSCR/RLDR
+   stay writable after start) — keep the call, it documents the timeout and keeps the app
+   correct on a bench build without a bootloader. The watchdog cannot be stopped: an app
+   that never kicks is parked after three strikes (~6 s), and **the first kick must come
+   within ~2 s of the jump** (ours: < 300 ms; a long blocking startup animation or self-test
+   must kick inside it, as the Display does in its backlight ramp). This closes the case
+   hardening C alone could not: an app that faults *before* reaching `iwdg_init()` — a
+   wrongly-linked image, an early crash — used to hang silently and needed SWD; now it is
+   reset, counted and parked like any other unhealthy app.
 2. **Clear the boot-attempt counter once healthy.** Write `0` to `0x200007F8` the moment an
    I2C address has been assigned (`DEV_ASSIGNING → DEV_ASSIGNED`). That is the strongest
    "I work" signal an app has: enumeration completed, so I2C demonstrably works.
@@ -161,14 +172,18 @@ through this, no exceptions:
    I2C-bootloader repo). One command, ~4 min, must end in `ALL PASS`. It builds stage-0 and
    stage-1 from source and runs the ten stage-0 SWD images (`test_chain` with the new
    stage-1), the real self-update over I2C cross-checked over SWD, the Conductor's
-   `stage1_update()` with app restore, the wrong-file refusal, the hanging-app park and the
-   parked-module rescue. What each step proves and what a FAIL means: `TESTS.md` next to it.
+   `stage1_update()` with app restore, the wrong-file refusal, the hanging-app park, the silent-app park
+   (stage-1 v1.2.0 arms the IWDG before the jump) and the parked-module rescue. What each step proves and what a FAIL means: `TESTS.md` next to it.
 3. **Staged rollout:** one module, then one product, then the fleet. The Conductor reads
-   `bootloader_version()` and only pushes to modules below the target.
+   `bootloader_version()` and only pushes to modules below the target. Since stage-1 v1.2.0
+   the bootloader's `0xB1` reply carries the **flash layout id as a 5th byte**
+   (`[proto, major, minor, patch, layout]`; `0` = pre-1.2.0, did not say) — use it to pick
+   the app image for the module's actual layout instead of inferring the layout from the
+   stage-1 version (the 12 Sep 2026 incident: a layout-2 app pushed onto a layout-1 module).
 4. **Record** the version, sizes, and regression result in the bootloader repo's spec and on
    DEV-31 before anything ships.
 
-Stage-1 v1.1.0 is 2928 B in its 4 KB (layout 2, 11 Sep 2026 — grown from 3 KB exactly this
+Stage-1 v1.2.0 is 2984 B in its 4 KB (layout 2 since 11 Sep 2026 — grown from 3 KB exactly this
 way when the hardening round left 164 B and DEV-22 still had to land). If it ever has to grow
 again, the same procedure applies: move the application base (stage-0 reads it as data), bump
 the header layout id, relink every app — a combined stage-1 + all-apps release, and a
@@ -210,6 +225,7 @@ bricked, and the next start-up rescues it.
 | Wrong file as a stage-1 (valid CRC, no header) | refused, error 8, nothing armed |
 | Full regression `regress_all.sh` (all of the above, one command, stage-1 2908 B, layout 1) | 6/6 PASS, 11 Sep 2026 evening |
 | Layout 2 (stage-1 4 KB, apps at `0x1400`) | full image boots, LED Button 2.4.0 enumerates, `bootloader_version()` 1.1.1, boots back (smoke test; full regression pending) |
+| Stage-1 v1.2.0 (IWDG armed before the jump, `0xB1` 5 bytes) | built 12 Sep 2026, 2984 B; **regression (now 7 steps, incl. `silentapp`) pending** — not installed on any module yet |
 
 ## Related documentation
 
