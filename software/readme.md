@@ -21,8 +21,8 @@ The Conductor runs the main application logic, orchestration routines, and modul
   noknok hardware (PicoHub) is wired to this standard. A maker wiring their own Pico sets the
   pins in **`settings.toml`** on the brain (`NOKNOK_I2C_SDA`, `NOKNOK_I2C_SCL`, `NOKNOK_USB_DP`,
   `NOKNOK_USB_DM`) — never by editing `noknok.py`. Reference: brain-Pico README → *settings.toml*.
-- The brain's filesystem is **read-only to the program** while a product runs (DEV-18); products
-  keep state in RAM. See *authoring-products.md* → Gotchas.
+- The brain never writes its filesystem while a product runs (DEV-18 — bench-proven: a power cut during any FAT write can wipe the directory); products
+  keep state in RAM or in the brain's runtime Store (`noknok.store()`, FRAM on the PicoHub / nvm). See *authoring-products.md* → Gotchas.
 - The Conductor uses the `noknok.py` library which provides:
   - `Conductor` class — handles enumeration and module discovery
   - Per-module driver classes (e.g. `NoknokBuzzer`) — high-level API

@@ -149,15 +149,19 @@ Full mechanism: **[enumeration.md](enumeration.md)**.
   push config values to `product.py`. For runtime input, use a **physical
   control** (e.g. a knob to pick difficulty). Don't design a product that can't
   work without app config until this is plumbed (DEV-34, `c.settings`).
-- **Never write files from `product.py`.** The brain's filesystem is FAT on raw
-  flash with no journal; a power cut mid-write corrupts it — and unplugging is
-  how a product is switched off. Since DEV-18 the filesystem is **read-only to
-  the program** while a product runs: a plain `open(..., "w")` raises `OSError`.
-  Keep runtime state in RAM; if something genuinely must persist, use
-  `noknok.write_atomic(path, data)` (temp file + rename inside a short write
-  window) and write **only when the value changed, never in a loop**. App-
-  visible settings will be `c.settings` (DEV-34). Details: brain-Pico README
-  → *Filesystem policy*.
+- **Never write files from `product.py`. Ever.** The brain's filesystem is FAT on
+  raw flash; a power cut during *any* write can wipe the whole directory —
+  bench-proven (DEV-18, 15 Sep 2026: three pulls, three losses, one total). And
+  unplugging is how a product is switched off. The filesystem is **read-only to
+  the program** while a product runs: a plain `open(..., "w")` raises `OSError`,
+  and `noknok.write_atomic()` is for the brain's setup/OTA moments only, not
+  for products. Keep runtime state in RAM. If something genuinely must persist
+  across power cycles, use the brain's runtime Store — power-safe on a PicoHub
+  with FRAM, self-healing on a bare Pico:
+  `noknok.store().set("my_product", {...})` / `.get("my_product")` — small
+  values only (< 1 KB), written **only when the value changed, never in a
+  loop**. App-visible settings will be `c.settings` (DEV-34), built on the same
+  Store. Details: brain-Pico README → *Filesystem policy*.
 - **Power budget is real.** Each lit RGB LED (SK6812) can pull ~50–60 mA. Ten
   buttons at full brightness ≈ 0.5–0.6 A — more than the Pico's 3V3 regulator
   should source. High-count-LED products must be powered from the 5 V rail via a

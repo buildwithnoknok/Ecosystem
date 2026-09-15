@@ -99,7 +99,9 @@ All I2C modules must follow standardized pin order as defined by **[Sparkfun: Qw
 
 ## 4. I2C Addressing Rules
 
-I2C addresses are **not fixed per module**. Every module boots at a shared staging address (`0x7F`), exposes a 64-bit unique ID, and the Conductor assigns each a runtime address (`0x08–0x77`) during discovery — so identical modules never conflict and the bus is plug-and-play.
+I2C addresses are **not fixed per module**. Every module boots at a shared staging address (`0x7F`), exposes a 64-bit unique ID, and the Conductor assigns each a runtime address (`0x08–0x77`, **excluding `0x50–0x57`**) during discovery — so identical modules never conflict and the bus is plug-and-play. A module the Conductor has seen before gets the same address again (stable addresses, DEV-18).
+
+**Reserved: `0x50–0x57` = brain memory.** The PicoHub carries an I2C FRAM (FM24CL64B, 8 KB, at `0x50`; DEV-40) that the brain uses for power-safe runtime storage (settings, module state, roles, event history). No noknok module may use `0x50–0x57`, and makers should avoid them for third-party parts on the same bus. Rationale: the brain's FAT filesystem on raw flash cannot survive a power cut during a write (DEV-18), so anything that changes at runtime lives in FRAM.
 
 The full discovery and address-assignment process (collision-avoidance backoff, CRC, state machine, and the module-side requirements) is specified in **[Software → Enumeration Protocol](../software/enumeration.md)**. Every I2C module must implement it.
 
