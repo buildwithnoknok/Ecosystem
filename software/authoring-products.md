@@ -147,9 +147,17 @@ Full mechanism: **[enumeration.md](enumeration.md)**.
 
 - **`config_schema` is declared but not delivered.** Provisioning does not yet
   push config values to `product.py`. For runtime input, use a **physical
-  control** (e.g. a knob to pick difficulty) or have the script read/write its
-  **own** state file on CIRCUITPY. Don't design a product that can't work
-  without app config until this is plumbed.
+  control** (e.g. a knob to pick difficulty). Don't design a product that can't
+  work without app config until this is plumbed (DEV-34, `c.settings`).
+- **Never write files from `product.py`.** The brain's filesystem is FAT on raw
+  flash with no journal; a power cut mid-write corrupts it — and unplugging is
+  how a product is switched off. Since DEV-18 the filesystem is **read-only to
+  the program** while a product runs: a plain `open(..., "w")` raises `OSError`.
+  Keep runtime state in RAM; if something genuinely must persist, use
+  `noknok.write_atomic(path, data)` (temp file + rename inside a short write
+  window) and write **only when the value changed, never in a loop**. App-
+  visible settings will be `c.settings` (DEV-34). Details: brain-Pico README
+  → *Filesystem policy*.
 - **Power budget is real.** Each lit RGB LED (SK6812) can pull ~50–60 mA. Ten
   buttons at full brightness ≈ 0.5–0.6 A — more than the Pico's 3V3 regulator
   should source. High-count-LED products must be powered from the 5 V rail via a

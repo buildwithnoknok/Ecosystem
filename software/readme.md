@@ -17,7 +17,12 @@ The Conductor runs the main application logic, orchestration routines, and modul
 
 - **CircuitPython** is the standard language for all Conductor‑side code.
 - Recommended IDE: **Thonny**
-- Standard I2C pins: **GP8 = SDA, GP9 = SCL**
+- Standard I2C pins: **GP8 = SDA, GP9 = SCL** (100 kHz); standard USB host pins **GP16 = D+, GP17 = D−**.
+  noknok hardware (PicoHub) is wired to this standard. A maker wiring their own Pico sets the
+  pins in **`settings.toml`** on the brain (`NOKNOK_I2C_SDA`, `NOKNOK_I2C_SCL`, `NOKNOK_USB_DP`,
+  `NOKNOK_USB_DM`) — never by editing `noknok.py`. Reference: brain-Pico README → *settings.toml*.
+- The brain's filesystem is **read-only to the program** while a product runs (DEV-18); products
+  keep state in RAM. See *authoring-products.md* → Gotchas.
 - The Conductor uses the `noknok.py` library which provides:
   - `Conductor` class — handles enumeration and module discovery
   - Per-module driver classes (e.g. `NoknokBuzzer`) — high-level API
