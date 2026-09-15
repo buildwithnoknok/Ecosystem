@@ -150,15 +150,22 @@ After the read, the module returns to its normal read behaviour (its status/data
 
 ## 7. State Persistence
 
-After enumeration, the Conductor saves module assignments to `noknok_state.json` on the Pico. On the next run, it pings each saved address first. Modules that respond are restored immediately without re-running the `0x7F` enumeration cycle.
+After enumeration, the Conductor saves module assignments in the brain's **runtime Store**
+(I2C FRAM at `0x50` on the PicoHub, else CircuitPython `nvm`) — never as a file on the
+CIRCUITPY filesystem. On the next run it pings each saved address first; modules that respond
+are restored instantly. A module seen before gets the **same address** again after a power
+cycle, so the saved state only changes when hardware changes.
 
 ```
-First run:   enumerate() → finds modules on 0x7F → saves noknok_state.json
-Second run:  enumerate() → pings saved addresses → all respond → restored instantly
-Power cycle: enumerate() → modules not at saved addresses → full 0x7F scan
+First run:   enumerate() → finds modules on 0x7F → saves state to the Store (once)
+Second run:  enumerate() → pings saved addresses → all respond → restored, no write
+Power cycle: enumerate() → modules back at 0x7F → each re-assigned its old address → no write
 ```
 
-> **Filesystem write access required.** The Pico filesystem must be writable from code for `noknok_state.json` and `noknok_roles.json` to be saved. See the [CircuitPython filesystem docs](https://docs.circuitpython.org/en/latest/docs/library/storage.html).
+> **Why no file:** on CircuitPython + RP2 flash a power cut during *any* filesystem write can
+> destroy the filesystem (bench-proven, DEV-18). The brain therefore never writes files while
+> a product runs. Details: [enumeration.md](enumeration.md) → State persistence, and the
+> brain-Pico README → *Filesystem policy*.
 
 ---
 

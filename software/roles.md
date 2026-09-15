@@ -13,7 +13,7 @@ different physical buzzer each boot. A role binds a stable name to a module's pe
 
 ## The mapping
 
-Roles are stored on the Pico in `noknok_roles.json`, a simple name-to-UID map:
+Roles are stored on the brain in the runtime **Store** (I2C FRAM at `0x50` on the PicoHub, else CircuitPython `nvm`) with a setup-time copy in `/data/noknok_roles.json` — whichever survives a power cut wins (DEV-18). The map itself is simple, name → UID:
 
 ```json
 {
@@ -94,7 +94,7 @@ Run the wizard once from the Thonny REPL:
 from noknok import Conductor
 c = Conductor()
 c.enumerate()
-c.setup_roles()     # each module identifies itself; you type a name into noknok_roles.json
+c.setup_roles()     # each module identifies itself; you type a name (saved to the Store + /data copy)
 ```
 
 ## Using roles in product code
@@ -103,7 +103,7 @@ c.setup_roles()     # each module identifies itself; you type a name into noknok
 from noknok import Conductor
 c = Conductor()
 c.enumerate()
-c.load_roles()                       # loads noknok_roles.json
+c.load_roles()                       # loads the role map (Store, or the /data copy)
 
 c.role["volume_knob"].read()
 c.role["alert_buzzer"].play(880, 200)

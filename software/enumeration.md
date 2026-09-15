@@ -180,16 +180,29 @@ def _crc8(data):
 
 ## State persistence — fast restore on reboot
 
-After enumeration, the Conductor saves module assignments to `noknok_state.json` on the Pico. On the next boot, it pings each saved address first. Modules that respond are restored immediately — no need to wait through the full 3 s backoff cycle.
+After enumeration, the Conductor saves module assignments (UID → address, type, bootloader
+version) in the brain's **runtime Store** — an I2C FRAM at `0x50` on the PicoHub, or
+CircuitPython's `nvm` on a bare Pico — **never as a file on the CIRCUITPY filesystem**
+(DEV-18: a power cut during any FAT write can destroy the filesystem; see
+[authoring-products.md](authoring-products.md) → Gotchas). On the next boot it pings each
+saved address first; modules that respond are restored immediately, without the 3 s backoff.
+
+**Addresses are stable.** A module the Conductor has seen before is assigned the **same
+address again** when it re-enumerates from `0x7F` after a power cycle, and addresses of known
+but absent modules stay reserved. The saved state therefore only changes when hardware is
+added or removed — which is what keeps the Store write-free on a normal boot. Addresses
+`0x50–0x57` are never assigned (reserved for the brain's FRAM).
 
 ```
-First boot:   enumerate() → waits up to 3 s → finds all modules → saves state
-Second boot:  enumerate() → pings saved addresses instantly → all respond → done
-New module:   enumerate() → pings saved → all respond → continues polling 0x7F
-              → finds new module → assigns it → saves updated state
+First boot:   enumerate() → waits up to 3 s → finds all modules → saves state (once)
+Soft reboot:  enumerate() → pings saved addresses instantly → all respond → done, no write
+Power cycle:  enumerate() → modules back at 0x7F → each gets its previous address → no write
+New module:   enumerate() → known ones restored/re-assigned → continues polling 0x7F
+              → finds the new module → next free address → saves updated state
 ```
 
-> **Filesystem write access required.** The Pico's CIRCUITPY filesystem must be writable from code for `noknok_state.json` to be saved. See the [CircuitPython filesystem docs](https://docs.circuitpython.org/en/latest/docs/library/storage.html).
+> A legacy `noknok_state.json` on the filesystem is still read (never written) as a
+> fallback when the Store holds no state yet.
 
 ---
 
@@ -198,8 +211,9 @@ New module:   enumerate() → pings saved → all respond → continues polling 
 Discovery order can vary between boots, so the role system maps human-readable names
 to module UIDs: your code always refers to the same physical module regardless of order.
 
-See **[Role Assignment](roles.md)** for the full process, the `noknok_roles.json`
-format, and the Conductor API.
+See **[Role Assignment](roles.md)** for the full process, the role map format
+(kept in the Store, with a setup-time copy in `/data/noknok_roles.json`), and the
+Conductor API.
 
 ---
 
