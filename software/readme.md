@@ -17,7 +17,7 @@ The Conductor runs the main application logic, orchestration routines, and modul
 
 - **CircuitPython** is the standard language for all Conductor‑side code.
 - Recommended IDE: **Thonny**
-- Standard I2C pins: **GP8 = SDA, GP9 = SCL** (100 kHz); standard USB host pins **GP16 = D+, GP17 = D−**.
+- Standard I2C pins: **I2C0 = GP8 SDA / GP9 SCL** (100 kHz). A second bus, where a board provides one, is **I2C1 = GP10 SDA / GP11 SCL** — the next pair on the same side of the Pico (header pins 14/15). Standard USB host pins **GP16 = D+, GP17 = D−**. Hub / carrier boards **must** route their connectors to exactly these GPIOs; the Conductor and every bench script assume them.
   noknok hardware (PicoHub) is wired to this standard. A maker wiring their own Pico sets the
   pins in **`settings.toml`** on the brain (`NOKNOK_I2C_SDA`, `NOKNOK_I2C_SCL`, `NOKNOK_USB_DP`,
   `NOKNOK_USB_DM`) — never by editing `noknok.py`. Reference: brain-Pico README → *settings.toml*.
