@@ -59,9 +59,10 @@ The parts that trip people up:
   manifests when a module's firmware is bumped.
 - **`roles`** — leave it **`[]`** unless the product needs to tell *identical*
   modules apart by their physical position. See "Modules: lists vs roles" below.
-- **`config_schema`** — you may declare it, but **it is not yet plumbed to
-  `product.py`** (as of 2026-07). Do not depend on it for runtime values; use a
-  physical control or a self-managed state file instead (see Gotchas).
+- **`config_schema`** — the settings the customer can change in the app. Since
+  Sep 2026 (`c.settings`, DEV-34) these values reach `product.py` for real; see
+  "Settings: `c.settings`" below and [`product-manifest.md`](product-manifest.md)
+  for the six types. Every entry needs a `default`.
 
 ---
 
@@ -143,12 +144,58 @@ Full mechanism: **[enumeration.md](enumeration.md)**.
 
 ---
 
+## Settings: `c.settings` (app-configurable values)
+
+If your manifest declares a `config_schema`, the customer can change those values
+from the app while the product runs, and a physical control can change the same
+values. The Conductor gives you one object for it — no files, no endpoints:
+
+```python
+c = Conductor()
+c.enumerate_all()
+
+s = c.settings
+s.defaults({"on": True, "brightness": 180, "color": "#FFAF5F"})   # same ids as config_schema
+
+def apply(changed=None):            # paint the hardware from the current values
+    lamp.set_brightness(s.get("brightness"))
+    ...
+s.on_change(apply)                  # the app changed something → called for you
+apply()
+
+while True:
+    k = knob.read()
+    if k.delta:                     # the knob changed something → tell the settings
+        s.set("brightness", clamp(s.get("brightness") + k.delta * 5))
+        apply()
+    c.sleep(0.03)
+```
+
+- `defaults({...})` — declare once at start; fills in anything the app has not set
+  yet. Use the **same ids** as your `config_schema`.
+- `get(id, default=None)` / `set(id, value)` / `all()` — plain values; `set` from
+  a knob is cheap, call it as often as you like.
+- `on_change(callback)` — `callback(changed: dict)` runs when the app changed
+  values. It is called **for you, between two of your module reads** (or inside
+  `c.sleep()`), never in the middle of one — so it is safe to talk to modules in it.
+- `c.sleep(seconds)` — use it instead of `time.sleep()` when your loop idles for
+  long stretches. It keeps the app answered meanwhile. A loop that polls modules
+  every few tens of ms needs nothing: every module read already services the app.
+- Persistence is handled for you: values are written to the brain's runtime Store
+  only when changed and only after 5 s without further changes (a knob turn is
+  dozens of changes per second — never a flash write each). They survive power
+  cycles and a reinstall of the same product; a different product starts from
+  its own defaults.
+- Clamp what you read. The app validates against the schema, the brain stores
+  verbatim; your product is the last line of defence.
+- The whole thing is optional: a product with no `config_schema` never touches
+  `c.settings` and pays nothing.
+
 ## Gotchas (hard-won — read before you design)
 
-- **`config_schema` is declared but not delivered.** Provisioning does not yet
-  push config values to `product.py`. For runtime input, use a **physical
-  control** (e.g. a knob to pick difficulty). Don't design a product that can't
-  work without app config until this is plumbed (DEV-34, `c.settings`).
+- **Settings come from `c.settings`, never from a file you manage yourself.**
+  See "Settings: `c.settings`" above. A product must still run sensibly with the
+  defaults it declares — the app is optional, the knob is not.
 - **Never write files from `product.py`. Ever.** The brain's filesystem is FAT on
   raw flash; a power cut during *any* write can wipe the whole directory —
   bench-proven (DEV-18, 15 Sep 2026: three pulls, three losses, one total). And

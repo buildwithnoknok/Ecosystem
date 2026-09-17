@@ -166,17 +166,53 @@ two knobs that do different jobs, so it needs roles. See [`roles.md`](roles.md).
 | --- | --- | --- |
 | `assembly_guide` | no | Ordered plain-language steps shown in the app. |
 | `3d_files` | no | Printable housing files, added when the physical product is designed. |
-| `config_schema` | no | Declared customer-configurable settings. **Not yet plumbed to `product.py`** — see below. |
+| `config_schema` | no | Customer-configurable settings (v2, DEV-34) — rendered by the app, read by `product.py` via `c.settings`. See below. |
 
-### ⚠ `config_schema` is declarative only
+### `config_schema` v2 — the manifest carries the schema, the device carries the values
 
-As of 2026-09 the app renders `config_schema` but the values **never reach**
-`product.py`. The device half exists (`product_settings.json`) and the app half
-does not (`POST /settings` is specified but unimplemented — see
-`brain-Pico/docs/provisioning-http-api.md`).
+Since brain-Pico `code.py` 0.17 / `noknok.py` 1.8 (Sep 2026) this is real: the app
+renders a settings page from the list, reads and writes the values over the device
+protocol (`settings.get` / `settings.set`, see `brain-Pico/docs/provisioning-http-api.md`),
+and `product.py` reads them with `c.settings.get(id)`. A knob turn and the app change
+the same value; the device is the source of truth, last write wins.
 
-Do not design a product that cannot work without app config. Use a physical
-control (a knob) or a self-managed state file instead.
+```json
+"config_schema": [
+  { "id": "on",          "type": "toggle", "label": "Lamp on",     "default": true },
+  { "id": "brightness",  "type": "slider", "label": "Brightness",  "min": 0, "max": 255, "step": 1, "default": 180 },
+  { "id": "color",       "type": "color",  "label": "Lamp colour", "default": "#FFAF5F" },
+  { "id": "mode",        "type": "select", "label": "Mode",        "options": [{"value": "solid", "label": "Solid"}, {"value": "breathe", "label": "Breathe"}], "default": "solid" },
+  { "id": "name",        "type": "text",   "label": "Name",        "max_length": 24, "default": "" },
+  { "id": "sundown_at",  "type": "time",   "label": "Sundown at",  "default": "21:00" }
+]
+```
+
+| type | value | extra keys |
+| --- | --- | --- |
+| `toggle` | `true` / `false` | — |
+| `slider` | number in `[min, max]` | `min`, `max` (required), `step`, `unit` |
+| `color` | `"#RRGGBB"` | — |
+| `select` | one of `options[].value` | `options: [{value, label}]` (required) |
+| `text` | string | `max_length` |
+| `time` | `"HH:MM"` local time | — |
+
+Rules: `default` is **required** for every entry (the app sends all defaults to the
+brain at install as `config_defaults`, so device and app agree from first boot);
+`id` is lowercase snake_case; optional `group` sections the page, `help` adds a hint.
+The **app validates** input against the schema; the **brain stores values verbatim**
+and `product.py` clamps (never trust a value blindly). The brain never needs the
+schema — the app finds the product id in the device's settings record and fetches
+the manifest from the catalog.
+
+Lifetimes: same product reinstalled → values **kept** (new entries get defaults,
+removed ones are dropped); different product → **replaced** by its defaults;
+`settings.reset` → defaults; factory reset → everything wiped. Values live in the
+brain's runtime Store (nvm / FRAM) — never in a file (DEV-18) — written only when
+changed and only after 5 s without further changes.
+
+`time` caveat: the brain has no battery clock. Online products get the time via NTP;
+offline products only while the app is connected (`clock.set`, DEV-36). The app shows
+that hint automatically for any product that declares a `time` setting.
 
 ---
 
