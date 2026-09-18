@@ -214,6 +214,23 @@ changed and only after 5 s without further changes.
 offline products only while the app is connected (`clock.set`, DEV-36). The app shows
 that hint automatically for any product that declares a `time` setting.
 
+## `controls` — the user manual (optional)
+
+```json
+"controls": [
+  { "control": "Button short press",   "action": "Next brightness: off → 1 → 2 → 3 → 4 → 5 → off" },
+  { "control": "Button hold (1 s)",    "action": "Next colour — one step per hold" },
+  { "control": "Hold button while plugging in", "action": "Factory reset (keep holding until the LED flashes)" }
+]
+```
+
+One row per gesture, in the order a customer should learn them, `control` = the
+gesture, `action` = what happens. The app renders the list on the device page as
+**How to use**. Keep rows to one line each — it is a table on a phone, not a manual.
+Always end with the factory-reset row (the boot-hold gesture, see
+authoring-products.md) or, for a product with nothing pressable, a row that says
+to reset from the app. The brain never reads this field.
+
 ---
 
 ## Validating a manifest

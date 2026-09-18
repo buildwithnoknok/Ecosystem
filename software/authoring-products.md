@@ -91,7 +91,6 @@ c.buzzer[0].tune(c.buzzer[0].STARTUP)
 
 # 3. Main loop: poll modules, react, repeat.
 while True:
-    c.check_factory_reset(c.knob[0].read())   # hold the knob 5 s → factory reset
     # ... product behaviour ...
     time.sleep(0.03)
 ```
@@ -102,8 +101,14 @@ Key facts about this contract:
   round-trip to the app during play. Good for games and instruments.
 - **`enumerate()` populates per-type lists** in discovery order: `c.buzzer`,
   `c.knob`, `c.ledbutton`, `c.leds` (USB). Empty list = none found.
-- **Always include a factory-reset escape hatch** (`c.check_factory_reset(...)`)
-  if a knob is present — it's how a customer un-bricks a product.
+- **Factory reset is the brain's job, not yours.** Every product shares one
+  gesture: hold any LED Button or Knob button *while plugging in the power*,
+  keep holding until the LED Buttons flash / the buzzer confirms (~8 s), and
+  the brain wipes itself back to the setup AP. Your gestures are all yours —
+  a single button can do short-press *and* long-press without reserving a
+  hold for the reset. A product with nothing pressable is reset from the app.
+  (`c.check_factory_reset(knob_status)` still exists if you want a runtime
+  knob-hold as well.)
 - **Reads can return `None`** on an I2C hiccup — guard every `.read()`.
 
 Module APIs (methods, status objects) live as docstrings in

@@ -112,6 +112,19 @@
       "description": "Ordered plain-language assembly steps shown in the app.",
       "items": { "type": "string" }
     },
+    "controls": {
+      "type": "array",
+      "description": "Optional user manual: what each physical control does, one row per gesture, in the order the customer should learn them. The app shows it on the device page ('How to use'). Keep rows short — a table, not prose.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["control", "action"],
+        "properties": {
+          "control": { "type": "string", "description": "The gesture, e.g. 'Button short press', 'Knob turn', 'Hold button while plugging in'." },
+          "action":  { "type": "string", "description": "What happens, e.g. 'Next brightness level (off -> 1 -> ... -> 5 -> off)'." }
+        }
+      }
+    },
     "roles": {
       "type": "array",
       "description": "Role assignments the app should collect during setup, binding a stable name to a specific physical module by UID. LEAVE EMPTY for products that treat modules of a type symmetrically (access them via the c.<type> list instead). See roles.md.",
