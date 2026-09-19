@@ -48,6 +48,7 @@ Each module contains its own MCU and runs firmware written in **C** using the **
 | CircuitPython | Runtime on Raspberry Pi Pico |
 | Thonny IDE | Development and file management |
 | `noknok.py` | noknok module library |
+| [Display Planner](display-planner/) | Browser tool: regions + icons for the noknok Display, exports `noknok.py` code — <https://buildwithnoknok.github.io/display-planner/> |
 
 ### Module MCUs (C)
 

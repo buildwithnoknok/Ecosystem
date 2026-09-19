@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<!--
+  noknok Display Planner
+  ----------------------
+  Two maker tools for the noknok Display in one page, 100% client-side (nothing is uploaded):
+    - Layout: draw named regions on a to-scale display, give each text / an icon / an image,
+      see a pixel-true preview, and copy the noknok.py code (d.region / d.set) for product.py.
+    - Icons: draw or convert any image into a 1-bit icon; export as an ICONS[...] snippet or .bmp.
+  The preview is rendered by render.js, a port of noknok.py's drawing rules (see test/golden.mjs).
+  License: MIT (code).  SPDX-License-Identifier: MIT
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>noknok Display Planner</title>
+<link rel="icon" href="data:," />
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --ink:#e7e9ee; --muted:#9aa3b2; --accent:#59d3a4; --warn:#f2b544; --err:#ff6b6b;
+          --line:#2a2f3a; --field:#0d0f13; --sel:#59d3a4; }
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--ink);
+         display:flex; flex-direction:column; height:100vh; overflow:hidden; font-size:13px; }
+  header { display:flex; align-items:center; gap:18px; padding:10px 18px; background:var(--panel); border-bottom:1px solid var(--line); }
+  header h1 { font-size:16px; margin:0; } header h1 small { color:var(--muted); font-weight:400; font-size:12px; margin-left:8px; }
+  .tabs { display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .tabs button { background:var(--field); color:var(--muted); border:0; padding:8px 18px; cursor:pointer; font-size:13px; }
+  .tabs button.on { background:var(--accent); color:#04150f; font-weight:600; }
+  header .links { margin-left:auto; font-size:12px; color:var(--muted); }
+  header .links a { color:var(--accent); text-decoration:none; margin-left:12px; }
+  main { flex:1; display:none; min-height:0; }
+  main.on { display:flex; }
+  aside { width:300px; background:var(--panel); padding:14px; display:flex; flex-direction:column; gap:12px; overflow-y:auto; flex-shrink:0; }
+  aside.right { width:360px; }
+  .view { flex:1; position:relative; overflow:auto; display:flex; align-items:flex-start; justify-content:center; padding:24px; }
+  canvas { image-rendering:pixelated; image-rendering:crisp-edges; }
+  #plannerCanvas, #editorCanvas { touch-action:none; cursor:crosshair; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:6px 0 0; }
+  label { font-size:12px; color:var(--muted); display:block; margin-bottom:4px; }
+  .row { display:flex; gap:8px; align-items:center; }
+  .row > * { flex:1; min-width:0; }
+  .row .fix { flex:0 0 auto; }
+  input[type=text], input[type=number], select, textarea { width:100%; background:var(--field); color:var(--ink); border:1px solid var(--line);
+    border-radius:8px; padding:7px 9px; font-size:13px; font-family:inherit; }
+  input[type=number] { padding-right:4px; }
+  input:focus, select:focus, textarea:focus { outline:none; border-color:var(--accent); }
+  input[type=range] { width:100%; accent-color:var(--accent); }
+  input[type=color] { width:34px; height:30px; padding:0; border:1px solid var(--line); border-radius:6px; background:var(--field); cursor:pointer; }
+  input[type=checkbox] { accent-color:var(--accent); }
+  textarea.code { font-family:ui-monospace,Consolas,Menlo,monospace; font-size:11.5px; line-height:1.4; white-space:pre; min-height:220px; resize:vertical; }
+  button { background:var(--field); color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:8px 10px; cursor:pointer; font-size:12px; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.primary { background:var(--accent); color:#04150f; border:0; font-weight:700; }
+  button.danger:hover { border-color:var(--err); color:var(--err); }
+  .seg { display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .seg button { flex:1; border:0; border-radius:0; background:var(--field); color:var(--muted); padding:7px 4px; font-size:12px; }
+  .seg button.on { background:var(--accent); color:#04150f; font-weight:600; }
+  .note { font-size:11px; color:var(--muted); line-height:1.5; }
+  hr { border:0; border-top:1px solid var(--line); margin:2px 0; }
+  .list { display:flex; flex-direction:column; gap:4px; }
+  .chip { display:flex; align-items:center; gap:8px; background:var(--field); border:1px solid var(--line); border-radius:6px; padding:6px 8px; cursor:pointer; font-size:12px; }
+  .chip:hover { border-color:var(--accent); }
+  .chip.on { border-color:var(--accent); background:#12201b; }
+  .chip .nm { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .chip .meta { color:var(--muted); font-size:11px; }
+  .chip canvas { flex:0 0 auto; background:#000; border-radius:3px; }
+  .warn { font-size:11.5px; line-height:1.45; padding:6px 8px; border-radius:6px; border:1px solid #4a3a12; background:#1f1a0e; color:var(--warn); cursor:pointer; }
+  .warn.info { border-color:var(--line); background:var(--field); color:var(--muted); }
+  .toolbar { display:flex; flex-wrap:wrap; gap:6px; }
+  .toolbar button { padding:6px 9px; }
+  .toolbar button.on { background:var(--accent); color:#04150f; border-color:var(--accent); font-weight:600; }
+  #status { position:absolute; left:14px; top:12px; background:#000a; padding:5px 9px; border-radius:6px; font-size:12px; color:var(--muted); pointer-events:none; }
+  #editorWrap { display:flex; flex-direction:column; align-items:center; gap:16px; }
+  .previews { display:flex; gap:24px; align-items:flex-end; }
+  .previews div { text-align:center; font-size:11px; color:var(--muted); }
+  .previews canvas { display:block; margin:0 auto 4px; border:1px solid var(--line); }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .grid4 { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; }
+  .drop { border:1px dashed var(--line); border-radius:8px; padding:10px; text-align:center; color:var(--muted); font-size:12px; }
+  .drop.over { border-color:var(--accent); color:var(--accent); }
+  .kbd { font-family:ui-monospace,monospace; background:var(--field); border:1px solid var(--line); border-radius:4px; padding:0 4px; font-size:11px; }
+  #toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--accent); color:#04150f; padding:8px 16px; border-radius:8px;
+           font-weight:600; opacity:0; transition:opacity .2s; pointer-events:none; }
+  #toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>noknok display planner <small>regions · icons · pixel-true preview</small></h1>
+  <div class="tabs">
+    <button id="tabLayout" class="on">Layout</button>
+    <button id="tabIcons">Icons</button>
+  </div>
+  <div class="links">
+    runs in your browser, nothing is uploaded
+    <a href="https://buildwithnoknok.github.io/display-planner-guide/" target="_blank" rel="noopener">how-to</a>
+    <a href="https://github.com/buildwithnoknok/Ecosystem/tree/main/software/display-planner" target="_blank" rel="noopener">source</a>
+  </div>
+</header>
+
+<!-- ═══════════════════════════ LAYOUT TAB ═══════════════════════════ -->
+<main id="mainLayout" class="on">
+  <aside>
+    <h2>Display</h2>
+    <select id="preset"></select>
+    <div class="row" id="customSize" style="display:none">
+      <div><label>Width (px)</label><input type="number" id="dispW" min="1" max="255" /></div>
+      <div><label>Height (px)</label><input type="number" id="dispH" min="1" max="255" /></div>
+    </div>
+    <div><label>Orientation</label><select id="rotation"></select></div>
+    <div class="row">
+      <div><label>Zoom</label><div class="seg" id="zoomSeg"><button data-z="2">2×</button><button data-z="3">3×</button><button data-z="4" class="on">4×</button><button data-z="6">6×</button><button data-z="8">8×</button></div></div>
+    </div>
+    <div class="row">
+      <label class="row fix" style="margin:0"><input type="checkbox" id="showGrid" /> pixel grid</label>
+      <label class="row fix" style="margin:0"><input type="checkbox" id="showOverlay" checked /> region outlines</label>
+    </div>
+    <div>
+      <label>Background (d.clear colour)</label>
+      <div class="row"><select id="bgSel"></select><input type="color" id="bgPick" class="fix" /></div>
+    </div>
+    <hr />
+    <h2>Regions <span class="note" style="text-transform:none;letter-spacing:0">— drag on the display to add one</span></h2>
+    <div class="list" id="regionList"></div>
+    <div class="row">
+      <button id="addRegion">+ add</button>
+      <button id="dupRegion" disabled>duplicate</button>
+      <button id="delRegion" class="danger" disabled>delete</button>
+    </div>
+    <div class="note">Select a region and use <span class="kbd">←↑→↓</span> to nudge it (<span class="kbd">Shift</span> = 8 px), <span class="kbd">Del</span> to remove it.</div>
+    <hr />
+    <h2>d.print() area</h2>
+    <label class="row" style="margin:0"><input type="checkbox" id="pzOn" /> <span>I also use d.print() on this display</span></label>
+    <div class="row" id="pzRow" style="display:none">
+      <div><label>size</label><input type="number" id="pzSize" min="1" max="255" value="16" /></div>
+      <div><label>lines</label><input type="number" id="pzLines" min="1" max="64" value="8" /></div>
+    </div>
+    <div class="note">print() repaints full-width bands from the top; regions in that band get wiped. The planner shades it and warns.</div>
+    <hr />
+    <h2>Layout file</h2>
+    <div class="row">
+      <button id="saveLayout">💾 save .json</button>
+      <button id="loadLayout">📂 load</button>
+      <button id="newLayout" class="danger">new</button>
+    </div>
+    <input type="file" id="layoutFile" accept="application/json,.json" style="display:none" />
+    <div class="note">Your layout is also kept in this browser automatically. Save the .json to keep it with your project or share it.</div>
+  </aside>
+
+  <section class="view" id="plannerView">
+    <div id="status"></div>
+    <canvas id="plannerCanvas"></canvas>
+  </section>
+
+  <aside class="right">
+    <div id="regionForm" style="display:none; flex-direction:column; gap:10px;">
+      <h2>Region</h2>
+      <div><label>Name (used in d.set("name", ...))</label><input type="text" id="rName" spellcheck="false" /></div>
+      <div class="grid4">
+        <div><label>x</label><input type="number" id="rX" min="0" max="255" /></div>
+        <div><label>y</label><input type="number" id="rY" min="0" max="255" /></div>
+        <div><label>w</label><input type="number" id="rW" min="1" max="255" /></div>
+        <div><label>h</label><input type="number" id="rH" min="1" max="255" /></div>
+      </div>
+      <div class="row">
+        <div><label>Text / icon size (px)</label><input type="number" id="rSize" min="1" max="255" /></div>
+        <div><label>Align</label><div class="seg" id="rAlign"><button data-a="left">left</button><button data-a="center">center</button><button data-a="right">right</button></div></div>
+      </div>
+      <div class="row">
+        <div><label>Colour</label><div class="row"><select id="rColor"></select><input type="color" id="rColorPick" class="fix" /></div></div>
+      </div>
+      <div><label>Box background</label><div class="row"><select id="rBg"></select><input type="color" id="rBgPick" class="fix" /></div></div>
+      <div id="rFit" class="note"></div>
+      <div>
+        <label>Content</label>
+        <div class="seg" id="rType"><button data-t="none">none</button><button data-t="text">text</button><button data-t="icon">icon</button><button data-t="image">image</button></div>
+      </div>
+      <div id="cText" style="display:none"><label>Text (Enter = new line)</label><textarea id="rText" rows="3"></textarea></div>
+      <div id="cIcon" style="display:none">
+        <label>Icon (built-in + yours from the Icons tab)</label>
+        <div class="row"><select id="rIcon"></select><canvas id="rIconPrev" class="fix" width="32" height="32" style="background:#000;border-radius:4px"></canvas></div>
+      </div>
+      <div id="cImage" style="display:none; flex-direction:column; gap:8px;">
+        <div class="drop" id="rImageDrop">drop an image here or <button id="rImageBtn" style="padding:3px 8px">choose file</button><input type="file" id="rImageFile" accept="image/*" style="display:none" /></div>
+        <div id="rImageOpts" style="display:none; flex-direction:column; gap:8px;">
+          <div class="note" id="rImageInfo"></div>
+          <div class="row"><div><label>Fit</label><div class="seg" id="iFit"><button data-f="fit">fit</button><button data-f="stretch">stretch</button><button data-f="crop">crop</button></div></div>
+            <div><label>Source</label><select id="iSource"><option value="auto">auto</option><option value="lum">brightness</option><option value="alpha">transparency</option></select></div></div>
+          <div><label>Threshold <span id="iThrVal">128</span></label><input type="range" id="iThr" min="1" max="254" value="128" /></div>
+          <div class="row"><label class="row fix" style="margin:0"><input type="checkbox" id="iDither" /> dither</label><label class="row fix" style="margin:0"><input type="checkbox" id="iInvert" /> invert</label></div>
+          <div><label>In the code</label><div class="seg" id="iMode"><button data-m="embed">embed (Bitmap.from_rows)</button><button data-m="file">.bmp file in /pics/</button></div></div>
+          <div class="note" id="iModeNote"></div>
+        </div>
+      </div>
+      <hr />
+    </div>
+    <div id="noSel" class="note">Drag a rectangle on the display to create a region, or click one to edit it. Each region becomes a <span class="kbd">d.region()</span> line; its content becomes a <span class="kbd">d.set()</span> line.</div>
+    <h2>Checks</h2>
+    <div class="list" id="warnList"><div class="note">—</div></div>
+    <h2>Python code <span class="note" style="text-transform:none;letter-spacing:0">— paste after <span class="kbd">d = c.display[0]</span></span></h2>
+    <textarea id="pyCode" class="code" readonly spellcheck="false"></textarea>
+    <div class="row">
+      <button id="copyPy" class="primary">📋 copy code</button>
+      <button id="dlPy">⬇ .py</button>
+      <button id="dlBmps" style="display:none">⬇ .bmp files</button>
+    </div>
+    <div class="note">Verified against noknok.py 1.9 — the preview is drawn with the same rules the Pico and the module use (fonts, wrapping, clipping).</div>
+  </aside>
+</main>
+
+<!-- ═══════════════════════════ ICONS TAB ═══════════════════════════ -->
+<main id="mainIcons">
+  <aside>
+    <h2>My icons</h2>
+    <div class="list" id="myIconList"><div class="note">none yet — draw one or import an image, then “save to my icons”.</div></div>
+    <div class="row">
+      <button id="newIcon">+ new icon</button>
+    </div>
+    <div class="grid2">
+      <div><label>width</label><input type="number" id="newW" min="1" max="255" value="16" /></div>
+      <div><label>height</label><input type="number" id="newH" min="1" max="255" value="16" /></div>
+    </div>
+    <hr />
+    <h2>Built-in icons (noknok.py)</h2>
+    <div class="list" id="builtinIconList"></div>
+    <div class="note">Built-ins ship inside noknok.py — use them by name, no code needed. Load one to start from it and save it under a new name.</div>
+  </aside>
+
+  <section class="view">
+    <div id="editorWrap">
+      <div class="toolbar">
+        <button id="tPen" class="on" title="left-drag: draw, right-drag: erase">✏️ pen</button>
+        <button id="tEraser">⌫ eraser</button>
+        <button id="tFill">🪣 fill</button>
+        <span style="width:8px"></span>
+        <button id="opInvert">invert</button>
+        <button id="opFlipH">flip ↔</button>
+        <button id="opFlipV">flip ↕</button>
+        <button id="opRot">rotate ↻</button>
+        <button id="opL">◀</button><button id="opU">▲</button><button id="opD">▼</button><button id="opR">▶</button>
+        <button id="opClear" class="danger">clear</button>
+      </div>
+      <canvas id="editorCanvas"></canvas>
+      <div class="previews">
+        <div><canvas id="prev1"></canvas>1:1 (≈ real size on a monitor)</div>
+        <div><canvas id="prev2"></canvas>2:1</div>
+        <div><canvas id="prev4"></canvas>4:1</div>
+        <div>
+          <label>tint</label><select id="prevTint"></select>
+          <label style="margin-top:6px">on</label><select id="prevBg"></select>
+        </div>
+      </div>
+      <div class="note">Left-drag draws, right-drag erases. Icons are 1-bit masks: “#” pixels are drawn in whatever colour you pass to <span class="kbd">d.icon()</span> / <span class="kbd">d.set()</span>.</div>
+    </div>
+  </section>
+
+  <aside class="right">
+    <h2>Import an image</h2>
+    <div class="drop" id="eDrop">drop a PNG / JPG / SVG / BMP here or <button id="eImageBtn" style="padding:3px 8px">choose file</button><input type="file" id="eImageFile" accept="image/*" style="display:none" /></div>
+    <div id="eImportOpts" style="display:none; flex-direction:column; gap:8px;">
+      <div class="note" id="eImageInfo"></div>
+      <div class="grid2">
+        <div><label>target width</label><input type="number" id="eW" min="1" max="255" value="16" /></div>
+        <div><label>target height</label><input type="number" id="eH" min="1" max="255" value="16" /></div>
+      </div>
+      <div class="row"><div><label>Fit</label><div class="seg" id="eFit"><button data-f="fit" class="on">fit</button><button data-f="stretch">stretch</button><button data-f="crop">crop</button></div></div>
+        <div><label>Source</label><select id="eSource"><option value="auto">auto</option><option value="lum">brightness</option><option value="alpha">transparency</option></select></div></div>
+      <div><label>Threshold <span id="eThrVal">128</span></label><input type="range" id="eThr" min="1" max="254" value="128" /></div>
+      <div class="row"><label class="row fix" style="margin:0"><input type="checkbox" id="eDither" /> dither (Floyd–Steinberg)</label><label class="row fix" style="margin:0"><input type="checkbox" id="eInvert" /> invert</label></div>
+      <div class="note">Changing these re-converts the image and replaces what is in the editor. Touch it up with the pen afterwards.</div>
+    </div>
+    <hr />
+    <h2>Export</h2>
+    <div><label>Icon name</label><input type="text" id="eName" value="myicon" spellcheck="false" /></div>
+    <div class="row">
+      <button id="eSave" class="primary">💾 save to my icons</button>
+      <button id="eDelete" class="danger" disabled>delete</button>
+    </div>
+    <div class="note" id="eSizeInfo"></div>
+    <label>Python — paste into product.py (before you use the icon)</label>
+    <textarea id="eCode" class="code" readonly spellcheck="false" style="min-height:200px"></textarea>
+    <div class="row">
+      <button id="eCopy" class="primary">📋 copy code</button>
+      <button id="eBmp">⬇ .bmp</button>
+      <button id="ePng">⬇ .png</button>
+    </div>
+    <div class="note">The snippet is what noknok.py's built-in icons look like too: <span class="kbd">ICONS["name"] = [rows]</span>, “#” = lit. The .bmp is a 1-bit file for <span class="kbd">d.image("/pics/name.bmp")</span>.</div>
+  </aside>
+</main>
+
+<div id="toast"></div>
+<script src="data.gen.js"></script>
+<script src="render.js"></script>
+<script src="layout.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

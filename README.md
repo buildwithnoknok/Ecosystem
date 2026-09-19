@@ -108,6 +108,11 @@ Topics include:
 - **`kicad_netlist.ps1`** — reconstructs the full netlist from a `.kicad_sch` file and lists every net with its member pins, so you can verify connectivity without clicking through the schematic. Flags single-pin nets (usually a missed connection) and unconnected pins. Useful as a pre-fab review pass. Does not require KiCad to be installed, and does not replace KiCad's own ERC.
 - **`kicad_pcb_check.ps1`** — the PCB counterpart. Reports board outline, F.Cu/B.Cu layer split, vias per net, copper zones (net / layer / priority / pad-connection mode / filled), track widths, decoupling-cap proximity, and the noknok flash-pad keying (pads inward so a flipped clamp can't reverse-power the board). A pre-fab placement review; does not replace KiCad's DRC.
 
+### 🖥️ Maker Tools (browser, no install)
+
+- **[Housing Configurator](mechanical/housing-configurator/)** — design a 3D-printable housing for a set of modules. Live: <https://buildwithnoknok.github.io/configurator/>
+- **[Display Planner](software/display-planner/)** — lay out the noknok Display as named regions, convert images to 1-bit icons, pixel-true preview, and copy the `noknok.py` code. Live: <https://buildwithnoknok.github.io/display-planner/>
+
 ---
 
 # 🛠️Mechanical & 3D Guidelines
