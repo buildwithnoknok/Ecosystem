@@ -142,6 +142,17 @@ Read-only helper scripts for reviewing a design live in **[`electrical/tools/`](
 - For power traces > 500 mA, use ≥ 0.5 mm width  
 - Place decoupling capacitors close to ICs  
 
+### **Component Longevity (strong recommendation)**
+noknok products are meant to run for decades, so avoid the parts that wear out or fail badly:
+- **Avoid aluminium electrolytic capacitors** — the electrolyte dries out; they are rated in thousands of hours at 105 °C and are the first component to die in old electronics.
+- **Avoid tantalum capacitors** — their failure mode is a short circuit, occasionally with fire.
+- **Prefer MLCC (ceramic)** for decoupling and converter input/output filtering. Mind DC-bias derating on higher-voltage rails (e.g. USB-PD 15–20 V): use 50 V-rated 1206/1210 parts or several in parallel — a 25 V 0805 can lose more than half its capacitance at 15 V.
+- **Prefer solid polymer** where real bulk capacitance is unavoidable (no dry-out mechanism).
+- **Prefer shielded, moulded power inductors** over wire-wound drum types.
+- Resettable PTC fuses are fine.
+
+This is a strong recommendation, not a hard rule — if a design genuinely needs an electrolytic, document why in the module README.
+
 ---
 
 ## 6. Flashing Interface & Status LED (MCU Modules)
