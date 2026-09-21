@@ -126,7 +126,7 @@ Add both to KiCad with the library nickname **`noknok`**. Current parts:
 - `noknok_UART_debug_1x3_pogo` — 3 pogo pads (GND / TX / RX) for UART bring-up debugging.
 - Display panels: `noknok_ER-TFT1.42-1`, `noknok_ER-TFT020-7`, `noknok_ER-OLED0.96-1B` (+ matching footprints where the panel is soldered).
 - `noknok_Mezzanine_2x12` (symbol) + `noknok_Mezzanine_2x12_Pads_P3.5mm` (flat pads, hub bottom) / `noknok_Mezzanine_2x12_PogoPins_P3.5mm_BWCD` (spring pins, mezzanine) — the PicoHub-to-mezzanine board-to-board interface: 2 × 12 contacts on 3.5 mm pitch carrying raw PD power (5 × VBUS + 5 × GND, 5 A), USB D±, I2C bus A, SPI, PRESENT/EN/FAULT/IRQ/AIN and an always-on 3.3 V. Pinout is frozen (21 Sep 2026); the pin-by-pin definition is in the symbol description. Spring pin: BAT WIRELESS BWCD-L5.5W2.0H3.0 (LCSC C2826550).
-- Power-manager parts used by the PicoHub concept: `noknok_CH32X035G8U6` (WCH USB-PD MCU, QFN-28; note PA10/PA11 are not bonded out — I2C on PC16/PC17 remap), `noknok_ME6203A33M3G` (40 V-in 3.3 V LDO), `noknok_AP2114H-3.3` (1 A LDO, SOT-223), `noknok_SY6280AAC` (load switch with current limit). Standard-package footprints from the KiCad library.
+- Parts KiCad has no symbol for, used by the PicoHub concept: `noknok_ME6203A33M3G` (40 V-in 3.3 V LDO, SOT-23-3), `noknok_AP2114H-3.3` (1 A LDO, SOT-223), `noknok_SY6280AAC` (load switch with current limit, SOT-23-5). Standard-package footprints from the KiCad library. (The CH32X035 is in KiCad: `MCU_WCH_RiscV:CH32X035G8U6`.)
 
 ### **ECAD Tools**
 Read-only helper scripts for reviewing a design live in **[`electrical/tools/`](tools/readme.md)**.
