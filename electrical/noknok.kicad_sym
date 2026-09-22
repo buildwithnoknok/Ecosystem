@@ -1378,7 +1378,7 @@
       )
     )
   )
-  (symbol "noknok_Mezzanine_4Cluster"
+  (symbol "noknok_Mezzanine_A"
     (pin_names (offset 1.016))
     (exclude_from_sim no)
     (in_bom yes)
@@ -1386,14 +1386,14 @@
     (in_pos_files yes)
     (duplicate_pin_numbers_are_jumpers no)
     (property "Reference" "J"
-      (at -15.24 20.32 0)
+      (at -15.24 6.35 0)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Value" "noknok_Mezzanine_4Cluster"
-      (at 2.54 20.32 0)
+    (property "Value" "noknok_Mezzanine_A"
+      (at 2.54 6.35 0)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Footprint" "noknok:noknok_Mezzanine_4Cluster_Pads"
+    (property "Footprint" "noknok:noknok_Mezzanine_A_Pads"
       (at 0 0 0)
       (hide yes)
       (effects (font (size 1.27 1.27)))
@@ -1403,7 +1403,7 @@
       (hide yes)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Description" "noknok PicoHub mezzanine interface rev 2 (frozen 22 Sep 2026): 24 spring contacts in four clusters, each beside a mounting hole and each a complete port on its own. A (2x3): VBUS_PD x4 + GND + MEZZ_EN - raw 5-20 V for boards with their own regulator. D (2x3): USB_DP/DM, GND, MEZZ_5V, MEZZ_PRESENT, MEZZ_FAULT - a USB port. B (2x4): SPI SCK/MOSI/MISO/CS + IRQ + AIN + GND + MEZZ_5V - an SPI port. C (2x2): +3V3_A, GND, SDA_A, SCL_A - a Qwiic port. MEZZ_5V = switched 5 V (SY6280, 1.45 A), enabled by MEZZ_EN. PRESENT low = the mezzanine takes the USB uplink (hub turns J2 off). Hub side = flat ENIG pads (noknok_Mezzanine_4Cluster_Pads, bottom, origin on hole H1); mezzanine side = BWCD-L5.5W2.0H3.0 spring pins (noknok_Mezzanine_4Cluster_PogoPins_BWCD, top, origin on its H1). 1.5 A / 36 V per contact."
+    (property "Description" "noknok PicoHub mezzanine interface rev 2 (frozen 22 Sep 2026), cluster A of four (A power, B SPI, C I2C, D USB): raw PD power: VBUS_PD x4 + GND + MEZZ_EN, 5-20 V, <= 4 A, for boards with their own regulator. Pad numbers A1.. (row A first), names = nets. Hub side = flat ENIG pads (noknok_Mezzanine_A_Pads, hub BOTTOM, origin on hole H1); mezzanine side = BWCD-L5.5W2.0H3.0 spring pins (noknok_Mezzanine_A_PogoPins_BWCD, mezzanine TOP, origin on its H1). 3.5 mm pitch, 1.5 A / 30 V per contact. MEZZ_5V = switched 5 V (SY6280 U11, 1.45 A) enabled by MEZZ_EN."
       (at 0 0 0)
       (hide yes)
       (effects (font (size 1.27 1.27)))
@@ -1413,163 +1413,316 @@
       (hide yes)
       (effects (font (size 1.27 1.27)))
     )
-    (property "ki_fp_filters" "noknok_Mezzanine_4Cluster*"
+    (property "ki_fp_filters" "noknok_Mezzanine_A_*"
       (at 0 0 0)
       (hide yes)
       (effects (font (size 1.27 1.27)))
     )
-    (symbol "noknok_Mezzanine_4Cluster_0_1"
+    (symbol "noknok_Mezzanine_A_0_1"
       (rectangle
-        (start -15.24 19.05)
-        (end 15.24 -19.05)
+        (start -15.24 5.08)
+        (end 15.24 -5.08)
         (stroke (width 0.254) (type default))
         (fill (type background))
       )
     )
-    (symbol "noknok_Mezzanine_4Cluster_1_1"
+    (symbol "noknok_Mezzanine_A_1_1"
       (pin passive line
-        (at -20.32 16.51 0)
+        (at -20.32 2.54 0)
         (length 5.08)
         (name "VBUS_PD" (effects (font (size 1.27 1.27))))
         (number "A1" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
-        (at -20.32 13.97 0)
+        (at -20.32 0 0)
         (length 5.08)
         (name "GND" (effects (font (size 1.27 1.27))))
         (number "A2" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
-        (at -20.32 11.43 0)
+        (at -20.32 -2.54 0)
         (length 5.08)
         (name "VBUS_PD" (effects (font (size 1.27 1.27))))
         (number "A3" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
-        (at -20.32 8.89 0)
+        (at 20.32 2.54 180)
         (length 5.08)
         (name "VBUS_PD" (effects (font (size 1.27 1.27))))
         (number "A4" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
-        (at -20.32 6.35 0)
+        (at 20.32 0 180)
         (length 5.08)
         (name "MEZZ_EN" (effects (font (size 1.27 1.27))))
         (number "A5" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
-        (at -20.32 3.81 0)
+        (at 20.32 -2.54 180)
         (length 5.08)
         (name "VBUS_PD" (effects (font (size 1.27 1.27))))
         (number "A6" (effects (font (size 1.27 1.27))))
       )
-      (pin passive line
-        (at -20.32 -1.27 0)
-        (length 5.08)
-        (name "USB_DP" (effects (font (size 1.27 1.27))))
-        (number "D1" (effects (font (size 1.27 1.27))))
+    )
+  )
+  (symbol "noknok_Mezzanine_B"
+    (pin_names (offset 1.016))
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (in_pos_files yes)
+    (duplicate_pin_numbers_are_jumpers no)
+    (property "Reference" "J"
+      (at -15.24 7.62 0)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Value" "noknok_Mezzanine_B"
+      (at 2.54 7.62 0)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Footprint" "noknok:noknok_Mezzanine_B_Pads"
+      (at 0 0 0)
+      (hide yes)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Datasheet" ""
+      (at 0 0 0)
+      (hide yes)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Description" "noknok PicoHub mezzanine interface rev 2 (frozen 22 Sep 2026), cluster B of four (A power, B SPI, C I2C, D USB): SPI port: SCK, GND, MISO, MEZZ_5V / MOSI, CS, IRQ, AIN. Pad numbers B1.. (row A first), names = nets. Hub side = flat ENIG pads (noknok_Mezzanine_B_Pads, hub BOTTOM, origin on hole H2); mezzanine side = BWCD-L5.5W2.0H3.0 spring pins (noknok_Mezzanine_B_PogoPins_BWCD, mezzanine TOP, origin on its H2). 3.5 mm pitch, 1.5 A / 30 V per contact. MEZZ_5V = switched 5 V (SY6280 U11, 1.45 A) enabled by MEZZ_EN."
+      (at 0 0 0)
+      (hide yes)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "ki_keywords" "mezzanine pogo board-to-board noknok PicoHub"
+      (at 0 0 0)
+      (hide yes)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "ki_fp_filters" "noknok_Mezzanine_B_*"
+      (at 0 0 0)
+      (hide yes)
+      (effects (font (size 1.27 1.27)))
+    )
+    (symbol "noknok_Mezzanine_B_0_1"
+      (rectangle
+        (start -15.24 6.35)
+        (end 15.24 -6.35)
+        (stroke (width 0.254) (type default))
+        (fill (type background))
       )
+    )
+    (symbol "noknok_Mezzanine_B_1_1"
       (pin passive line
-        (at -20.32 -3.81 0)
-        (length 5.08)
-        (name "USB_DM" (effects (font (size 1.27 1.27))))
-        (number "D2" (effects (font (size 1.27 1.27))))
-      )
-      (pin passive line
-        (at -20.32 -6.35 0)
-        (length 5.08)
-        (name "GND" (effects (font (size 1.27 1.27))))
-        (number "D3" (effects (font (size 1.27 1.27))))
-      )
-      (pin passive line
-        (at -20.32 -8.89 0)
-        (length 5.08)
-        (name "MEZZ_5V" (effects (font (size 1.27 1.27))))
-        (number "D4" (effects (font (size 1.27 1.27))))
-      )
-      (pin passive line
-        (at -20.32 -11.43 0)
-        (length 5.08)
-        (name "MEZZ_PRESENT" (effects (font (size 1.27 1.27))))
-        (number "D5" (effects (font (size 1.27 1.27))))
-      )
-      (pin passive line
-        (at -20.32 -13.97 0)
-        (length 5.08)
-        (name "MEZZ_FAULT" (effects (font (size 1.27 1.27))))
-        (number "D6" (effects (font (size 1.27 1.27))))
-      )
-      (pin passive line
-        (at 20.32 16.51 180)
+        (at -20.32 3.81 0)
         (length 5.08)
         (name "MEZZ_SCK" (effects (font (size 1.27 1.27))))
         (number "B1" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
-        (at 20.32 13.97 180)
+        (at -20.32 1.27 0)
         (length 5.08)
         (name "GND" (effects (font (size 1.27 1.27))))
         (number "B2" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
-        (at 20.32 11.43 180)
+        (at -20.32 -1.27 0)
         (length 5.08)
         (name "MEZZ_MISO" (effects (font (size 1.27 1.27))))
         (number "B3" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
-        (at 20.32 8.89 180)
+        (at -20.32 -3.81 0)
         (length 5.08)
         (name "MEZZ_5V" (effects (font (size 1.27 1.27))))
         (number "B4" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
-        (at 20.32 6.35 180)
+        (at 20.32 3.81 180)
         (length 5.08)
         (name "MEZZ_MOSI" (effects (font (size 1.27 1.27))))
         (number "B5" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
-        (at 20.32 3.81 180)
+        (at 20.32 1.27 180)
         (length 5.08)
         (name "MEZZ_CS" (effects (font (size 1.27 1.27))))
         (number "B6" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
-        (at 20.32 1.27 180)
+        (at 20.32 -1.27 180)
         (length 5.08)
         (name "MEZZ_IRQ" (effects (font (size 1.27 1.27))))
         (number "B7" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
-        (at 20.32 -1.27 180)
+        (at 20.32 -3.81 180)
         (length 5.08)
         (name "MEZZ_AIN" (effects (font (size 1.27 1.27))))
         (number "B8" (effects (font (size 1.27 1.27))))
       )
+    )
+  )
+  (symbol "noknok_Mezzanine_C"
+    (pin_names (offset 1.016))
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (in_pos_files yes)
+    (duplicate_pin_numbers_are_jumpers no)
+    (property "Reference" "J"
+      (at -15.24 5.08 0)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Value" "noknok_Mezzanine_C"
+      (at 2.54 5.08 0)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Footprint" "noknok:noknok_Mezzanine_C_Pads"
+      (at 0 0 0)
+      (hide yes)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Datasheet" ""
+      (at 0 0 0)
+      (hide yes)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Description" "noknok PicoHub mezzanine interface rev 2 (frozen 22 Sep 2026), cluster C of four (A power, B SPI, C I2C, D USB): Qwiic port on pads: +3V3_A, GND / SDA_A, SCL_A (bus A). Pad numbers C1.. (row A first), names = nets. Hub side = flat ENIG pads (noknok_Mezzanine_C_Pads, hub BOTTOM, origin on hole H5); mezzanine side = BWCD-L5.5W2.0H3.0 spring pins (noknok_Mezzanine_C_PogoPins_BWCD, mezzanine TOP, origin on its H5). 3.5 mm pitch, 1.5 A / 30 V per contact. MEZZ_5V = switched 5 V (SY6280 U11, 1.45 A) enabled by MEZZ_EN."
+      (at 0 0 0)
+      (hide yes)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "ki_keywords" "mezzanine pogo board-to-board noknok PicoHub"
+      (at 0 0 0)
+      (hide yes)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "ki_fp_filters" "noknok_Mezzanine_C_*"
+      (at 0 0 0)
+      (hide yes)
+      (effects (font (size 1.27 1.27)))
+    )
+    (symbol "noknok_Mezzanine_C_0_1"
+      (rectangle
+        (start -15.24 3.81)
+        (end 15.24 -3.81)
+        (stroke (width 0.254) (type default))
+        (fill (type background))
+      )
+    )
+    (symbol "noknok_Mezzanine_C_1_1"
       (pin passive line
-        (at 20.32 -6.35 180)
+        (at -20.32 1.27 0)
         (length 5.08)
         (name "+3V3_A" (effects (font (size 1.27 1.27))))
         (number "C1" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
-        (at 20.32 -8.89 180)
+        (at -20.32 -1.27 0)
         (length 5.08)
         (name "GND" (effects (font (size 1.27 1.27))))
         (number "C2" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
-        (at 20.32 -11.43 180)
+        (at 20.32 1.27 180)
         (length 5.08)
         (name "SDA_A" (effects (font (size 1.27 1.27))))
         (number "C3" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
-        (at 20.32 -13.97 180)
+        (at 20.32 -1.27 180)
         (length 5.08)
         (name "SCL_A" (effects (font (size 1.27 1.27))))
         (number "C4" (effects (font (size 1.27 1.27))))
+      )
+    )
+  )
+  (symbol "noknok_Mezzanine_D"
+    (pin_names (offset 1.016))
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (in_pos_files yes)
+    (duplicate_pin_numbers_are_jumpers no)
+    (property "Reference" "J"
+      (at -15.24 6.35 0)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Value" "noknok_Mezzanine_D"
+      (at 2.54 6.35 0)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Footprint" "noknok:noknok_Mezzanine_D_Pads"
+      (at 0 0 0)
+      (hide yes)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Datasheet" ""
+      (at 0 0 0)
+      (hide yes)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Description" "noknok PicoHub mezzanine interface rev 2 (frozen 22 Sep 2026), cluster D of four (A power, B SPI, C I2C, D USB): USB port on pads: USB_DP, USB_DM, GND / MEZZ_5V, MEZZ_PRESENT, MEZZ_FAULT (PRESENT low = I take the USB uplink). Pad numbers D1.. (row A first), names = nets. Hub side = flat ENIG pads (noknok_Mezzanine_D_Pads, hub BOTTOM, origin on hole H4); mezzanine side = BWCD-L5.5W2.0H3.0 spring pins (noknok_Mezzanine_D_PogoPins_BWCD, mezzanine TOP, origin on its H4). 3.5 mm pitch, 1.5 A / 30 V per contact. MEZZ_5V = switched 5 V (SY6280 U11, 1.45 A) enabled by MEZZ_EN."
+      (at 0 0 0)
+      (hide yes)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "ki_keywords" "mezzanine pogo board-to-board noknok PicoHub"
+      (at 0 0 0)
+      (hide yes)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "ki_fp_filters" "noknok_Mezzanine_D_*"
+      (at 0 0 0)
+      (hide yes)
+      (effects (font (size 1.27 1.27)))
+    )
+    (symbol "noknok_Mezzanine_D_0_1"
+      (rectangle
+        (start -15.24 5.08)
+        (end 15.24 -5.08)
+        (stroke (width 0.254) (type default))
+        (fill (type background))
+      )
+    )
+    (symbol "noknok_Mezzanine_D_1_1"
+      (pin passive line
+        (at -20.32 2.54 0)
+        (length 5.08)
+        (name "USB_DP" (effects (font (size 1.27 1.27))))
+        (number "D1" (effects (font (size 1.27 1.27))))
+      )
+      (pin passive line
+        (at -20.32 0 0)
+        (length 5.08)
+        (name "USB_DM" (effects (font (size 1.27 1.27))))
+        (number "D2" (effects (font (size 1.27 1.27))))
+      )
+      (pin passive line
+        (at -20.32 -2.54 0)
+        (length 5.08)
+        (name "GND" (effects (font (size 1.27 1.27))))
+        (number "D3" (effects (font (size 1.27 1.27))))
+      )
+      (pin passive line
+        (at 20.32 2.54 180)
+        (length 5.08)
+        (name "MEZZ_5V" (effects (font (size 1.27 1.27))))
+        (number "D4" (effects (font (size 1.27 1.27))))
+      )
+      (pin passive line
+        (at 20.32 0 180)
+        (length 5.08)
+        (name "MEZZ_PRESENT" (effects (font (size 1.27 1.27))))
+        (number "D5" (effects (font (size 1.27 1.27))))
+      )
+      (pin passive line
+        (at 20.32 -2.54 180)
+        (length 5.08)
+        (name "MEZZ_FAULT" (effects (font (size 1.27 1.27))))
+        (number "D6" (effects (font (size 1.27 1.27))))
       )
     )
   )
