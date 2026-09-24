@@ -1389,7 +1389,7 @@
       (at -15.24 7.62 0)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Value" "noknok_Mezzanine_A"
+    (property "Value" "Cluster A"
       (at 2.54 7.62 0)
       (effects (font (size 1.27 1.27)))
     )
@@ -1488,7 +1488,7 @@
       (at -15.24 7.62 0)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Value" "noknok_Mezzanine_B"
+    (property "Value" "Cluster B"
       (at 2.54 7.62 0)
       (effects (font (size 1.27 1.27)))
     )
@@ -1587,7 +1587,7 @@
       (at -15.24 5.08 0)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Value" "noknok_Mezzanine_C"
+    (property "Value" "Cluster C"
       (at 2.54 5.08 0)
       (effects (font (size 1.27 1.27)))
     )
@@ -1662,7 +1662,7 @@
       (at -15.24 6.35 0)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Value" "noknok_Mezzanine_D"
+    (property "Value" "Cluster D"
       (at 2.54 6.35 0)
       (effects (font (size 1.27 1.27)))
     )
