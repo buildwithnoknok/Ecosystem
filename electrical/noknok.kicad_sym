@@ -1386,11 +1386,11 @@
     (in_pos_files yes)
     (duplicate_pin_numbers_are_jumpers no)
     (property "Reference" "J"
-      (at -15.24 6.35 0)
+      (at -15.24 7.62 0)
       (effects (font (size 1.27 1.27)))
     )
     (property "Value" "noknok_Mezzanine_A"
-      (at 2.54 6.35 0)
+      (at 2.54 7.62 0)
       (effects (font (size 1.27 1.27)))
     )
     (property "Footprint" "noknok:noknok_Mezzanine_A_Pads_M2.5"
@@ -1403,7 +1403,7 @@
       (hide yes)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Description" "noknok PicoHub mezzanine interface rev 2 (frozen 22 Sep 2026), cluster A of four (A power, B SPI, C I2C, D USB): raw PD power: VBUS_PD x4 + GND + MEZZ_EN, 5-20 V, <= 4 A, for boards with their own regulator. Pad numbers A1.. (row A first), names = nets. Both footprints INCLUDE the M2.5 mounting hole (2.5 mm NPTH, noknok standard) at their origin, so this part replaces the plain mounting-hole symbol at that corner. Hub side = flat ENIG pads (noknok_Mezzanine_A_Pads_M2.5, hub BOTTOM, hole = H1); mezzanine side = BWCD-L5.5W2.0H3.0 spring pins (noknok_Mezzanine_A_PogoPins_BWCD_M2.5, mezzanine TOP, same hole). 3.5 mm pitch, 1.5 A / 30 V per contact. MEZZ_5V = switched 5 V (SY6280 U11, 1.45 A) enabled by MEZZ_EN."
+    (property "Description" "noknok PicoHub mezzanine interface rev 2 (frozen 22 Sep 2026, cluster A widened to 2x4 on 24 Sep), cluster A of four (A power, B SPI, C I2C, D USB): raw PD power, 5-20 V: 4 x VBUS_PD in one row and 4 x GND in the other, so each row merges into one copper bar - 6 A each way, for boards with their own regulator. Pad numbers A1.. (first row, then second row), names = nets. Both footprints INCLUDE the M2.5 mounting hole (2.5 mm NPTH, noknok standard) at their origin, so this part replaces the plain mounting-hole symbol at that corner. Hub side = flat ENIG pads (noknok_Mezzanine_A_Pads_M2.5, hub BOTTOM, hole = H1); mezzanine side = BWCD-L5.5W2.0H3.0 spring pins (noknok_Mezzanine_A_PogoPins_BWCD_M2.5, mezzanine TOP, same hole). 3.0 mm grid, nearest contact 4.5 mm from the hole, 1.5 A / 30 V per contact. MEZZ_5V = switched 5 V (SY6280 U11, 1.45 A) enabled by MEZZ_EN."
       (at 0 0 0)
       (hide yes)
       (effects (font (size 1.27 1.27)))
@@ -1420,48 +1420,60 @@
     )
     (symbol "noknok_Mezzanine_A_0_1"
       (rectangle
-        (start -15.24 5.08)
-        (end 15.24 -5.08)
+        (start -15.24 6.35)
+        (end 15.24 -6.35)
         (stroke (width 0.254) (type default))
         (fill (type background))
       )
     )
     (symbol "noknok_Mezzanine_A_1_1"
       (pin passive line
-        (at -20.32 2.54 0)
+        (at -20.32 3.81 0)
         (length 5.08)
         (name "VBUS_PD" (effects (font (size 1.27 1.27))))
         (number "A1" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
-        (at -20.32 0 0)
+        (at -20.32 1.27 0)
         (length 5.08)
-        (name "GND" (effects (font (size 1.27 1.27))))
+        (name "VBUS_PD" (effects (font (size 1.27 1.27))))
         (number "A2" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
-        (at -20.32 -2.54 0)
+        (at -20.32 -1.27 0)
         (length 5.08)
         (name "VBUS_PD" (effects (font (size 1.27 1.27))))
         (number "A3" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
-        (at 20.32 2.54 180)
+        (at -20.32 -3.81 0)
         (length 5.08)
         (name "VBUS_PD" (effects (font (size 1.27 1.27))))
         (number "A4" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
-        (at 20.32 0 180)
+        (at 20.32 3.81 180)
         (length 5.08)
-        (name "MEZZ_EN" (effects (font (size 1.27 1.27))))
+        (name "GND" (effects (font (size 1.27 1.27))))
         (number "A5" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
-        (at 20.32 -2.54 180)
+        (at 20.32 1.27 180)
         (length 5.08)
-        (name "VBUS_PD" (effects (font (size 1.27 1.27))))
+        (name "GND" (effects (font (size 1.27 1.27))))
         (number "A6" (effects (font (size 1.27 1.27))))
+      )
+      (pin passive line
+        (at 20.32 -1.27 180)
+        (length 5.08)
+        (name "GND" (effects (font (size 1.27 1.27))))
+        (number "A7" (effects (font (size 1.27 1.27))))
+      )
+      (pin passive line
+        (at 20.32 -3.81 180)
+        (length 5.08)
+        (name "GND" (effects (font (size 1.27 1.27))))
+        (number "A8" (effects (font (size 1.27 1.27))))
       )
     )
   )
@@ -1490,7 +1502,7 @@
       (hide yes)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Description" "noknok PicoHub mezzanine interface rev 2 (frozen 22 Sep 2026), cluster B of four (A power, B SPI, C I2C, D USB): SPI port: SCK, GND, MISO, MEZZ_5V / MOSI, CS, IRQ, AIN. Pad numbers B1.. (row A first), names = nets. Both footprints INCLUDE the M2.5 mounting hole (2.5 mm NPTH, noknok standard) at their origin, so this part replaces the plain mounting-hole symbol at that corner. Hub side = flat ENIG pads (noknok_Mezzanine_B_Pads_M2.5, hub BOTTOM, hole = H2); mezzanine side = BWCD-L5.5W2.0H3.0 spring pins (noknok_Mezzanine_B_PogoPins_BWCD_M2.5, mezzanine TOP, same hole). 3.5 mm pitch, 1.5 A / 30 V per contact. MEZZ_5V = switched 5 V (SY6280 U11, 1.45 A) enabled by MEZZ_EN."
+    (property "Description" "noknok PicoHub mezzanine interface rev 2 (frozen 22 Sep 2026, cluster A widened to 2x4 on 24 Sep), cluster B of four (A power, B SPI, C I2C, D USB): SPI port: SCK, GND, MISO, MEZZ_5V / MOSI, CS, IRQ, MEZZ_EN. Pad numbers B1.. (first row, then second row), names = nets. Both footprints INCLUDE the M2.5 mounting hole (2.5 mm NPTH, noknok standard) at their origin, so this part replaces the plain mounting-hole symbol at that corner. Hub side = flat ENIG pads (noknok_Mezzanine_B_Pads_M2.5, hub BOTTOM, hole = H2); mezzanine side = BWCD-L5.5W2.0H3.0 spring pins (noknok_Mezzanine_B_PogoPins_BWCD_M2.5, mezzanine TOP, same hole). 3.0 mm grid, nearest contact 4.5 mm from the hole, 1.5 A / 30 V per contact. MEZZ_5V = switched 5 V (SY6280 U11, 1.45 A) enabled by MEZZ_EN."
       (at 0 0 0)
       (hide yes)
       (effects (font (size 1.27 1.27)))
@@ -1559,7 +1571,7 @@
       (pin passive line
         (at 20.32 -3.81 180)
         (length 5.08)
-        (name "MEZZ_AIN" (effects (font (size 1.27 1.27))))
+        (name "MEZZ_EN" (effects (font (size 1.27 1.27))))
         (number "B8" (effects (font (size 1.27 1.27))))
       )
     )
@@ -1589,7 +1601,7 @@
       (hide yes)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Description" "noknok PicoHub mezzanine interface rev 2 (frozen 22 Sep 2026), cluster C of four (A power, B SPI, C I2C, D USB): Qwiic port on pads: +3V3_A, GND / SDA_A, SCL_A (bus A). Pad numbers C1.. (row A first), names = nets. Both footprints INCLUDE the M2.5 mounting hole (2.5 mm NPTH, noknok standard) at their origin, so this part replaces the plain mounting-hole symbol at that corner. Hub side = flat ENIG pads (noknok_Mezzanine_C_Pads_M2.5, hub BOTTOM, hole = H5); mezzanine side = BWCD-L5.5W2.0H3.0 spring pins (noknok_Mezzanine_C_PogoPins_BWCD_M2.5, mezzanine TOP, same hole). 3.5 mm pitch, 1.5 A / 30 V per contact. MEZZ_5V = switched 5 V (SY6280 U11, 1.45 A) enabled by MEZZ_EN."
+    (property "Description" "noknok PicoHub mezzanine interface rev 2 (frozen 22 Sep 2026, cluster A widened to 2x4 on 24 Sep), cluster C of four (A power, B SPI, C I2C, D USB): Qwiic port on pads: +3V3_A, GND / SDA_A, SCL_A (bus A). Pad numbers C1.. (first row, then second row), names = nets. Both footprints INCLUDE the M2.5 mounting hole (2.5 mm NPTH, noknok standard) at their origin, so this part replaces the plain mounting-hole symbol at that corner. Hub side = flat ENIG pads (noknok_Mezzanine_C_Pads_M2.5, hub BOTTOM, hole = H5); mezzanine side = BWCD-L5.5W2.0H3.0 spring pins (noknok_Mezzanine_C_PogoPins_BWCD_M2.5, mezzanine TOP, same hole). 3.0 mm grid, nearest contact 4.5 mm from the hole, 1.5 A / 30 V per contact. MEZZ_5V = switched 5 V (SY6280 U11, 1.45 A) enabled by MEZZ_EN."
       (at 0 0 0)
       (hide yes)
       (effects (font (size 1.27 1.27)))
@@ -1664,7 +1676,7 @@
       (hide yes)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Description" "noknok PicoHub mezzanine interface rev 2 (frozen 22 Sep 2026), cluster D of four (A power, B SPI, C I2C, D USB): USB port on pads: USB_DP, USB_DM, GND / MEZZ_5V, MEZZ_PRESENT, MEZZ_FAULT (PRESENT low = I take the USB uplink). Pad numbers D1.. (row A first), names = nets. Both footprints INCLUDE the M2.5 mounting hole (2.5 mm NPTH, noknok standard) at their origin, so this part replaces the plain mounting-hole symbol at that corner. Hub side = flat ENIG pads (noknok_Mezzanine_D_Pads_M2.5, hub BOTTOM, hole = H4); mezzanine side = BWCD-L5.5W2.0H3.0 spring pins (noknok_Mezzanine_D_PogoPins_BWCD_M2.5, mezzanine TOP, same hole). 3.5 mm pitch, 1.5 A / 30 V per contact. MEZZ_5V = switched 5 V (SY6280 U11, 1.45 A) enabled by MEZZ_EN."
+    (property "Description" "noknok PicoHub mezzanine interface rev 2 (frozen 22 Sep 2026, cluster A widened to 2x4 on 24 Sep), cluster D of four (A power, B SPI, C I2C, D USB): USB port on pads: USB_DP, USB_DM, GND / MEZZ_5V, MEZZ_PRESENT, MEZZ_FAULT (PRESENT low = I take the USB uplink). Pad numbers D1.. (first row, then second row), names = nets. Both footprints INCLUDE the M2.5 mounting hole (2.5 mm NPTH, noknok standard) at their origin, so this part replaces the plain mounting-hole symbol at that corner. Hub side = flat ENIG pads (noknok_Mezzanine_D_Pads_M2.5, hub BOTTOM, hole = H4); mezzanine side = BWCD-L5.5W2.0H3.0 spring pins (noknok_Mezzanine_D_PogoPins_BWCD_M2.5, mezzanine TOP, same hole). 3.0 mm grid, nearest contact 4.5 mm from the hole, 1.5 A / 30 V per contact. MEZZ_5V = switched 5 V (SY6280 U11, 1.45 A) enabled by MEZZ_EN."
       (at 0 0 0)
       (hide yes)
       (effects (font (size 1.27 1.27)))
