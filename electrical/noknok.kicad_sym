@@ -1502,7 +1502,7 @@
       (hide yes)
       (effects (font (size 1.27 1.27)))
     )
-    (property "Description" "noknok PicoHub mezzanine interface rev 2 (frozen 22 Sep 2026, cluster A widened to 2x4 on 24 Sep), cluster B of four (A power, B SPI, C I2C, D USB): SPI port: SCK, GND, MISO, MEZZ_5V / MOSI, CS, IRQ, MEZZ_EN. Pad numbers B1.. (first row, then second row), names = nets. Both footprints INCLUDE the M2.5 mounting hole (2.5 mm NPTH, noknok standard) at their origin, so this part replaces the plain mounting-hole symbol at that corner. Hub side = flat ENIG pads (noknok_Mezzanine_B_Pads_M2.5, hub BOTTOM, hole = H2); mezzanine side = BWCD-L5.5W2.0H3.0 spring pins (noknok_Mezzanine_B_PogoPins_BWCD_M2.5, mezzanine TOP, same hole). 3.0 mm grid, nearest contact 4.5 mm from the hole, 1.5 A / 30 V per contact. MEZZ_5V = switched 5 V (SY6280 U11, 1.45 A) enabled by MEZZ_EN."
+    (property "Description" "noknok PicoHub mezzanine interface rev 2 (frozen 22 Sep 2026, cluster A widened to 2x4 on 24 Sep), cluster B of four (A power, B SPI, C I2C, D USB): SPI port. Outer row B1-B4 = MEZZ_5V, MEZZ_IRQ, MEZZ_EN, GND (power and rarely-used lines, routable in the strip between the contacts and the board edge; GND sits next to the hole). Inner row B5-B8 = MOSI, CS, MISO, SCK, reachable from inside the board. Pad numbers B1.. (first row, then second row), names = nets. Both footprints INCLUDE the M2.5 mounting hole (2.5 mm NPTH, noknok standard) at their origin, so this part replaces the plain mounting-hole symbol at that corner. Hub side = flat ENIG pads (noknok_Mezzanine_B_Pads_M2.5, hub BOTTOM, hole = H2); mezzanine side = BWCD-L5.5W2.0H3.0 spring pins (noknok_Mezzanine_B_PogoPins_BWCD_M2.5, mezzanine TOP, same hole). 3.0 mm grid, nearest contact 4.5 mm from the hole, 1.5 A / 30 V per contact. MEZZ_5V = switched 5 V (SY6280 U11, 1.45 A) enabled by MEZZ_EN."
       (at 0 0 0)
       (hide yes)
       (effects (font (size 1.27 1.27)))
@@ -1529,25 +1529,25 @@
       (pin passive line
         (at -20.32 3.81 0)
         (length 5.08)
-        (name "MEZZ_SCK" (effects (font (size 1.27 1.27))))
+        (name "MEZZ_5V" (effects (font (size 1.27 1.27))))
         (number "B1" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
         (at -20.32 1.27 0)
         (length 5.08)
-        (name "GND" (effects (font (size 1.27 1.27))))
+        (name "MEZZ_IRQ" (effects (font (size 1.27 1.27))))
         (number "B2" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
         (at -20.32 -1.27 0)
         (length 5.08)
-        (name "MEZZ_MISO" (effects (font (size 1.27 1.27))))
+        (name "MEZZ_EN" (effects (font (size 1.27 1.27))))
         (number "B3" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
         (at -20.32 -3.81 0)
         (length 5.08)
-        (name "MEZZ_5V" (effects (font (size 1.27 1.27))))
+        (name "GND" (effects (font (size 1.27 1.27))))
         (number "B4" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
@@ -1565,13 +1565,13 @@
       (pin passive line
         (at 20.32 -1.27 180)
         (length 5.08)
-        (name "MEZZ_IRQ" (effects (font (size 1.27 1.27))))
+        (name "MEZZ_MISO" (effects (font (size 1.27 1.27))))
         (number "B7" (effects (font (size 1.27 1.27))))
       )
       (pin passive line
         (at 20.32 -3.81 180)
         (length 5.08)
-        (name "MEZZ_EN" (effects (font (size 1.27 1.27))))
+        (name "MEZZ_SCK" (effects (font (size 1.27 1.27))))
         (number "B8" (effects (font (size 1.27 1.27))))
       )
     )
