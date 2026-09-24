@@ -5,11 +5,33 @@
 	(layer "F.Cu")
 	(descr "noknok PicoHub mezzanine contact pads, interface rev 2 (22 Sep 2026), cluster D (6 flat round pads D2.4 mm, 3.5 mm pitch, copper + mask only - NO paste, ENIG; the spring pins live on the mezzanine): USB port on pads: USB_DP, USB_DM, GND / MEZZ_5V, MEZZ_PRESENT, MEZZ_FAULT (PRESENT low = I take the USB uplink). INCLUDES the M2.5 mounting hole H4 (2.5 mm NPTH, noknok standard) at its origin - this footprint replaces the plain hole at that corner of the 60x40 MOD-0008 pattern: place on the hub BOTTOM at the H4 position, rotation 0 (authored with y negated so the flip puts every pad at its viewed-from-above position). Mates with noknok_Mezzanine_D_PogoPins_BWCD_M2.5.")
 	(tags "noknok mezzanine pogo pad PicoHub mountinghole M2.5")
+	(property "Reference" "REF**"
+		(at 0 4 0)
+		(layer "F.SilkS")
+		(uuid "440f49ef-3b99-433e-aeab-204d03ab5b14")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "noknok_Mezzanine_D_Pads_M2.5"
+		(at -6.5 7.5 0)
+		(layer "F.Fab")
+		(uuid "f4775fcf-cd1d-4bb6-b897-14e62f8c45df")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
 	(property "Datasheet" ""
 		(at 0 0 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "58227842-c975-45ab-b488-2c8c13d64976")
+		(uuid "ee6abf25-4ebe-40d1-9e7f-c19b700f19f9")
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -20,47 +42,25 @@
 		(at 0 0 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "1672c635-79ef-4e5f-9d56-dacc172e1d92")
+		(uuid "e2498db0-69b9-4311-9cb7-77c48e81cfc5")
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 		)
 	)
-	(property "Reference" "REF**"
-		(at 0 4 0)
-		(layer "F.SilkS")
-		(uuid "cf25654c-ed84-4756-860d-1ad95f7ad18b")
-		(effects
-			(font
-				(size 1 1)
-				(thickness 0.15)
-			)
-		)
-	)
-	(property "Value" "noknok_Mezzanine_D_Pads_M2.5"
-		(at -6.5 9.25 0)
-		(layer "F.Fab")
-		(uuid "43f9bd32-9af0-4316-bed1-951e09489997")
-		(effects
-			(font
-				(size 1 1)
-				(thickness 0.15)
-			)
-		)
-	)
 	(attr smd exclude_from_pos_files)
 	(duplicate_pad_numbers_are_jumpers no)
 	(fp_circle
-		(center -12.9 5)
-		(end -12.7 5)
+		(center -12.25 3)
+		(end -12.05 3)
 		(stroke
 			(width 0.2)
 			(type solid)
 		)
 		(fill yes)
 		(layer "F.SilkS")
-		(uuid "3fcf4f81-8241-4a81-8ab8-237f5fa4e6ea")
+		(uuid "4fcc8ee7-1b56-4b2a-b4b0-b71afd1f771f")
 	)
 	(fp_circle
 		(center 0 0)
@@ -71,34 +71,67 @@
 		)
 		(fill no)
 		(layer "Cmts.User")
-		(uuid "33e376c6-df79-46b8-af83-628aa825fcf8")
+		(uuid "4ebc6118-d343-45b5-85b0-c90172b481a1")
+	)
+	(fp_circle
+		(center 0 0)
+		(end 2.8 0)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "B.CrtYd")
+		(uuid "6d6e43f3-6c13-472d-b972-b06846487eae")
+	)
+	(fp_circle
+		(center 0 0)
+		(end 2.8 0)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "B.CrtYd")
+		(uuid "9f0b76d4-6cb1-4012-b402-10aba61f4067")
 	)
 	(fp_rect
-		(start -13 -0.5)
-		(end -2 7)
+		(start -12.45 -1.95)
+		(end -2.55 4.95)
 		(stroke
 			(width 0.05)
 			(type solid)
 		)
 		(fill no)
 		(layer "F.CrtYd")
-		(uuid "c5d4ed2c-1add-44af-bd70-3831e52e8af8")
+		(uuid "f14ea1ca-f0ec-48fb-956d-c5877422e575")
+	)
+	(fp_circle
+		(center 0 0)
+		(end 2.8 0)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.CrtYd")
+		(uuid "084e7502-7f37-45e3-9484-d87c230b5bac")
 	)
 	(fp_rect
-		(start -12.75 -0.25)
-		(end -2.25 6.75)
+		(start -12.2 -1.7)
+		(end -2.8 4.7)
 		(stroke
 			(width 0.1)
 			(type solid)
 		)
 		(fill no)
 		(layer "F.Fab")
-		(uuid "13515cf2-9a1f-44b5-b22c-9226549bb1a7")
+		(uuid "7164eecd-f64e-401a-b9e8-45e35fc92687")
 	)
 	(fp_text user "Cluster D"
-		(at -7.5 7.75 0)
+		(at -7.5 5.9 0)
 		(layer "F.SilkS")
-		(uuid "9b603d7b-c7b9-4669-91ec-b9ff54898a5c")
+		(uuid "f72435b1-3229-416f-a05c-276d5b95e25f")
 		(effects
 			(font
 				(size 1 1)
@@ -109,7 +142,7 @@
 	(fp_text user "H4"
 		(at 0 -3.4 0)
 		(layer "F.Fab")
-		(uuid "898541d3-0194-40cf-b564-df9666e1aa41")
+		(uuid "f91ba6c5-2669-4c1d-a22a-59658f63ea2e")
 		(effects
 			(font
 				(size 0.8 0.8)
@@ -122,70 +155,51 @@
 		(size 2.5 2.5)
 		(drill 2.5)
 		(layers "*.Cu" "*.Mask")
-		(uuid "3deaed2d-1f69-428e-a0ee-3399fcf7b8cb")
 		(clearance 0.5)
+		(uuid "2697371c-a62f-4df7-8cca-19ba891b8ce5")
 	)
 	(pad "D1" smd circle
-		(at -11 5)
+		(at -10.5 3)
 		(size 2.4 2.4)
 		(layers "F.Cu" "F.Mask")
-		(uuid "02e40c4f-6d67-47d8-a470-cc6c3a6c0f4c")
-		(clearance 0.5)
+		(clearance 0.2)
+		(uuid "42c5d8a6-1f18-45f8-8d70-6187f08b5e1d")
 	)
 	(pad "D2" smd circle
-		(at -7.5 5)
+		(at -7.5 3)
 		(size 2.4 2.4)
 		(layers "F.Cu" "F.Mask")
-		(uuid "a09c85dc-799f-4b58-8ecb-e32e936e975f")
-		(clearance 0.5)
+		(clearance 0.2)
+		(uuid "4ed1a6ef-8902-47b2-af97-add1ef2ff90c")
 	)
 	(pad "D3" smd circle
-		(at -4 5)
+		(at -4.5 3)
 		(size 2.4 2.4)
 		(layers "F.Cu" "F.Mask")
-		(uuid "38db8ff4-67f0-45df-914e-7c0cd354fe2c")
-		(clearance 0.5)
+		(clearance 0.2)
 		(zone_connect 2)
+		(uuid "48105c56-a9b7-4646-8e74-fe79bc112e0c")
 	)
 	(pad "D4" smd circle
-		(at -11 1.5)
+		(at -10.5 0)
 		(size 2.4 2.4)
 		(layers "F.Cu" "F.Mask")
-		(uuid "e863dffb-ebd8-4538-a874-ef055aff5516")
-		(clearance 0.5)
+		(clearance 0.2)
+		(uuid "c38f22a4-f01d-4add-9b6a-d13d7f8254c3")
 	)
 	(pad "D5" smd circle
-		(at -7.5 1.5)
+		(at -7.5 0)
 		(size 2.4 2.4)
 		(layers "F.Cu" "F.Mask")
-		(uuid "e88ec19f-e683-4b6d-a5a1-33e4394b5562")
-		(clearance 0.5)
+		(clearance 0.2)
+		(uuid "4d3a0bf9-5fbc-4cb3-97e2-86702d854107")
 	)
-(pad "D6" smd circle
-		(at -4 1.5)
+	(pad "D6" smd circle
+		(at -4.5 0)
 		(size 2.4 2.4)
 		(layers "F.Cu" "F.Mask")
-		(uuid "1293a71c-ceb6-4cb4-803c-7384f2f78681")
-	)
-	(fp_circle
-		(center 0 0)
-		(end 2.8 0)
-		(stroke
-			(width 0.05)
-			(type solid)
-		)
-		(fill no)
-		(layer "F.CrtYd")
-	)
-	(fp_circle
-		(center 0 0)
-		(end 2.8 0)
-		(stroke
-			(width 0.05)
-			(type solid)
-		)
-		(fill no)
-		(layer "B.CrtYd")
+		(uuid "de1ff5b4-fc79-4d0f-bca0-7aa397def72d")
+		(clearance 0.2)
 	)
 	(embedded_fonts no)
 )
