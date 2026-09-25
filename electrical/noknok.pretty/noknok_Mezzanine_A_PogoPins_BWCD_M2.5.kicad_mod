@@ -8,7 +8,7 @@
 	(property "Reference" "REF**"
 		(at 5 -0.25 0)
 		(layer "F.SilkS")
-		(uuid "7347660c-1981-44f0-ad68-d7f1a0b92775")
+		(uuid "90f08e5b-eddb-4fe6-99a5-402d083dd058")
 		(effects
 			(font
 				(size 1 1)
@@ -19,7 +19,7 @@
 	(property "Value" "noknok_Mezzanine_A_PogoPins_BWCD_M2.5"
 		(at 2 -4.25 0)
 		(layer "F.Fab")
-		(uuid "ec6d33c4-4b20-4503-85f9-eb3d68b63fd4")
+		(uuid "f98cafc6-5308-4316-b72f-f6731d90813c")
 		(effects
 			(font
 				(size 1 1)
@@ -31,7 +31,7 @@
 		(at 0 -0.25 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "4f75edb8-78e3-49c7-a014-4ffd3da2134f")
+		(uuid "f5e8a39f-9229-4100-a7c4-4337a633e59f")
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -42,7 +42,7 @@
 		(at 0 -0.25 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "bcacf6bc-55c4-414b-9b8c-e904f9361464")
+		(uuid "5a60128f-7ff2-4ab7-8707-448558c27923")
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -51,41 +51,144 @@
 	)
 	(attr smd)
 	(duplicate_pad_numbers_are_jumpers no)
+	(fp_circle
+		(center 3 2.6)
+		(end 3.2 2.6)
+		(stroke
+			(width 0.2)
+			(type solid)
+		)
+		(fill yes)
+		(layer "F.SilkS")
+		(uuid "8327d654-deb2-4bb0-8af4-a02327f0f07f")
+	)
+	(fp_circle
+		(center 0 0)
+		(end 2.8 0)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "B.CrtYd")
+		(uuid "68721db6-ee9f-4364-9aeb-a52328cfb522")
+	)
+	(fp_rect
+		(start -1.95 15.45)
+		(end 4.95 2.55)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.CrtYd")
+		(uuid "f57da83c-88de-482d-9707-30cc422184c4")
+	)
+	(fp_circle
+		(center 0 0)
+		(end 2.8 0)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.CrtYd")
+		(uuid "65f542cd-2069-434f-9bee-c61ccbb9df51")
+	)
+	(fp_rect
+		(start -1.7 15.2)
+		(end 4.7 2.8)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.Fab")
+		(uuid "8459d7cc-413e-4103-a0a0-5e0082686ec0")
+	)
+	(fp_text user "GND"
+		(at -2.6 9 90)
+		(layer "F.SilkS")
+		(uuid "8b344cab-c572-4012-b861-547b2cce671d")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+		)
+	)
+	(fp_text user "Cluster A"
+		(at 1.5 16.2 0)
+		(layer "F.SilkS")
+		(uuid "27377d25-bef7-4e88-baa9-48393a8e10e1")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(fp_text user "VBUS"
+		(at 6.2 9 90)
+		(layer "F.SilkS")
+		(uuid "92f3fc48-61ad-44af-96b9-983aa2f207ea")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+		)
+	)
+	(fp_text user "H1"
+		(at 0 -2.2 0)
+		(layer "F.Fab")
+		(uuid "5b0f1701-4f08-45fb-b1d7-1b2c6b04374c")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.12)
+			)
+		)
+	)
 	(pad "" np_thru_hole circle
 		(at 0 0)
 		(size 2.5 2.5)
 		(drill 2.5)
 		(layers "*.Cu" "*.Mask")
-		(clearance 0.5)
-		(uuid "bb5e6a03-a924-4d43-8d9b-d3875d9fd5b3")
+		(clearance 0.3)
+		(uuid "d169c91a-be9b-4ec3-b411-6b0e00bac2d4")
 	)
 	(pad "A1" smd circle
 		(at 3 4.5)
 		(size 2.6 2.6)
 		(layers "F.Cu" "F.Paste" "F.Mask")
 		(clearance 0.4)
-		(uuid "13c70e66-3838-4f4b-bd7f-1402732ffd1a")
+		(uuid "a5b4c372-90f6-4833-ba60-022545d27f19")
+		(zone_connect 2)
 	)
 	(pad "A2" smd circle
 		(at 3 7.5)
 		(size 2.6 2.6)
 		(layers "F.Cu" "F.Paste" "F.Mask")
 		(clearance 0.4)
-		(uuid "874e9804-95bb-420e-991e-77599d974384")
+		(uuid "4f595ab8-47e5-4ece-a40e-46b35036b9dc")
+		(zone_connect 2)
 	)
 	(pad "A3" smd circle
 		(at 3 10.5)
 		(size 2.6 2.6)
 		(layers "F.Cu" "F.Paste" "F.Mask")
 		(clearance 0.4)
-		(uuid "9d573cda-39a1-4494-a8b3-f100720bcac4")
+		(uuid "690351a7-83ca-4157-a9bc-9198821d09b1")
+		(zone_connect 2)
 	)
 	(pad "A4" smd circle
 		(at 3 13.5)
 		(size 2.6 2.6)
 		(layers "F.Cu" "F.Paste" "F.Mask")
 		(clearance 0.4)
-		(uuid "48dc4b3b-c303-45e7-86cb-bb299870eb44")
+		(uuid "ed3e8af1-f178-4489-a98e-69d420cbb743")
+		(zone_connect 2)
 	)
 	(pad "A5" smd circle
 		(at 0 4.5)
@@ -93,7 +196,7 @@
 		(layers "F.Cu" "F.Paste" "F.Mask")
 		(clearance 0.4)
 		(zone_connect 2)
-		(uuid "61668f4f-3b0a-4fac-98ec-2ad71638e597")
+		(uuid "f86bff27-ed98-46a3-aaf9-7f1be03166ac")
 	)
 	(pad "A6" smd circle
 		(at 0 7.5)
@@ -101,7 +204,7 @@
 		(layers "F.Cu" "F.Paste" "F.Mask")
 		(clearance 0.4)
 		(zone_connect 2)
-		(uuid "5cd35f33-4b8a-4587-9ac7-b04a90982109")
+		(uuid "1d77b791-06fd-44ac-a3f2-0d80a46d1f24")
 	)
 	(pad "A7" smd circle
 		(at 0 10.5)
@@ -109,7 +212,7 @@
 		(layers "F.Cu" "F.Paste" "F.Mask")
 		(clearance 0.4)
 		(zone_connect 2)
-		(uuid "b1bdaee7-be8a-4d6e-afbd-cec7351755e6")
+		(uuid "a44af576-2f7c-4548-855f-0948ff79ac64")
 	)
 	(pad "A8" smd circle
 		(at 0 13.5)
@@ -117,17 +220,8 @@
 		(layers "F.Cu" "F.Paste" "F.Mask")
 		(clearance 0.4)
 		(zone_connect 2)
-		(uuid "1c9c6ddd-0638-48dd-8c74-1da9f3939cb3")
+		(uuid "98b27ac6-91b4-4b81-b86a-90189134a294")
 	)
-	(fp_rect (start -1.7 15.2) (end 4.7 2.8) (stroke (width 0.1) (type solid)) (fill no) (layer "F.Fab"))
-	(fp_rect (start -1.95 15.45) (end 4.95 2.55) (stroke (width 0.05) (type solid)) (fill no) (layer "F.CrtYd"))
-	(fp_text user "Cluster A" (at 1.5 16.2 0) (layer "F.SilkS") (effects (font (size 1 1) (thickness 0.15))))
-	(fp_text user "VBUS" (at 6.2 9 90) (layer "F.SilkS") (effects (font (size 0.8 0.8) (thickness 0.15))))
-	(fp_text user "GND" (at -2.6 9 90) (layer "F.SilkS") (effects (font (size 0.8 0.8) (thickness 0.15))))
-	(fp_circle (center 3 2.6) (end 3.2 2.6) (stroke (width 0.2) (type solid)) (fill yes) (layer "F.SilkS"))
-	(fp_circle (center 0 0) (end 2.8 0) (stroke (width 0.05) (type solid)) (fill no) (layer "F.CrtYd"))
-	(fp_circle (center 0 0) (end 2.8 0) (stroke (width 0.05) (type solid)) (fill no) (layer "B.CrtYd"))
-	(fp_text user "H1" (at 0 -2.2 0) (layer "F.Fab") (effects (font (size 0.8 0.8) (thickness 0.12))))
 	(fp_circle (center 3 4.5) (end 4 4.5) (stroke (width 0.1) (type solid)) (fill no) (layer "F.Fab"))
 	(fp_circle (center 3 7.5) (end 4 7.5) (stroke (width 0.1) (type solid)) (fill no) (layer "F.Fab"))
 	(fp_circle (center 3 10.5) (end 4 10.5) (stroke (width 0.1) (type solid)) (fill no) (layer "F.Fab"))
