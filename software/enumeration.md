@@ -289,7 +289,7 @@ I²C enumeration yields **UID + type + version**. USB modules expose the same tr
 | **Instance ID** | 8-byte hardware UID | **iSerialNumber** — the MCU's hardware unique ID |
 | **Version** | `GET_VERSION` (`0xB1`) | `GET_VERSION` (`0xB1`) — identical command |
 
-So a USB module's identity is idiomatic USB: **VID = noknok, PID = module type, serial = unique instance.** (VID/PID assignment is being finalised; development units use the pid.codes prototype VID `0x1209`.)
+So a USB module's identity is idiomatic USB: **VID = noknok, PID = module type, serial = unique instance.** VID/PID are registered with [pid.codes](https://pid.codes/1209/) under the shared community VID `0x1209`: application PID `0x4E4E` ("NN"), bootloader PID `0x4E42` ("NB") — both shared across the entire noknok USB module family, not per-product. See [module-USB-bootloader](https://github.com/buildwithnoknok/module-USB-bootloader#readme) for the bootloader identity/re-enumeration details.
 
 ### Unique serial number
 
