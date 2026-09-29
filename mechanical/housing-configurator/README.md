@@ -70,38 +70,49 @@ on each box to route wiring between them — keep joins off the power/latch wall
 live in the `DT` constant in `main.js` (neck/tip widths, depth, print clearance) and want a test print
 to tune the slide fit.
 
-## noknok Dome Mount ø58 (screw-in tops)
+## noknok Dome Mount ø58 and ø44 (screw-in tops)
 
-The **USB LEDs +dome** variant is a 70 × 70 mm housing (the tile is oversized so the ~62 mm ring can't
-overlap a neighbouring module). Its top cover carries a coarse, jam-jar-style
-**female (internal) thread ring that projects DOWN into the box** — same direction as the walls/columns,
-so the **cover prints flat on the bed with no supports**. A lid (dome) with the matching **male thread
-screws IN** from the top. This is a published interface: design a lid with the matching male thread and it
-fits.
+Two dome sizes, one per LED module: **USB LEDs +dome** (the 40 × 40 8-LED board, 70 × 70 tile, ø58 dome)
+and **USB LEDs 16x +dome** (the round ø40 16-LED board, 50 × 50 tile, ø44 dome). Each top cover carries
+a coarse, jam-jar-style **female (internal) thread ring that runs from the outer face DOWN into the box**
+— same direction as the walls/columns, so the **cover prints flat on the bed with no supports**. A lid
+(dome) with the matching **male thread screws IN** from the top. These are published interfaces: design
+a lid with the matching male thread and it fits.
 
-| Parameter | Value |
-|---|---|
-| Thread major ø (male crest) | **59.5 mm** |
-| Ring bore / female crest ø | ~57.9 mm (the 40 × 40 board, 56.6 mm diagonal, sits inside) |
-| Starts / lead | 3-start, 7.5 mm lead (2.5 mm crest spacing) — seats in ~⅔ turn |
-| Ring height (into the box) | 6 mm, 1.2 mm radial tooth |
-| Fit clearance | 0.4 mm radial |
-| Ring outer ø | ~62 mm (well inside the 70 mm tile) |
-| Lid globe ø | ~69 mm (fills the 70 mm tile) |
+| Parameter | ø58 (USB LEDs) | ø44 (USB LEDs 16x) |
+|---|---|---|
+| Thread major ø (male crest) | **59.5 mm** | **44.0 mm** |
+| Female minor ø | ~57.9 mm (board, 56.6 mm diagonal, sits inside) | ~42.4 mm (board sits just below, on the lip) |
+| Starts / lead | 3-start, 7.5 mm lead (2.5 mm crest spacing) — seats in ~⅔ turn | same |
+| Ring height | 6 mm from the outer face (1.2 plate + 4.8 into the box), 1.2 mm tooth | same |
+| Fit clearance | 0.4 mm radial | same |
+| Ring outer ø | ~62 mm | ~46.6 mm |
+| Lid globe ø / light bore ø | ~69 / 53.5 mm | ~49 / 38 mm |
+| Board retention | back posts + pegs (gravity) | **clamp lip**: 0.6 mm annulus under the ring (inner ø38) presses the board's edge band onto the back posts; also the lid's thread stop |
 
-The board is smaller than the light opening, so it isn't held by front columns — it rests on the tall
-back-cover posts (gravity + locating pegs; a firmer snap can be added). The tool exports two matching
-screw-in lids: **⬇ reference dome lid** (`referenceDome`, print translucent) and **⬇ honeycomb dome lid**
-(`referenceDomeHoney`, hex-perforated for any opaque filament). Thread params live in the `DOME` constant
-in `main.js` (`threadSolid` / `domeRing`). **Note:** thread fit always wants one test print to tune the
-clearance; the internal thread prints with modest overhangs (coarse pitch bridges fine).
+**Fixed 2026-09-29:** the ring used to sit entirely *under* the 1.2 mm top plate, which had a ø58 hole —
+smaller than the ø59.5 lid crest, so the lid could never reach the thread. The ring's top is now flush
+with the outer face and the plate hole is cut just wider than the female thread (`domeCutR`), so the
+thread starts at the surface. The lids themselves did not change.
+
+**Why the 16x board sits *below* its ring:** the USB-C and JST plugs enter at the board edge, and a
+USB-C plug overmold reaches up to about the PCB front. Inside the ring (like the ø58), the plugs would
+hit the ring wall. Below it, they pass under it. It costs ~5 mm of box height.
+
+The tool exports matching screw-in lids for whichever dome(s) are in the design: **⬇ reference dome lid**
+(`referenceDome`, print translucent) and **⬇ honeycomb dome lid** (`referenceDomeHoney`, hex-perforated
+for any opaque filament). Thread params live in the `DOMES` table in `main.js` (`threadSolid` /
+`domeRing`). **Note:** thread fit always wants one test print to tune the clearance; the internal thread
+prints with modest overhangs (coarse pitch bridges fine), the ø44 lip is a ~2 mm flat ledge.
 
 ## Module library
 
 The module footprints, clearances, mount holes, connectors and top openings live in the `MODULES`
 table in `main.js`, mirroring each module repo's **housing profile**
 (`mechanical/housing.json`, spec: [`../housing-profile.md`](../housing-profile.md)).
-Currently: buzzer, knob, LED button (20 × 20), USB LEDs (40 × 40), display (40 × 30).
+Currently: buzzer, knob, LED button (20 × 20), USB LEDs (40 × 40, +dome 70 × 70), USB LEDs 16x
+(round ø40 in a 40 × 40 tile, +dome 50 × 50), display (40 × 30, re-checked against rev 1.1 — unchanged),
+PicoHub (60 × 40).
 
 ## Files
 

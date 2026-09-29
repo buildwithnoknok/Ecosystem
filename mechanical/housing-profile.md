@@ -42,6 +42,9 @@ This document is the authoritative spec for the file format.
 | `mounting` | object | ✔ | `{ "screw": "M2.5", "holes": [ … ] }`. See §3. |
 | `connectors` | array | ✔ | Connector list for cable routing. See §4. |
 | `top_feature` | object \| null | ✔ | What the lid must provide over this module. `null` = blank lid. See §5. |
+| `outline` | object | – | Only for a non-rectangular board: `{ "shape": "circle", "x", "y", "dia" }` inside the `footprint` box (e.g. the round USB LEDs 16x). `footprint` stays the bounding square the grid uses. |
+| `keepouts` | array | – | Zones no housing feature may touch: `{ "id", "x", "y", "w", "h", "side", "note" }` (e.g. the display's FPC fold). |
+| `variants` | array | – | Alternative housings for the same board (e.g. a dome tile): `{ "id", "configurator_module", "tile", "clearance_top", "note" }`. |
 | `notes` | string | – | Free text: measurement caveats, estimates, TODOs. |
 
 ---
