@@ -73,17 +73,6 @@
 		(layer "F.Fab")
 		(uuid "8459d7cc-413e-4103-a0a0-5e0082686ec0")
 	)
-	(fp_text user "GND"
-		(at -2.6 -9 90)
-		(layer "F.SilkS")
-		(uuid "8b344cab-c572-4012-b861-547b2cce671d")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
 	(fp_text user "Cluster A"
 		(at 1.5 -16.2 0)
 		(layer "F.SilkS")
@@ -91,17 +80,6 @@
 		(effects
 			(font
 				(size 1 1)
-				(thickness 0.15)
-			)
-		)
-	)
-	(fp_text user "VBUS"
-		(at 6.2 -9 90)
-		(layer "F.SilkS")
-		(uuid "92f3fc48-61ad-44af-96b9-983aa2f207ea")
-		(effects
-			(font
-				(size 0.8 0.8)
 				(thickness 0.15)
 			)
 		)
@@ -191,5 +169,13 @@
 	)
 	(fp_rect (start -2.8 -15.45) (end 4.95 2.8) (stroke (width 0.05) (type solid)) (fill no) (layer "F.CrtYd"))
 	(fp_circle (center 0 0) (end 2.8 0) (stroke (width 0.05) (type solid)) (fill no) (layer "F.Fab"))
+	(fp_text user "VPD" (at 5.2 -4.5 90) (layer "F.SilkS") (effects (font (size 0.7 0.7) (thickness 0.12))))
+	(fp_text user "VPD" (at 5.2 -7.5 90) (layer "F.SilkS") (effects (font (size 0.7 0.7) (thickness 0.12))))
+	(fp_text user "VPD" (at 5.2 -10.5 90) (layer "F.SilkS") (effects (font (size 0.7 0.7) (thickness 0.12))))
+	(fp_text user "VPD" (at 5.2 -13.5 90) (layer "F.SilkS") (effects (font (size 0.7 0.7) (thickness 0.12))))
+	(fp_text user "GND" (at -2.2 -4.5 90) (layer "F.SilkS") (effects (font (size 0.7 0.7) (thickness 0.12))))
+	(fp_text user "GND" (at -2.2 -7.5 90) (layer "F.SilkS") (effects (font (size 0.7 0.7) (thickness 0.12))))
+	(fp_text user "GND" (at -2.2 -10.5 90) (layer "F.SilkS") (effects (font (size 0.7 0.7) (thickness 0.12))))
+	(fp_text user "GND" (at -2.2 -13.5 90) (layer "F.SilkS") (effects (font (size 0.7 0.7) (thickness 0.12))))
 	(embedded_fonts no)
 )
