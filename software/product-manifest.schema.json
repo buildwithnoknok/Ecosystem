@@ -188,6 +188,7 @@
         "knob",
         "led_button",
         "usb_leds",
+        "usb_leds_16x",
         "usb_datahub",
         "usb_powerhub",
         "usb_picohub",

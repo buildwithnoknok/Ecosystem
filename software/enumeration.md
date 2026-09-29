@@ -143,7 +143,12 @@ Conductor polls `0x7F` every 20 ms. Stops after **3000 ms** of no response.
 | `0x01` | noknokbuzzer | `NoknokBuzzer` | ✅ complete |
 | `0x02` | noknokknob | `NoknokKnob` | ✅ complete |
 | `0x03` | noknokledbutton | `NoknokLedButton` | ✅ complete |
-| `0x04` | noknok LEDs (USB) | `NoknokLEDs` | ✅ complete — USB modules use a different discovery scheme, see [USB Module Discovery & Identity](#usb-module-discovery--identity) |
+| `0x04` | noknok LEDs (USB, 8× RGB) | `NoknokLEDs` | ✅ complete — USB modules use a different discovery scheme, see [USB Module Discovery & Identity](#usb-module-discovery--identity) |
+| `0x05` | noknok Display (I²C) | `NoknokDisplay` | ✅ in use (firmware `MODULE_TYPE 0x05`) |
+| `0x06` | noknok LEDs 16x (USB, 16× RGBW) | *pending — DEV-46* | firmware v2.2.0+ answers `0xF0` with `4E 4E 06`. Its own board type (decided 29 Sep 2026), not a variant of `0x04`. Manifest type string `usb_leds_16x`. |
+
+The same code space is shared by I²C and USB modules — **never reuse a code**. For USB
+modules the code is the third byte of the `0xF0` identity reply (see below).
 
 ---
 
@@ -285,11 +290,20 @@ I²C enumeration yields **UID + type + version**. USB modules expose the same tr
 
 | Property | I²C source | USB source |
 |----------|------------|------------|
-| **Type** | `MODULE_TYPE` byte in the `0x7F` response | **PID** — one Product ID per module type |
+| **Type** | `MODULE_TYPE` byte in the `0x7F` response | **`MODULE_TYPE` byte in the `0xF0` identity reply** `[0x4E, 0x4E, type]` — same code table |
 | **Instance ID** | 8-byte hardware UID | **iSerialNumber** — the MCU's hardware unique ID |
 | **Version** | `GET_VERSION` (`0xB1`) | `GET_VERSION` (`0xB1`) — identical command |
 
-So a USB module's identity is idiomatic USB: **VID = noknok, PID = module type, serial = unique instance.** VID/PID are registered with [pid.codes](https://pid.codes/1209/) under the shared community VID `0x1209`: application PID `0x4E4E` ("NN"), bootloader PID `0x4E42` ("NB") — both shared across the entire noknok USB module family, not per-product. See [module-USB-bootloader](https://github.com/buildwithnoknok/module-USB-bootloader#readme) for the bootloader identity/re-enumeration details.
+So a USB module's identity is: **VID = noknok, PID = "noknok app" (or bootloader), serial =
+unique instance, `0xF0` → module type.** VID/PID are registered with
+[pid.codes](https://pid.codes/1209/) under the shared community VID `0x1209`: application PID
+`0x4E4E` ("NN"), bootloader PID `0x4E42` ("NB") — both **shared across the entire noknok USB
+module family**, not per-product. The PID therefore says only *"a noknok module, running its
+app"*; **it does not identify the module type** — ask `0xF0`. (Corrected 29 Sep 2026: an
+earlier version of this page said "PID = module type"; that became wrong the moment a second
+USB module type existed, the LEDs 16x `0x06` next to the LEDs `0x04`.) See
+[module-USB-bootloader](https://github.com/buildwithnoknok/module-USB-bootloader#readme) for the
+bootloader identity/re-enumeration details.
 
 ### Unique serial number
 
@@ -306,7 +320,8 @@ The Conductor and the role system treat this serial exactly as they treat an I²
 1. Conductor opens the USB host port (PIO-USB) and scans the bus.
 2. For each device whose VID = noknok:
      - read iSerialNumber    -> instance ID  (which physical module)
-     - read PID              -> module type  (which driver class)
+     - read PID              -> app (0x4E4E) or bootloader (0x4E42)
+     - send 0xF0 identity    -> [0x4E, 0x4E, type] -> module type (which driver class)
      - send GET_VERSION 0xB1 -> firmware version
 3. Build the registry { serial: (type, version, handle) }.
 ```
