@@ -100,7 +100,9 @@ Key facts about this contract:
 - **The product runs entirely on the Pico**, in real time. There is no
   round-trip to the app during play. Good for games and instruments.
 - **`enumerate()` populates per-type lists** in discovery order: `c.buzzer`,
-  `c.knob`, `c.ledbutton`, `c.leds` (USB). Empty list = none found.
+  `c.knob`, `c.ledbutton`, `c.display`, `c.leds` (USB LEDs, 8× RGB) and
+  `c.leds16` (USB LEDs 16x, 16× RGBW — same calls plus an optional `w=` white
+  value, `white(level)` and `status()` / `temperature()`). Empty list = none found.
 - **Factory reset is the brain's job, not yours.** Every product shares one
   gesture: hold any LED Button or Knob button *while plugging in the power*,
   keep holding until the LED Buttons flash / the buzzer confirms (~8 s), and

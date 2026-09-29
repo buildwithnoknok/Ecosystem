@@ -92,9 +92,11 @@ under `manifests/`, and are listed in `catalog.json`, which the app fetches firs
 | `modules_required` | yes | `[{ type, count }]` — what the customer must own. The app checks these against what enumerates on the brain. Identical modules are fine; enumeration gives each a unique address. |
 
 `type` comes from a controlled vocabulary shared with `module_firmware` and
-`roles`: `buzzer`, `knob`, `led_button`, `usb_leds`, `usb_datahub`,
-`usb_powerhub`, `usb_picohub`, `display`. It must match what the Conductor
-exposes (`c.buzzer`, `c.knob`, `c.ledbutton`, `c.leds`, `c.display`).
+`roles`: `buzzer`, `knob`, `led_button`, `usb_leds`, `usb_leds_16x`,
+`usb_datahub`, `usb_powerhub`, `usb_picohub`, `display`. It must match what the
+Conductor exposes (`c.buzzer`, `c.knob`, `c.ledbutton`, `c.leds`, `c.leds16`,
+`c.display`). `usb_leds` (8× RGB) and `usb_leds_16x` (16× RGBW) are different
+modules: a product written for one does not get the other.
 
 ## `module_firmware` — a floor, not a pin
 

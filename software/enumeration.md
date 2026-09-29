@@ -145,7 +145,7 @@ Conductor polls `0x7F` every 20 ms. Stops after **3000 ms** of no response.
 | `0x03` | noknokledbutton | `NoknokLedButton` | ✅ complete |
 | `0x04` | noknok LEDs (USB, 8× RGB) | `NoknokLEDs` | ✅ complete — USB modules use a different discovery scheme, see [USB Module Discovery & Identity](#usb-module-discovery--identity) |
 | `0x05` | noknok Display (I²C) | `NoknokDisplay` | ✅ in use (firmware `MODULE_TYPE 0x05`) |
-| `0x06` | noknok LEDs 16x (USB, 16× RGBW) | *pending — DEV-46* | firmware v2.2.0+ answers `0xF0` with `4E 4E 06`. Its own board type (decided 29 Sep 2026), not a variant of `0x04`. Manifest type string `usb_leds_16x`. |
+| `0x06` | noknok LEDs 16x (USB, 16× RGBW) | `NoknokLEDs16` (`c.leds16`) | ✅ driver in noknok_usb.py 1.1 / noknok.py 1.10 (DEV-46). Firmware v2.2.0+ answers `0xF0` with `4E 4E 06`. Its own board type (decided 29 Sep 2026), not a variant of `0x04`. Manifest type string `usb_leds_16x`. |
 
 The same code space is shared by I²C and USB modules — **never reuse a code**. For USB
 modules the code is the third byte of the `0xF0` identity reply (see below).
