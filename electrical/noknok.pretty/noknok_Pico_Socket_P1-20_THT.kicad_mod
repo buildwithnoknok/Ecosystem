@@ -721,20 +721,20 @@
 		(primitives
 			(gr_poly
 				(pts
-					(xy 0.8 -23.53) (xy 0.8 -24.73) (xy 0.6 -24.93) (xy 0 -24.93) (xy 0 -23.33) (xy 0.6 -23.33)
+					(xy 0.8 0.6) (xy 0.8 -0.6) (xy 0.6 -0.8) (xy 0 -0.8) (xy 0 0.8) (xy 0.6 0.8)
 				)
 				(width 0)
 				(fill yes)
 			)
 			(gr_circle
-				(center 0.6 -23.53)
-				(end 0.8 -23.53)
+				(center 0.6 0.6)
+				(end 0.8 0.6)
 				(width 0)
 				(fill yes)
 			)
 			(gr_circle
-				(center 0.6 -24.73)
-				(end 0.8 -24.73)
+				(center 0.6 -0.6)
+				(end 0.8 -0.6)
 				(width 0)
 				(fill yes)
 			)
@@ -786,20 +786,20 @@
 		(primitives
 			(gr_poly
 				(pts
-					(xy 0.8 -23.53) (xy 0.8 -24.73) (xy 0.6 -24.93) (xy 0 -24.93) (xy 0 -23.33) (xy 0.6 -23.33)
+					(xy 0.8 0.6) (xy 0.8 -0.6) (xy 0.6 -0.8) (xy 0 -0.8) (xy 0 0.8) (xy 0.6 0.8)
 				)
 				(width 0)
 				(fill yes)
 			)
 			(gr_circle
-				(center 0.6 -23.53)
-				(end 0.8 -23.53)
+				(center 0.6 0.6)
+				(end 0.8 0.6)
 				(width 0)
 				(fill yes)
 			)
 			(gr_circle
-				(center 0.6 -24.73)
-				(end 0.8 -24.73)
+				(center 0.6 -0.6)
+				(end 0.8 -0.6)
 				(width 0)
 				(fill yes)
 			)
@@ -851,20 +851,20 @@
 		(primitives
 			(gr_poly
 				(pts
-					(xy 0.8 -23.53) (xy 0.8 -24.73) (xy 0.6 -24.93) (xy 0 -24.93) (xy 0 -23.33) (xy 0.6 -23.33)
+					(xy 0.8 0.6) (xy 0.8 -0.6) (xy 0.6 -0.8) (xy 0 -0.8) (xy 0 0.8) (xy 0.6 0.8)
 				)
 				(width 0)
 				(fill yes)
 			)
 			(gr_circle
-				(center 0.6 -23.53)
-				(end 0.8 -23.53)
+				(center 0.6 0.6)
+				(end 0.8 0.6)
 				(width 0)
 				(fill yes)
 			)
 			(gr_circle
-				(center 0.6 -24.73)
-				(end 0.8 -24.73)
+				(center 0.6 -0.6)
+				(end 0.8 -0.6)
 				(width 0)
 				(fill yes)
 			)
@@ -916,20 +916,20 @@
 		(primitives
 			(gr_poly
 				(pts
-					(xy 0.8 -23.53) (xy 0.8 -24.73) (xy 0.6 -24.93) (xy 0 -24.93) (xy 0 -23.33) (xy 0.6 -23.33)
+					(xy 0.8 0.6) (xy 0.8 -0.6) (xy 0.6 -0.8) (xy 0 -0.8) (xy 0 0.8) (xy 0.6 0.8)
 				)
 				(width 0)
 				(fill yes)
 			)
 			(gr_circle
-				(center 0.6 -23.53)
-				(end 0.8 -23.53)
+				(center 0.6 0.6)
+				(end 0.8 0.6)
 				(width 0)
 				(fill yes)
 			)
 			(gr_circle
-				(center 0.6 -24.73)
-				(end 0.8 -24.73)
+				(center 0.6 -0.6)
+				(end 0.8 -0.6)
 				(width 0)
 				(fill yes)
 			)
