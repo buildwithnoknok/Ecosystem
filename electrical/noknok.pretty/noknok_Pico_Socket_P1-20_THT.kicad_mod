@@ -990,4 +990,6 @@
 		)
 	)
 	(embedded_fonts no)
+	(fp_text user "1" (at -2.4 -24.13 0) (layer "F.SilkS") (effects (font (size 0.8 0.8) (thickness 0.12))))
+	(fp_text user "20" (at -2.4 24.13 0) (layer "F.SilkS") (effects (font (size 0.8 0.8) (thickness 0.12))))
 )
