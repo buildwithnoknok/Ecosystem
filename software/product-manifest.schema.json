@@ -141,22 +141,23 @@
     },
     "config_schema": {
       "type": "array",
-      "description": "Customer-configurable settings, v2 (DEV-34). The manifest carries the SCHEMA, the device carries the VALUES: the app renders a settings page from this list and reads/writes values over the device protocol (settings.get/set), product.py reads them through c.settings.get(id). Every entry needs a default; the app sends all defaults as config_defaults at provisioning.",
+      "description": "Customer-configurable settings, v2 (DEV-34). The manifest carries the SCHEMA, the device carries the VALUES: the app renders a settings page from this list and reads/writes values over the device protocol (settings.get/set), product.py reads them through c.settings.get(id). Every entry except type info needs a default; the app sends all defaults as config_defaults at provisioning. Type info is a read-only live value supplied by product.py (c.settings.info).",
       "items": {
         "type": "object",
-        "required": ["id", "type", "label", "default"],
+        "required": ["id", "type", "label"],
         "additionalProperties": false,
         "properties": {
-          "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$", "description": "Key used by c.settings.get(id). Lowercase snake_case." },
-          "type": { "type": "string", "enum": ["toggle", "slider", "color", "select", "text", "time"] },
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$", "description": "Key used by c.settings.get(id) (or c.settings.info(id, fn) for type info). Lowercase snake_case." },
+          "type": { "type": "string", "enum": ["toggle", "slider", "color", "select", "text", "time", "info"], "description": "info = read-only live value shown on the page (e.g. a module temperature); product.py supplies it with c.settings.info(id, fn). No default, never stored, the app cannot change it." },
           "label": { "type": "string" },
-          "default": { "description": "Required. Value type must match `type`: toggle=boolean, slider=number, color='#RRGGBB', select=one of options[].value, text=string, time='HH:MM'." },
+          "default": { "description": "Required for every type except info. Value type must match `type`: toggle=boolean, slider=number, color='#RRGGBB', select=one of options[].value, text=string, time='HH:MM'." },
           "group": { "type": "string", "description": "Optional section heading for the app page." },
           "help": { "type": "string", "description": "Optional one-line hint under the control." },
           "min": { "type": "number", "description": "slider" },
           "max": { "type": "number", "description": "slider" },
           "step": { "type": "number", "description": "slider, default 1" },
-          "unit": { "type": "string", "description": "slider, e.g. 'min', '%'" },
+          "unit": { "type": "string", "description": "slider / info, e.g. 'min', '%', '°C'" },
+          "decimals": { "type": "integer", "minimum": 0, "maximum": 6, "description": "info: digits after the decimal point for a number (default: as sent)" },
           "options": {
             "type": "array",
             "description": "select",
@@ -170,6 +171,7 @@
           "max_length": { "type": "integer", "minimum": 1, "description": "text" }
         },
         "allOf": [
+          { "if": { "properties": { "type": { "const": "info" } } }, "then": { "not": { "required": ["default"] } }, "else": { "required": ["default"] } },
           { "if": { "properties": { "type": { "const": "toggle" } } }, "then": { "properties": { "default": { "type": "boolean" } } } },
           { "if": { "properties": { "type": { "const": "slider" } } }, "then": { "required": ["min", "max"], "properties": { "default": { "type": "number" } } } },
           { "if": { "properties": { "type": { "const": "color" } } }, "then": { "properties": { "default": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" } } } },

@@ -195,6 +195,21 @@ while True:
   its own defaults.
 - Clamp what you read. The app validates against the schema, the brain stores
   verbatim; your product is the last line of defence.
+- **Read-only values for the app (`info`):** to show something the customer can
+  see but not change (a module temperature, a counter, a status line), declare a
+  `config_schema` entry with `"type": "info"` (no `default`) and hand the brain a
+  function that returns the current value:
+
+  ```python
+  leds = c.leds16[0]
+  s.info("temperature", leds.temperature)            # -> 42.6, shown as "42.6 °C"
+  s.info("light", lambda: "Dimmed (warm)" if leds.status()["limited"] else "Normal")
+  ```
+
+  The function runs each time the app asks (every ~3 s while the page is open),
+  never in your loop, and its result is never stored. Keep it to one quick module
+  read. If it raises, the app shows `—` instead of breaking. The app cannot change
+  an `info` value, and `s.set()` on it is refused.
 - The whole thing is optional: a product with no `config_schema` never touches
   `c.settings` and pays nothing.
 

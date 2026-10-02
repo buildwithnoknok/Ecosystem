@@ -185,7 +185,9 @@ the same value; the device is the source of truth, last write wins.
   { "id": "color",       "type": "color",  "label": "Lamp colour", "default": "#FFAF5F" },
   { "id": "mode",        "type": "select", "label": "Mode",        "options": [{"value": "solid", "label": "Solid"}, {"value": "breathe", "label": "Breathe"}], "default": "solid" },
   { "id": "name",        "type": "text",   "label": "Name",        "max_length": 24, "default": "" },
-  { "id": "sundown_at",  "type": "time",   "label": "Sundown at",  "default": "21:00" }
+  { "id": "sundown_at",  "type": "time",   "label": "Sundown at",  "default": "21:00" },
+  { "id": "temperature", "type": "info",   "label": "Temperature", "unit": "°C", "decimals": 1,
+    "help": "Chip temperature of the LED module" }
 ]
 ```
 
@@ -197,8 +199,17 @@ the same value; the device is the source of truth, last write wins.
 | `select` | one of `options[].value` | `options: [{value, label}]` (required) |
 | `text` | string | `max_length` |
 | `time` | `"HH:MM"` local time | — |
+| `info` | **read-only**: number, string, boolean or `null`, supplied live by `product.py` | `unit`, `decimals`; **no** `default` |
 
-Rules: `default` is **required** for every entry (the app sends all defaults to the
+**`info` — a live value the customer can see but not change** (noknok.py 1.11+, DEV-46),
+e.g. a module's temperature, a counter, "Brightness limited (warm)". `product.py`
+provides it with `c.settings.info(id, fn)`; the brain calls `fn` every time the app asks
+(about every 3 s while the settings page is open) and returns the results in
+`settings.get` as `info{}`. Never stored, never written to flash, never in
+`config_defaults`, and `settings.set` rejects it as `read-only`. The app shows `—` while
+the value is `null` (no provider registered yet, or the provider failed).
+
+Rules: `default` is **required** for every entry except `info` (the app sends all defaults to the
 brain at install as `config_defaults`, so device and app agree from first boot);
 `id` is lowercase snake_case; optional `group` sections the page, `help` adds a hint.
 The **app validates** input against the schema; the **brain stores values verbatim**
