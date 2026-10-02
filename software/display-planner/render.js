@@ -6,7 +6,7 @@
 // A JavaScript port of the DRAWING part of brain-Pico/software/noknok.py (class Bitmap,
 // class NoknokDisplay: clear / fill_rect / text / icon / image / region / set) plus the
 // module firmware's DRAW_TEXT glyph painter (display_firmware.c: gpu_draw_glyph). The
-// planner's preview is produced by THIS code, so every rule below mirrors noknok.py 1.9
+// planner's preview is produced by THIS code, so every rule below mirrors noknok.py 1.11
 // line for line: text routing (module 8x8 font vs Pico 8x16 font), cell widths, wrapping,
 // box clipping, icon scaling, alignment. If noknok.py changes, change this too, then run
 // test/golden.mjs - it renders the same layout through the real noknok.py (display_sim.py)
