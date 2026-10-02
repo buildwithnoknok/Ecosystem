@@ -26,6 +26,13 @@ The Conductor runs the main application logic, orchestration routines, and modul
 - The Conductor uses the `noknok.py` library which provides:
   - `Conductor` class — handles enumeration and module discovery
   - Per-module driver classes (e.g. `NoknokBuzzer`) — high-level API
+- **Put the library on the Pico precompiled, as `noknok.mpy`** (and `noknok_rpc.mpy`,
+  `noknok_usb.mpy`, `module_flasher.mpy`), not as `.py` source. The Pico compiles every
+  imported `.py` in RAM; `noknok.py` is ~190 KB of source and next to the brain's network
+  code that runs out of contiguous memory (`MemoryError` at `import noknok`, Oct 2026).
+  Build with `mpy-cross` **of the same CircuitPython version as the Pico** (brain-Pico
+  `tools/build_mpy.ps1`; official builds on Adafruit's S3 under `bin/mpy-cross/`). Never keep
+  `noknok.py` and `noknok.mpy` side by side on the Pico — the `.py` wins.
 
 ### C — Module MCUs (CH32V003 / CH32V203)
 
@@ -47,7 +54,8 @@ Each module contains its own MCU and runs firmware written in **C** using the **
 |------|---------|
 | CircuitPython | Runtime on Raspberry Pi Pico |
 | Thonny IDE | Development and file management |
-| `noknok.py` | noknok module library |
+| `noknok.py` | noknok module library (source; on the Pico as `noknok.mpy`) |
+| `mpy-cross` | Precompiles the library to `.mpy` — version must match the Pico's CircuitPython |
 | [Display Planner](display-planner/) | Browser tool: regions + icons for the noknok Display, exports `noknok.py` code — <https://buildwithnoknok.github.io/display-planner/> |
 
 ### Module MCUs (C)
