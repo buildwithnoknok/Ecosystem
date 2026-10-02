@@ -24,20 +24,27 @@
   const { Display, Bitmap, builtinIcon, builtinIconNames } = N;
 
   const PRESETS = [
-    { id: 'noknok-142', label: 'noknok Display 1.42" (80 x 160)', width: 80, height: 160 },
+    { id: 'noknok-142', label: 'noknok Display 1.42" (80 x 160 portrait / 160 x 80 landscape)', width: 80, height: 160 },
     { id: 'custom',     label: 'Custom size...',                     width: 80, height: 160 },
   ];
+  // The module BOOTS in BOOT_ROTATION (display firmware v0.6.0+ = landscape; the generator
+  // reads it from display_firmware.c), so a layout in that orientation needs NO d.rotation()
+  // call and every other one DOES. Getting this backwards renders a product sideways.
+  const BOOT_ROTATION = N.D.bootRotation;
   const ROTATIONS = [
     { id: 0, label: 'Portrait' }, { id: 1, label: 'Landscape' },
     { id: 2, label: 'Portrait, upside down' }, { id: 3, label: 'Landscape, other way' },
-  ];
+  ].map(r => Object.assign(r, { const: N.D.orientations[r.id],
+                               label: r.label + (r.id === BOOT_ROTATION ? ' — module default' : '') }));
+  // "Landscape — module default" -> "landscape", for comments and headers
+  const plainLabel = rot => ROTATIONS[rot].label.split(' —')[0].toLowerCase();
   const NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
   const TOOL_URL = 'https://buildwithnoknok.github.io/display-planner/';
 
   function newLayout() {
     return {
       planner: 'noknok-display-planner', version: 1,
-      display: { preset: 'noknok-142', width: 80, height: 160, rotation: 0 },
+      display: { preset: 'noknok-142', width: 80, height: 160, rotation: BOOT_ROTATION },
       bg: 'black',
       regions: [],
       icons: {},
@@ -187,8 +194,19 @@
     }
     if (layout.regions.length === 0) body.push('# (no regions yet - drag one out on the display in the planner)');
 
+    // The module BOOTS in BOOT_ROTATION, so the call is emitted only when this layout wants a
+    // different one — as the named constant, which is how noknok.py reads best. Decided before
+    // the import line so the constant lands in it.
+    const bootName = plainLabel(BOOT_ROTATION), rotLine = [];
+    if (rot !== BOOT_ROTATION) {
+      imports.add(ROTATIONS[rot].const);
+      rotLine.push(`d.rotation(${ROTATIONS[rot].const})${' '.repeat(Math.max(1, 24 - ROTATIONS[rot].const.length))}# ${W}x${H} - REQUIRED: the module boots ${bootName}`);
+    } else {
+      rotLine.push(`# ${W}x${H} ${bootName} is the module's own boot orientation - no d.rotation() call needed.`);
+    }
+
     const head = [];
-    head.push(`# noknok display layout - ${W}x${H} ${ROTATIONS[rot].label.toLowerCase()}`);
+    head.push(`# noknok display layout - ${W}x${H} ${plainLabel(rot)}`);
     head.push(`# Made with the noknok Display Planner: ${TOOL_URL}`);
     head.push('# Paste into your product.py after the display is fetched:   d = c.display[0]');
     const names = ['ICONS'].filter(() => iconsUsed.size).concat(needBitmap ? ['Bitmap'] : [], [...imports].sort());
@@ -199,7 +217,7 @@
       for (const n of [...iconsUsed].sort()) head.push(`ICONS[${pyStr(n)}] = ${pyRows(layout.icons[n], '')}`);
       head.push('');
     }
-    if (rot !== 0) head.push(`d.rotation(${rot})${' '.repeat(30)}# ${ROTATIONS[rot].label.toLowerCase()} (${W}x${H}); needs display firmware 0.3.0+`);
+    head.push(...rotLine);
 
     const tail = [];
     if (sets.length) { tail.push(''); tail.push('# Starter content - call d.set(name, text=... | icon=... | image=...) whenever a value changes.'); tail.push(...sets); }
@@ -228,7 +246,7 @@
     return L;
   }
 
-  const LAYOUT = { PRESETS, ROTATIONS, NAME_RE, TOOL_URL, newLayout, newRegion, panelSize, iconLookup, allIconNames,
+  const LAYOUT = { PRESETS, ROTATIONS, BOOT_ROTATION, NAME_RE, TOOL_URL, newLayout, newRegion, panelSize, iconLookup, allIconNames,
                    render, warnings, printBand, textFitFor, toPython, toJSON, fromJSON, colorValue, isNamedColor };
   if (typeof module !== 'undefined' && module.exports) module.exports = LAYOUT;
   root.NDP_LAYOUT = LAYOUT;

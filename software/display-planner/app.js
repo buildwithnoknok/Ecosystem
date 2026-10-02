@@ -124,7 +124,7 @@
   // ═══════════════════════════ LAYOUT TAB ══════════════════════════════════
   const cv = $('plannerCanvas'), ctx = cv.getContext('2d'), off = document.createElement('canvas');
   const PAD = 18;
-  let zoom = 4, sel = null, drag = null, hover = null;
+  let zoom = 4, zoomManual = false, sel = null, drag = null, hover = null;
   const srcOf = new WeakMap();                      // region -> {img, name, opt} for re-conversion (session only)
 
   // display settings widgets
@@ -147,18 +147,28 @@
     const p = L.PRESETS.find(x => x.id === $('preset').value);
     layout.display.preset = p.id;
     if (p.id !== 'custom') { layout.display.width = p.width; layout.display.height = p.height; }
-    syncDisplayWidgets(); redrawAll();
+    syncDisplayWidgets(); autoZoom(); redrawAll();
   };
   const clampInt = (v, lo, hi) => Math.max(lo, Math.min(hi, parseInt(v, 10) || lo));
-  $('dispW').onchange = () => { layout.display.width = clampInt($('dispW').value, 1, 255); syncDisplayWidgets(); redrawAll(); };
-  $('dispH').onchange = () => { layout.display.height = clampInt($('dispH').value, 1, 255); syncDisplayWidgets(); redrawAll(); };
-  $('rotation').onchange = () => { layout.display.rotation = parseInt($('rotation').value, 10) & 3; redrawAll(); };
+  $('dispW').onchange = () => { layout.display.width = clampInt($('dispW').value, 1, 255); syncDisplayWidgets(); autoZoom(); redrawAll(); };
+  $('dispH').onchange = () => { layout.display.height = clampInt($('dispH').value, 1, 255); syncDisplayWidgets(); autoZoom(); redrawAll(); };
+  $('rotation').onchange = () => { layout.display.rotation = parseInt($('rotation').value, 10) & 3; autoZoom(); redrawAll(); };
   $('bgSel').onchange = () => { if ($('bgSel').value !== '__custom') layout.bg = $('bgSel').value; else layout.bg = $('bgPick').value; syncDisplayWidgets(); redrawAll(); };
   $('bgPick').oninput = () => { layout.bg = $('bgPick').value; $('bgSel').value = '__custom'; redrawAll(); };
   $('pzOn').onchange = () => { layout.printZone.enabled = $('pzOn').checked; syncDisplayWidgets(); redrawAll(); };
   $('pzSize').onchange = () => { layout.printZone.size = clampInt($('pzSize').value, 1, 255); redrawAll(); };
   $('pzLines').onchange = () => { layout.printZone.lines = clampInt($('pzLines').value, 1, 64); redrawAll(); };
-  seg($('zoomSeg'), 'z', z => { zoom = parseInt(z, 10); drawPlanner(); });
+  const setZoomSeg = seg($('zoomSeg'), 'z', z => { zoom = parseInt(z, 10); zoomManual = true; drawPlanner(); });
+  // Pick the biggest offered zoom that still fits the view (landscape is twice as wide as
+  // portrait, so a fixed default overflowed). A click on the zoom buttons wins from then on.
+  function autoZoom() {
+    if (zoomManual) return;
+    const view = $('plannerView'), { w, h } = L.panelSize(layout);
+    const availW = Math.max(120, view.clientWidth - 48), availH = Math.max(120, view.clientHeight - 48);
+    const options = [8, 6, 4, 3, 2];
+    zoom = options.find(z => w * z + PAD * 2 <= availW && h * z + PAD * 2 <= availH) || 2;
+    setZoomSeg(zoom);
+  }
   $('showGrid').onchange = drawPlanner; $('showOverlay').onchange = drawPlanner;
 
   // layout file
@@ -498,11 +508,17 @@
   }
 
   // ═══════════════════════════ boot ════════════════════════════════════════
-  window.addEventListener('resize', () => { if (mains.icons.classList.contains('on')) drawEditor(); });
+  // Say which library/firmware the preview was generated from, so a stale deploy is visible.
+  $('verNote').textContent = `Checked against noknok.py ${N.D.noknokVersion} and display firmware ${N.D.firmwareVersion} — `
+    + 'the preview is drawn with the same rules the Pico and the module use (fonts, wrapping, clipping).';
+  window.addEventListener('resize', () => { if (mains.icons.classList.contains('on')) drawEditor(); else { autoZoom(); drawPlanner(); } });
   $('eName').value = ed.name;
-  if (!layout.regions.length && !localStorage.getItem(LS_LAYOUT)) {   // first visit: the handoff example
-    layout.regions.push(Object.assign(L.newRegion('clock', 0, 0, 80, 32), { size: 32, color: 'yellow', align: 'center', content: { type: 'text', text: '12:34' } }));
-    layout.regions.push(Object.assign(L.newRegion('net', 62, 140, 18, 18), { content: { type: 'icon', icon: 'wifi' } }));
+  if (!layout.regions.length && !localStorage.getItem(LS_LAYOUT)) {
+    // First visit: a small example in the module's own boot orientation (landscape 160x80),
+    // sized so the text actually fits — 24 px native = 8 px per character here.
+    layout.regions.push(Object.assign(L.newRegion('clock', 0, 4, 160, 24), { size: 24, color: 'yellow', align: 'center', content: { type: 'text', text: '12:34' } }));
+    layout.regions.push(Object.assign(L.newRegion('label', 0, 36, 140, 16), { size: 16, content: { type: 'text', text: 'noknok' } }));
+    layout.regions.push(Object.assign(L.newRegion('net', 140, 60, 18, 18), { content: { type: 'icon', icon: 'wifi' } }));
   }
-  syncDisplayWidgets(); refreshIconSelect(); redrawAll(); refreshLibList(); drawEditor();
+  syncDisplayWidgets(); refreshIconSelect(); autoZoom(); redrawAll(); refreshLibList(); drawEditor();
 })();

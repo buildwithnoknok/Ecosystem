@@ -27,8 +27,9 @@ const PYTHON = process.env.PYTHON || 'C:/Users/chris/AppData/Local/Programs/Thon
 const logo = ['..####..', '.#....#.', '#..##..#', '#..##..#', '.#....#.', '..####..', '........', '#.#.#.#.'];
 const fixtures = [];
 
-{ // 1. the handoff example: text region native + icon, portrait
+{ // 1. the handoff example: text region native + icon, portrait (needs an explicit d.rotation)
   const l = L.newLayout();
+  l.display.rotation = 0;
   l.regions.push(Object.assign(L.newRegion('clock', 0, 0, 80, 32), { size: 32, color: 'yellow', align: 'center', content: { type: 'text', text: '12:34' } }));
   l.regions.push(Object.assign(L.newRegion('net', 62, 140, 18, 18), { content: { type: 'icon', icon: 'wifi' } }));
   fixtures.push(['handoff-example', l]);
@@ -36,6 +37,7 @@ const fixtures = [];
 { // 2. everything at once: Pico-font text (non-native size + umlaut), wrapping, right/center
   //    align, own icon (embedded), image embedded + image as .bmp file, custom colours, bg colour
   const l = L.newLayout();
+  l.display.rotation = 0;
   l.bg = '#101820';
   l.icons.mylogo = logo;
   l.regions.push(Object.assign(L.newRegion('title', 2, 2, 76, 20), { size: 20, color: 'noknok', align: 'center', content: { type: 'text', text: 'Grüezi' } }));
@@ -66,6 +68,21 @@ const fixtures = [];
   fixtures.push(['custom-clipped', l]);
 }
 
+// ── orientation contract ─────────────────────────────────────────────────────
+// The sim ignores SET_ROTATION, so a missing or wrong d.rotation() call is INVISIBLE in the
+// pixels — it only shows up on real hardware, sideways. Assert it on the exported text.
+// (Display firmware v0.6.0+ boots LANDSCAPE: that orientation needs no call, every other does.)
+function checkRotation(layout, code) {
+  const rot = layout.display.rotation | 0, boot = L.BOOT_ROTATION;
+  const line = code.split('\n').find(l => l.startsWith('d.rotation('));
+  if (rot === boot) return line ? `emits "${line.trim()}" for the module's own boot orientation (should emit none)` : null;
+  const want = `d.rotation(${L.ROTATIONS[rot].const})`;
+  if (!line) return `no d.rotation() call for rotation ${rot} — the product would render in the boot orientation`;
+  if (!line.startsWith(want)) return `expected ${want}, got "${line.trim()}"`;
+  return code.includes(`import `) && new RegExp(`^from noknok import .*\\b${L.ROTATIONS[rot].const}\\b`, 'm').test(code)
+    ? null : `${L.ROTATIONS[rot].const} is used but not imported`;
+}
+
 // ── run ──────────────────────────────────────────────────────────────────────
 const tmp = mkdtempSync(join(tmpdir(), 'ndp-golden-'));
 let failed = 0;
@@ -73,6 +90,8 @@ for (const [name, layout] of fixtures) {
   const { w, h } = L.panelSize(layout);
   const a = L.render(layout).panel.dumpHex();
   const { code, files } = L.toPython(layout, { imageDir: tmp.replace(/\\/g, '/') });
+  const rotErr = checkRotation(layout, code);
+  if (rotErr) { console.log(`FAIL ${name}: rotation contract — ${rotErr}`); failed++; continue; }
   for (const f of files) writeFileSync(join(tmp, f.file), N.Bitmap.fromRows(f.rows).toBMP());
   const snippet = join(tmp, name + '.py');
   writeFileSync(snippet, code);

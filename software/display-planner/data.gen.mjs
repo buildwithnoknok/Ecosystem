@@ -11,10 +11,13 @@ import { readFileSync, writeFileSync } from 'fs';
 const REPOS    = 'C:/Users/chris/noknok/repos';
 const NOKNOK   = process.env.NOKNOK_PY  || `${REPOS}/brain-Pico/software/noknok.py`;
 const FONT8X8  = process.env.FONT8X8_H  || `${REPOS}/module-I2C-1.42-display/firmware/src/font8x8.h`;
+const FW_C     = process.env.FW_C       || `${REPOS}/module-I2C-1.42-display/firmware/src/display_firmware.c`;
+const FW_INDEX = process.env.FW_INDEX   || `${REPOS}/module-I2C-1.42-display/firmware/index.json`;
 const OUT      = new URL('./data.gen.js', import.meta.url);
 
 const py = readFileSync(NOKNOK, 'utf8');
 const ch = readFileSync(FONT8X8, 'utf8');
+const fw = readFileSync(FW_C, 'utf8');
 
 // ── module font: 95 glyphs x 8 row bytes, LSB = leftmost pixel ────────────────
 const rows8 = [...ch.matchAll(/\{\s*((?:0x[0-9A-Fa-f]{2}\s*,\s*){7}0x[0-9A-Fa-f]{2})\s*\}/g)]
@@ -47,13 +50,36 @@ for (const m of cm[1].matchAll(/"([a-z]+)"\s*:\s*([A-Z_]+)/g)) {
   colors[m[1]] = { const: m[2], rgb: consts[m[2]] };
 }
 
+// ── orientations: noknok.py's PORTRAIT/LANDSCAPE/... constants + the FIRMWARE's boot
+// default (display_firmware.c `#define DEFAULT_ROTATION ROT_<NAME>`). The module boots in
+// LANDSCAPE since fw v0.6.0, so the planner must know which orientation needs no call. ──
+const ROT_NAMES = ['PORTRAIT', 'LANDSCAPE', 'PORTRAIT_FLIPPED', 'LANDSCAPE_FLIPPED'];
+const orientations = [];
+for (const n of ROT_NAMES) {
+  const m = py.match(new RegExp(`^${n}\\s*=\\s*(\\d)\\b`, 'm'));
+  if (!m) throw new Error(`noknok.py: orientation constant ${n} not found`);
+  orientations[Number(m[1])] = n;
+}
+if (orientations.length !== 4 || orientations.includes(undefined))
+  throw new Error('noknok.py: orientation constants are not 0-3');
+const dm = fw.match(/^#define\s+DEFAULT_ROTATION\s+ROT_(\w+)/m);
+if (!dm) throw new Error('display_firmware.c: DEFAULT_ROTATION not found');
+const bootRotation = orientations.indexOf(dm[1]);
+if (bootRotation < 0) throw new Error(`firmware default ROT_${dm[1]} has no noknok.py constant`);
+const fwVer = JSON.parse(readFileSync(FW_INDEX, 'utf8')).version;
+
 const ver = (py.match(/__version__\s*=\s*"([^"]+)"/) || [,'?'])[1];
 const out = `// GENERATED FILE - do not edit. Regenerate with:  node data.gen.mjs
 // Sources: brain-Pico/software/noknok.py (v${ver}) + module-I2C-1.42-display/firmware/src/font8x8.h
 // SPDX-License-Identifier: MIT
 var NDP_DATA = {
   noknokVersion: ${JSON.stringify(ver)},
+  firmwareVersion: ${JSON.stringify(fwVer)},
   generated: ${JSON.stringify(new Date().toISOString().slice(0, 10))},
+  // rotation value -> the noknok.py constant to write in exported code
+  orientations: ${JSON.stringify(orientations)},
+  // the orientation the module BOOTS in (firmware DEFAULT_ROTATION): needs no d.rotation() call
+  bootRotation: ${bootRotation},
   // module-native 8x8 font, ASCII 0x20-0x7E, one byte per row, LSB = leftmost pixel
   font8x8: ${JSON.stringify(rows8)},
   // Pico 8x16 font (ASCII 32-126 then Latin-1 160-255), 16 bytes per glyph, MSB = leftmost
@@ -66,4 +92,4 @@ var NDP_DATA = {
 if (typeof module !== "undefined" && module.exports) module.exports = NDP_DATA;
 `;
 writeFileSync(OUT, out);
-console.log(`data.gen.js: ${rows8.length} module glyphs, ${nGlyph16} Pico glyphs, ${Object.keys(icons).length} icons, ${Object.keys(colors).length} colours (noknok.py v${ver})`);
+console.log(`data.gen.js: ${rows8.length} module glyphs, ${nGlyph16} Pico glyphs, ${Object.keys(icons).length} icons, ${Object.keys(colors).length} colours, boot rotation ${bootRotation} (${orientations[bootRotation]}) — noknok.py v${ver}, display fw v${fwVer}`);

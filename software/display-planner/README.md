@@ -8,14 +8,20 @@ uploaded), so it is hosted directly on GitHub Pages — same spirit as the
 
 - **Live tool:** <https://buildwithnoknok.github.io/display-planner/>
 - **How-to guide:** <https://buildwithnoknok.github.io/display-planner-guide/>
-- **Runtime it targets:** `brain-Pico/software/noknok.py` ≥ 1.9 — `d.region()` / `d.set()` /
-  `d.icon()` / `d.image()` (Jira DEV-41). The tool is DEV-43.
+- **Runtime it targets:** `brain-Pico/software/noknok.py` ≥ 1.11 — `d.region()` / `d.set()` /
+  `d.icon()` / `d.image()` / `d.rotation()` with the named orientation constants (Jira DEV-41),
+  and display firmware ≥ 0.6.0, which **boots in landscape**. The tool is DEV-43.
+  The live page prints the exact library and firmware versions it was generated against.
 
 ## What it does
 
 ### Layout tab — the display / region planner
-- Pick the display (**noknok Display 1.42″, 80 × 160** — or a custom size up to 255 × 255) and
-  its orientation (portrait / landscape, also flipped → `d.rotation(n)`).
+- Pick the display (**noknok Display 1.42″** — or a custom size up to 255 × 255) and its
+  orientation. **Landscape (160 × 80) is the default**, because that is what the module boots
+  in since firmware v0.6.0; any other orientation exports the required
+  `d.rotation(PORTRAIT | PORTRAIT_FLIPPED | LANDSCAPE_FLIPPED)` call, and landscape exports
+  none. The boot orientation is read out of `display_firmware.c` by the generator, so it
+  follows the firmware instead of being hard-coded here.
 - **Drag rectangles** on the enlarged display to create regions; move / resize with the mouse
   or nudge with the arrow keys. Every region has a name, a text/icon size, a colour, a box
   background and an alignment — exactly the arguments of `d.region()`.
@@ -60,8 +66,8 @@ Parameters equal to noknok.py's defaults are omitted, so the snippet stays short
 | `app.js` | the UI (both tabs) |
 | `layout.js` | layout model, checks, Python + JSON export — no DOM, shared with the test |
 | `render.js` | the pixel-true renderer: a JS port of noknok.py's `Bitmap` + `NoknokDisplay` drawing path and the firmware's glyph painter |
-| `data.gen.js` | **generated** — both fonts, the built-in icons and the colour table, extracted from noknok.py + `font8x8.h` |
-| `data.gen.mjs` | the generator: `node data.gen.mjs` (re-run when noknok.py's icons/colours/font change) |
+| `data.gen.js` | **generated** — both fonts, the built-in icons, the colour table, the orientation constants and the firmware's boot orientation, extracted from noknok.py + `font8x8.h` + `display_firmware.c` + `firmware/index.json` |
+| `data.gen.mjs` | the generator: `node data.gen.mjs` (re-run after any noknok.py or display-firmware release) |
 | `test/golden.mjs` | golden test: `node test/golden.mjs` (see below) |
 | `test/golden_sim.py` | helper: runs a generated snippet through the real noknok.py on `display_sim.py` |
 
@@ -73,10 +79,16 @@ No build step and no dependencies: plain scripts, works from `file://` too.
 alignments, own icons, embedded and `.bmp` images, landscape, edge clipping, custom panel)
 with `render.js`, exports them with `layout.js`, runs the exported Python through the **real
 `noknok.py`** on `brain-Pico/tools/display_sim.py`, and diffs the two frames pixel by pixel.
-Run it after any change to `render.js`/`layout.js`, and after a noknok.py release:
+
+It also checks the **orientation contract** on the exported text: the simulator ignores
+`SET_ROTATION`, so a missing or wrong `d.rotation()` call is invisible in the pixels and shows
+up only on real hardware, sideways. Each fixture must emit the call when its orientation is not
+the module's boot orientation (and import the constant), and emit none when it is.
+
+Run it after any change to `render.js`/`layout.js`, and after a noknok.py or firmware release:
 
 ```
-node data.gen.mjs        # refresh fonts / icons / colours from noknok.py + font8x8.h
+node data.gen.mjs        # refresh fonts / icons / colours / orientations from noknok.py + the firmware
 node test/golden.mjs     # needs Node, a desktop Python (PYTHON env var; default = Thonny's),
                          # and brain-Pico + module-I2C-1.42-display cloned next to Ecosystem
 ```
