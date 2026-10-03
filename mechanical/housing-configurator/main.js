@@ -570,20 +570,32 @@ function referenceDome(D) {
 }
 // Honeycomb variant: the same lid with hex holes punched radially through the globe cap (thread/flange
 // intact), so it works as a light-shade in opaque filament too. Holes are hex-packed on rings of latitude.
+// Everything is sized FROM THE GLOBE, not in fixed mm/degrees: the old fixed ø6.8 holes on fixed 13° rings
+// fitted the ø58 globe but on the smaller ø44 globe the rings were only 5.4 mm apart, so neighbouring holes
+// (and the first ring vs the apex hole) merged into distorted blobs. Now: hole size scales with the globe,
+// every pair of holes keeps >= HONEY_WEB of material, rings are spaced by arc length.
+const HONEY_WEB = 1.2;   // min material between holes (mid-surface; ~0.9 on the inner face)
 function referenceDomeHoney(D) {
-  const wall = 1.8, gOR = domeGlobeOR(D), gz = domeSkirtTop(D), R = gOR - wall/2, holeR = 3.4, cutterPolys = [];
+  const wall = 1.8, gOR = domeGlobeOR(D), gz = domeSkirtTop(D), R = gOR - wall/2, cutterPolys = [];
+  const holeR = Math.min(3.4, Math.max(2.2, R*0.1));     // hex circumradius: ø58 -> 3.36 (as before), ø44 -> 2.36
+  const halfF = holeR*Math.sqrt(3)/2;                     // half across-flats (hex is turned flats-N/S, see below)
+  const rowStep = (2*halfF + HONEY_WEB) / R;              // ring-to-ring (rad): flats face each other -> web even when two holes line up
+  const pitch = 2*holeR + HONEY_WEB;                      // min centre spacing along a ring (corners face each other)
+  const theta1 = (holeR + halfF + HONEY_WEB) / R;         // first ring clears the apex hole
+  const thetaMax = Math.PI/2 - (halfF + HONEY_WEB) / R;   // last ring stays above the equator (skirt below)
   let ring = 0;
-  // ~1 mm walls (spacing 2.35·holeR) + rings down to near the equator so the perforation starts right
-  // above the thread/skirt instead of a solid band. The hex cutters are disjoint, so we collect their
-  // polygons into ONE geom3 and do a single subtract — a 100+-way union() here is ~20 s, this is ~9 s.
+  // The hex cutters are disjoint, so we collect their polygons into ONE geom3 and do a single subtract —
+  // a 100+-way union() here is ~20 s, this is ~9 s.
   const punch = (h) => { for (const p of geom3.toPolygons(h)) cutterPolys.push(p); };
-  for (let deg = 16; deg <= 84; deg += 13) {
-    const theta = deg*Math.PI/180, ringR = R*Math.sin(theta);
-    const n = Math.max(6, Math.round(2*Math.PI*ringR / (holeR*2.35)));
-    const phi0 = (ring % 2) * (Math.PI / n);                 // stagger alternate rings -> honeycomb packing
+  for (let theta = theta1; theta <= thetaMax + 1e-6; theta += rowStep) {
+    const ringR = R*Math.sin(theta);
+    const n = Math.max(3, Math.floor(2*Math.PI*ringR / pitch));   // floor: never closer than pitch
+    const phi0 = (ring % 2) * (Math.PI / n);                 // stagger alternate rings -> honeycomb look
     for (let k=0; k<n; k++) {
       const phi = phi0 + k*2*Math.PI/n;
-      const h = rotate([0,0,phi], rotate([0,theta,0], cylinder({ radius:holeR, height:wall*3, segments:6 })));
+      // rotate 30° first so the hex's FLATS face north/south along the meridian
+      const hex = rotate([0,0,Math.PI/6], cylinder({ radius:holeR, height:wall*3, segments:6 }));
+      const h = rotate([0,0,phi], rotate([0,theta,0], hex));
       const dir = [Math.sin(theta)*Math.cos(phi), Math.sin(theta)*Math.sin(phi), Math.cos(theta)];
       punch(translate([R*dir[0], R*dir[1], gz + R*dir[2]], h));
     }
