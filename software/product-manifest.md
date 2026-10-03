@@ -220,7 +220,7 @@ the manifest from the catalog.
 Lifetimes: same product reinstalled → values **kept** (new entries get defaults,
 removed ones are dropped); different product → **replaced** by its defaults;
 `settings.reset` → defaults; factory reset → everything wiped. Values live in the
-brain's runtime Store (nvm / FRAM) — never in a file (DEV-18) — written only when
+brain's runtime Store (nvm) — never in a file (DEV-18) — written only when
 changed and only after 5 s without further changes.
 
 `time` caveat: the brain has no battery clock. Online products get the time via NTP;

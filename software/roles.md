@@ -13,7 +13,7 @@ different physical buzzer each boot. A role binds a stable name to a module's pe
 
 ## The mapping
 
-Roles are stored on the brain in the runtime **Store** (I2C FRAM at `0x50` on the PicoHub, else CircuitPython `nvm`) with a setup-time copy in `/data/noknok_roles.json` — whichever survives a power cut wins (DEV-18). The map itself is simple, name → UID:
+Roles are stored on the brain in the runtime **Store** (CircuitPython `nvm`) with a setup-time copy in `/data/noknok_roles.json` — whichever survives a power cut wins (DEV-18). The map itself is simple, name → UID:
 
 ```json
 {

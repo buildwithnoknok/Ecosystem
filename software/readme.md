@@ -22,7 +22,7 @@ The Conductor runs the main application logic, orchestration routines, and modul
   pins in **`settings.toml`** on the brain (`NOKNOK_I2C_SDA`, `NOKNOK_I2C_SCL`, `NOKNOK_USB_DP`,
   `NOKNOK_USB_DM`) — never by editing `noknok.py`. Reference: brain-Pico README → *settings.toml*.
 - The brain never writes its filesystem while a product runs (DEV-18 — bench-proven: a power cut during any FAT write can wipe the directory); products
-  keep state in RAM or in the brain's runtime Store (`noknok.store()`, FRAM on the PicoHub / nvm). See *authoring-products.md* → Gotchas.
+  keep state in RAM or in the brain's runtime Store (`noknok.store()`, backed by CircuitPython `nvm`). See *authoring-products.md* → Gotchas.
 - The Conductor uses the `noknok.py` library which provides:
   - `Conductor` class — handles enumeration and module discovery
   - Per-module driver classes (e.g. `NoknokBuzzer`) — high-level API
@@ -160,7 +160,8 @@ After the read, the module returns to its normal read behaviour (its status/data
 ## 7. State Persistence
 
 After enumeration, the Conductor saves module assignments in the brain's **runtime Store**
-(I2C FRAM at `0x50` on the PicoHub, else CircuitPython `nvm`) — never as a file on the
+(CircuitPython `nvm`; an I2C FRAM at `0x50` is supported but not fitted on any noknok board)
+— never as a file on the
 CIRCUITPY filesystem. On the next run it pings each saved address first; modules that respond
 are restored instantly. A module seen before gets the **same address** again after a power
 cycle, so the saved state only changes when hardware changes.

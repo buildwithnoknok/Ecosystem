@@ -186,8 +186,8 @@ def _crc8(data):
 ## State persistence — fast restore on reboot
 
 After enumeration, the Conductor saves module assignments (UID → address, type, bootloader
-version) in the brain's **runtime Store** — an I2C FRAM at `0x50` on the PicoHub, or
-CircuitPython's `nvm` on a bare Pico — **never as a file on the CIRCUITPY filesystem**
+version) in the brain's **runtime Store** — CircuitPython's `nvm` (an optional I2C FRAM at
+`0x50` is supported but no noknok board fits one) — **never as a file on the CIRCUITPY filesystem**
 (DEV-18: a power cut during any FAT write can destroy the filesystem; see
 [authoring-products.md](authoring-products.md) → Gotchas). On the next boot it pings each
 saved address first; modules that respond are restored immediately, without the 3 s backoff.
@@ -196,7 +196,8 @@ saved address first; modules that respond are restored immediately, without the 
 address again** when it re-enumerates from `0x7F` after a power cycle, and addresses of known
 but absent modules stay reserved. The saved state therefore only changes when hardware is
 added or removed — which is what keeps the Store write-free on a normal boot. Addresses
-`0x50–0x57` are never assigned (reserved for the brain's FRAM).
+`0x50–0x57` are never assigned (reserved for brain memory — see
+[electrical/readme.md](../electrical/readme.md) §4).
 
 ```
 First boot:   enumerate() → waits up to 3 s → finds all modules → saves state (once)

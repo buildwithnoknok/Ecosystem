@@ -225,8 +225,10 @@ while True:
   the program** while a product runs: a plain `open(..., "w")` raises `OSError`,
   and `noknok.write_atomic()` is for the brain's setup/OTA moments only, not
   for products. Keep runtime state in RAM. If something genuinely must persist
-  across power cycles, use the brain's runtime Store — power-safe on a PicoHub
-  with FRAM, self-healing on a bare Pico:
+  across power cycles, use the brain's runtime Store — it never touches the
+  filesystem, but **it is not power-safe**: a cut during a Store write loses the
+  whole record, so design every value to be self-healing (a sensible default is
+  fine, a lost value must never break the product):
   `noknok.store().set("my_product", {...})` / `.get("my_product")` — small
   values only (< 1 KB), written **only when the value changed, never in a
   loop**. App-visible settings will be `c.settings` (DEV-34), built on the same
