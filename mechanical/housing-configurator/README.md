@@ -70,40 +70,55 @@ on each box to route wiring between them — keep joins off the power/latch wall
 live in the `DT` constant in `main.js` (neck/tip widths, depth, print clearance) and want a test print
 to tune the slide fit.
 
-## noknok Dome Mount ø58 and ø44 (screw-in tops)
+## noknok Dome Mount ø58 and ø44 (bayonet tops)
 
 Two dome sizes, one per LED module: **USB LEDs +dome** (the 40 × 40 8-LED board, 70 × 70 tile, ø58 dome)
-and **USB LEDs 16x +dome** (the round ø40 16-LED board, 50 × 50 tile, ø44 dome). Each top cover carries
-a coarse, jam-jar-style **female (internal) thread ring that runs from the outer face DOWN into the box**
-— same direction as the walls/columns, so the **cover prints flat on the bed with no supports**. A lid
-(dome) with the matching **male thread screws IN** from the top. These are published interfaces: design
-a lid with the matching male thread and it fits.
+and **USB LEDs 16x +dome** (the round ø40 16-LED board, 50 × 50 tile, ø44 dome). Since 2026-10-04 the lid
+locks with a **3-lug bayonet: drop it in where the slots line up, twist 30° clockwise, it clicks.** It
+replaced the jam-jar thread, which did not fit on the first print: the female thread prints upside down in
+the top cover, its teeth sag, and a 0.4 mm gap can't absorb that. A bayonet is much more forgiving across
+printers. These are published interfaces: a lid with the same tube, lugs path and cone fits.
+
+How it works (all parts print **without support**):
+- **Top cover** (prints plate-down): a bore through the plate with a **45° countersink** at the outer face,
+  a collar ring below the plate and **3 lugs** pointing inward (45° chamfered top, flat underside, a small
+  detent bump). On the ø44 the collar continues down to a **45° seat** that presses the board's r 19–20
+  edge band onto the back posts — it replaces the old flat clamp lip, which was a hanging ledge and strung.
+- **Lid** (prints tube-down): a bored tube with 3 vertical entry slots and 3 grooves. The lid's 45° cone
+  sits in the countersink — that centres it and is its stop. The groove floor ramps up over the twist,
+  pulling the lid down into the countersink; the bump drops into a dimple at the end (the click).
+- **Top shape:** the globe rises to 45° and then continues as a **45° cone to a point** (no flat,
+  overhanging top — the round top strung on the print). The ø44 lid is ~41 mm tall.
 
 | Parameter | ø58 (USB LEDs) | ø44 (USB LEDs 16x) |
 |---|---|---|
-| Thread major ø (male crest) | **59.5 mm** | **44.0 mm** |
-| Female minor ø | ~57.9 mm (board, 56.6 mm diagonal, sits inside) | ~42.4 mm (board sits just below, on the lip) |
-| Starts / lead | 3-start, 7.5 mm lead (2.5 mm crest spacing) — seats in ~⅔ turn | same |
-| Ring height | 6 mm from the outer face (1.2 plate + 4.8 into the box), 1.2 mm tooth | same |
-| Fit clearance | 0.4 mm radial | same |
-| Ring outer ø | ~62 mm | ~46.6 mm |
-| Lid globe ø / light bore ø | ~69 / 53.5 mm | ~49 / 38 mm |
-| Board retention | back posts + pegs (gravity) | **clamp lip**: 0.6 mm annulus under the ring (inner ø38) presses the board's edge band onto the back posts; also the lid's thread stop |
+| Lid light bore ø / tube OD | 57.6 / 63.6 mm (clears the board corners) | 38 / 44 mm (no LED shaded) |
+| Cover bore ø / countersink ø at the face | 64.4 / 66.4 mm | 44.8 / 46.8 mm |
+| Lugs | 3 × 15°, 1.8 mm deep, twist 30° | same |
+| Radial clearance | 0.4 mm (tube vs bore); ramp slack 0.8 → 0.15 mm | same |
+| Lid globe ø | 69 mm | 49 mm |
+| Board retention | back posts + pegs | **45° seat** at 9.0 mm below the face (clearance_top 7.8) |
+| Inner diffuser | – | optional, separate print (see below) |
 
-**Fixed 2026-09-29:** the ring used to sit entirely *under* the 1.2 mm top plate, which had a ø58 hole —
-smaller than the ø59.5 lid crest, so the lid could never reach the thread. The ring's top is now flush
-with the outer face and the plate hole is cut just wider than the female thread (`domeCutR`), so the
-thread starts at the surface. The lids themselves did not change.
+**Inner diffuser (ø44, optional):** **⬇ inner diffuser** exports a smaller cone-topped globe in 0.8 mm
+walls on a short tube with a flat flange. Print it in thin white filament, drop it into the bore before
+the lid: the flange rests on the seat chamfer and the lid's tube end clamps it as you twist. It makes the
+whole inner shell glow evenly behind a honeycomb lid. Leaving it out changes nothing else.
 
-**Why the 16x board sits *below* its ring:** the USB-C and JST plugs enter at the board edge, and a
-USB-C plug overmold reaches up to about the PCB front. Inside the ring (like the ø58), the plugs would
-hit the ring wall. Below it, they pass under it. It costs ~5 mm of box height.
+The tool exports, for whichever dome(s) are in the design: **⬇ reference dome lid** (`referenceDome`,
+print translucent), **⬇ honeycomb dome lid** (`referenceDomeHoney`, hex holes sized from the globe, any
+filament) and **⬇ inner diffuser** (`domeDiffuser`). Sizes live in `DOMES`, the bayonet tuning in `BAYO`
+(clearance, lug size, twist, ramp slack, detent bump) in `main.js`. Not print-validated yet — the click
+(`BAYO.bump`) and the ramp slack are the numbers to tune.
 
-The tool exports matching screw-in lids for whichever dome(s) are in the design: **⬇ reference dome lid**
-(`referenceDome`, print translucent) and **⬇ honeycomb dome lid** (`referenceDomeHoney`, hex-perforated
-for any opaque filament). Thread params live in the `DOMES` table in `main.js` (`threadSolid` /
-`domeRing`). **Note:** thread fit always wants one test print to tune the clearance; the internal thread
-prints with modest overhangs (coarse pitch bridges fine), the ø44 lip is a ~2 mm flat ledge.
+**Open:** on the ø58 the 8x module's USB-C and JST plug overmolds rise to about the PCB front, right where
+the collar and the lid tube sit (this was already true of the old thread ring). Check before printing one.
+
+## Bottom-cover locating wall
+
+The bottom cover carries a low **1.4 mm × 2 mm wall** just inside the top cover's walls (0.25 mm gap). It
+centres the two halves, stiffens the flat bottom plate and closes the seam. It is interrupted at latches,
+USB-C cable notches, cable openings and female dovetails. Tuning: `BOX.locWall`.
 
 ## Module library
 

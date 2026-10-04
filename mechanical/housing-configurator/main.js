@@ -12,47 +12,65 @@ const { cuboid, cylinder, rectangle, circle, polygon, sphere } = primitives;
 const { union, subtract, intersect } = booleans;
 const { hull } = hulls;
 const { translate, rotate, mirror } = transforms;
-const { extrudeLinear, extrudeHelical, extrudeRotate } = extrusions;
+const { extrudeLinear, extrudeRotate } = extrusions;
 const { offset, expand } = expansions;
 const { path2, geom3 } = jscad.geometries;
 const { vectorText } = jscad.text;   // built-in single-stroke font for engraved labels
 import { LOGO } from './logo-data.js';   // noknok square logo (2-line "nok/nok"), flattened vector contours
 const TAU = Math.PI * 2;
-// "noknok Dome Mount" — coarse jar-style thread for screw-in tops over the LED modules. The thread is a
-// FEMALE (internal) ring in the top cover that runs from the outer face DOWN into the box (same way as
-// walls/columns, so the cover prints flat with no supports). A lid (dome) with the matching MALE thread
-// screws in from the top. threadMajor = male crest OD; depth = radial tooth; lead = 3-start => 2.5 mm
-// crest spacing; form = the module tile (mm) = the lid globe OD. One entry per dome size; a module picks
-// its size with top.dome. The ring's top is FLUSH with the outer face and the plate hole is cut just wider
-// than the female thread (domeCutR), so the thread starts right at the surface — the original ø58 sat the
-// ring UNDER a ø58 plate hole, which the ø59.5 lid crest could never pass.
-//  d58: the 40×40 USB LEDs (8×). Board sits INSIDE the ring bore (female minor ø57.9 > board diagonal 56.6).
-//  d44: the round ø40 USB LEDs 16x. Board sits just BELOW the ring on a clamp LIP (lip:true): an annulus at
-//       the ring's bottom, inner ø38 = the lid's light bore, that presses the board's edge band (r 19–20,
-//       nothing mounted there) against the back posts and doubles as the lid's thread stop. Below the ring
-//       (not inside it) so the USB-C and JST plugs reach the board edge under the ring, not through it.
+// "noknok Dome Mount" — a 3-lug BAYONET (twist 30° clockwise to lock) for the screw-on tops over the LED
+// modules. Replaced the coarse jar thread on 2026-10-04 after Christopher's print: the female thread prints
+// upside down in the top cover, its teeth sag, and the 0.4 mm gap couldn't absorb it, so the lid didn't fit.
+// A bayonet is far more forgiving. Everything prints WITHOUT SUPPORT:
+//  - TOP COVER (prints plate-down): a plain bore through the plate with a 45° COUNTERSINK at the outer face,
+//    a collar ring below the plate, and 3 LUGS sticking inward from the collar. The lugs' upper face is a 45°
+//    chamfer (the continuation of the countersink), their lower face is flat (= a top surface in print).
+//    With `seat`, the collar continues down to a 45° chamfered SEAT that presses the board's edge band onto
+//    the back posts (replaces the flat clamp lip, which was an unprintable hanging ledge).
+//  - LID (prints tube-down): a bored tube with 3 vertical ENTRY SLOTS and 3 horizontal GROOVES. The lid's
+//    45° cone sits in the countersink (self-centring, and it is the axial stop). Twisting slides each lug
+//    along its groove; the groove floor RAMPS up so the lid is drawn down into the countersink, and a small
+//    bump on each lug clicks into a dimple at the end of the 30° travel.
+//  - The globe tops out in a 45° CONE instead of a flat-topped sphere (the flat top strung on the print).
+// boreR = clear light bore of the lid tube (the ø44 keeps ø38 so no LED is shaded; the ø58 is opened to
+// ø57.6 so the lid tube clears the 8x board's corners, r 28.3). form = tile size = lid globe OD + 1.
+const PLATE_T = 1.2;     // top-cover plate thickness (= BOX.frontT; needed here because MODULES uses it)
 const DOMES = {
-  d58: { label:'58', threadMajor:59.5, depth:1.2, height:6, lead:7.5, starts:3, clearance:0.4, form:70 },   // form 70 = lid globe fills the 70 mm tile
-  d44: { label:'44', threadMajor:44.0, depth:1.2, height:6, lead:7.5, starts:3, clearance:0.4, form:50, lip:true },
+  d58: { label:'58', boreR:28.8, form:70, seat:false },
+  d44: { label:'44', boreR:19.0, form:50, seat:true },
 };
-const LIP_T = 0.6;   // d44 clamp-lip thickness (also the gap between the ring and the board front)
-const domeThread = (D, grow=0) => threadSolid({ majorD:D.threadMajor, depth:D.depth, height:D.height, lead:D.lead, starts:D.starts }, grow);
-const domeCutR = (D) => D.threadMajor/2 + D.clearance + 0.2;   // plate hole: just outside the female thread major
+// Bayonet tuning (print-test these). Radial numbers in mm, angles in degrees.
+const BAYO = { tubeWall:3.0, clr:0.4, cs:1.0, lugR:1.8, lugFlat:0.6, lugW:15, clrA:1.2, twist:30, lugs:3,
+  slackMax:0.8, slackMin:0.15, bump:0.55, below:1.5, capWall:1.8 };   // bump vs the ramped floor = up to ~0.15 mm interference over the last ~10° of twist, then it drops into the dimple (the click)
+// All the derived radii/depths of one dome size. d = depth below the cover's OUTER face.
+function domeGeo(D) {
+  const B = BAYO, tubeOR = D.boreR + B.tubeWall, rH = tubeOR + B.clr, csR = rH + B.cs, lugIn = rH - B.lugR;
+  const lugTopD = csR - lugIn, lugBotD = lugTopD + B.lugFlat;          // lug: 45° chamfer down to lugIn, then flat
+  const Lt = lugBotD + B.slackMax + B.below;                            // lid tube reaches this depth
+  const chamferStart = Lt + 0.3, seatIR = D.boreR + 0.4, seatD = chamferStart + (rH - seatIR);
+  const gOR = D.form/2 - 0.5, gIR = gOR - B.capWall;
+  const gz = (Lt - (B.cs + B.clr)) + (gOR - tubeOR);                    // lid z of the globe equator (45° skirt)
+  return { tubeOR, rH, csR, lugIn, lugTopD, lugBotD, Lt, chamferStart, seatIR, seatD, collarOR: rH + 1.6, gOR, gIR, gz };
+}
 
 // ---- Module library (mm). footprint w×h, payload height, plenum, M2.5 holes, connectors, top opening.
 // conn = [ arrowDir, x, y, kind? ] — arrowDir (N/S/E/W) = the way the plug inserts / cable exits (drawn
 // as an arrow), set per real board. Mirrors each module repo's mechanical/housing.json. Origin = bottom-left. ----
+// The 20×20 I2C boards' JST-SH sockets open W (J1 at x 3.1) and E (J2 at x 16.9) — derived from the
+// footprint AND confirmed on Christopher's print 2026-10-03 (the old N/S arrows were wrong; arrows are
+// 2D-only, no geometry changed). Same print set knob/LED-button heights (clearance_top = PCB front to
+// the INSIDE of the top plate).
 const MODULES = {
   buzzer:    { name:'buzzer',     w:20, h:20, clearance_top:3.0,  pcb:1.6, clearance_bottom:3.0,
-    holes:[[2.25,2.25],[17.75,17.75]], conn:[['N',3.1,15.5],['S',16.9,4.5]], top:{type:'grille', x:10, y:10, dia:8.5} },
-  knob:      { name:'knob',       w:20, h:20, clearance_top:9.0,  pcb:1.6, clearance_bottom:3.0,
-    holes:[[2.25,2.25],[17.75,17.75]], conn:[['N',3.1,15.5],['S',16.9,4.5]], top:{type:'round_hole', x:10, y:10.25, dia:7.4} },
-  ledbutton: { name:'LED button', w:20, h:20, clearance_top:5.0, pcb:1.6, clearance_bottom:3.0,
-    holes:[[2.25,2.25],[17.75,17.75]], conn:[['N',3.1,15.5],['S',16.9,4.5]], top:{type:'button', x:10, y:10, w:16.4, h:16.2} },  // 5 mm PCB-to-top-cover (keyboard switch); button behind the front window
+    holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'grille', x:10, y:10, dia:8.5} },
+  knob:      { name:'knob',       w:20, h:20, clearance_top:6.0,  pcb:1.6, clearance_bottom:3.0,   // 6.0 (was 9.0): shaft sticks out further
+    holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'round_hole', x:10, y:10.25, dia:7.6} },
+  ledbutton: { name:'LED button', w:20, h:20, clearance_top:4.5, pcb:1.6, clearance_bottom:3.0,   // 4.5 (was 5.0): key cap 0.5 mm prouder
+    holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'button', x:10, y:10, w:16.4, h:16.2} },
   usbled:    { name:'USB LEDs',   w:40, h:40, clearance_top:1.6,  pcb:1.6, clearance_bottom:9.0,
     holes:[[4,4],[36,4],[4,36],[36,36]], conn:[['W',3,20,'usb'],['E',36.5,20]], top:{type:'window', x:20, y:20, w:38, h:38} },  // square opening so the corner LEDs aren't clipped
-  usbleddome:{ name:'USB LEDs +dome', w:70, h:70, clearance_top:1.6, pcb:1.6, clearance_bottom:9.0,   // 70×70 variant: 40×40 board centred, female thread ring (ø62) stays inside the tile so it can't overlap a neighbour
-    holes:[[19,19],[51,19],[19,51],[51,51]], conn:[['W',18,35,'usb'],['E',51.5,35]], top:{type:'dome_mount', dome:'d58', x:35, y:35, dia:60.7} },   // dia = the plate hole (2·domeCutR)
+  usbleddome:{ name:'USB LEDs +dome', w:70, h:70, clearance_top:1.6, pcb:1.6, clearance_bottom:9.0,   // 70×70 variant: 40×40 board centred, bayonet collar (ø67.6) stays inside the tile so it can't overlap a neighbour
+    holes:[[19,19],[51,19],[19,51],[51,51]], conn:[['W',18,35,'usb'],['E',51.5,35]], top:{type:'dome_mount', dome:'d58', x:35, y:35, dia:2*domeGeo(DOMES.d58).rH} },   // dia = the plate bore
   // USB LEDs 16x (rev 2.0): a ROUND ø40 board, 16× SK6812 RGBW on the payload side = KiCad's BOTTOM, like
   // the display, so coords are the payload view (x = kx−115, y = ky−75). From the rev 2.0 KiCad layout:
   // USB-C mouth flush on the W edge, one JST-SH opening N, 4× M2.5 on a 25 mm square (r 17.7 from centre).
@@ -62,17 +80,20 @@ const MODULES = {
   // the r 19–20 edge band) against back posts.
   usbled16:  { name:'USB LEDs 16x', w:40, h:40, clearance_top:1.6, pcb:1.6, clearance_bottom:3.5, round:{ x:20, y:20, d:40 },
     holes:[[7.5,7.5],[32.5,7.5],[7.5,32.5],[32.5,32.5]], conn:[['W',4,20,'usb'],['N',20,36.65]], top:{type:'round_hole', x:20, y:20, dia:38} },
-  // Dome version: 50×50 tile, board centred, ø44 dome. clearance_top = ring below the plate (height −
-  // frontT) + the clamp lip, so the board front sits exactly on the lip's underside.
-  usbled16dome: { name:'USB LEDs 16x +dome', w:50, h:50, clearance_top:6 - 1.2 + LIP_T, pcb:1.6, clearance_bottom:3.5, round:{ x:25, y:25, d:40 },
-    holes:[[12.5,12.5],[37.5,12.5],[12.5,37.5],[37.5,37.5]], conn:[['W',9,25,'usb'],['N',25,41.65]], top:{type:'dome_mount', dome:'d44', x:25, y:25, dia:45.2} },
+  // Dome version: 50×50 tile, board centred, ø44 bayonet dome. clearance_top = seat depth − plate, so the
+  // board front sits exactly on the socket's 45° seat (which clamps its r 19–20 edge band onto the back posts).
+  usbled16dome: { name:'USB LEDs 16x +dome', w:50, h:50, clearance_top:domeGeo(DOMES.d44).seatD - PLATE_T, pcb:1.6, clearance_bottom:3.5, round:{ x:25, y:25, d:40 },
+    holes:[[12.5,12.5],[37.5,12.5],[12.5,37.5],[37.5,37.5]], conn:[['W',9,25,'usb'],['N',25,41.65]], top:{type:'dome_mount', dome:'d44', x:25, y:25, dia:2*domeGeo(DOMES.d44).rH} },
   // 1.42" display: the ONE module whose payload side is KiCad's BOTTOM (panel bonded there, FPC wraps
   // round the E edge to top-side pads). Coords below are the PAYLOAD view = KiCad top view mirrored in Y
   // (v' = 30 - v), same convention as the other modules -> the 2nd JST lands on the N edge, not the S.
-  // clearance_top 2.2 = 2.08 mm panel + 0.12 bond/tolerance, so the bezel frames the glass without
-  // pressing on it. Both JSTs open straight off their nearest edge (W and N).
-  display:   { name:'display',    w:40, h:30, clearance_top:2.2,  pcb:1.6, clearance_bottom:3.0,
-    holes:[[2.25,2.25],[2.25,27.75],[37.75,2.25],[37.75,27.75]], conn:[['W',3.1,15],['N',20,26.9]], top:{type:'window', x:19.8, y:15, w:32.35, h:16.18} },
+  // The window FRAMES THE WHOLE GLASS (Christopher, print 2026-10-03): 37.5 (glass ~36.5 + clearance,
+  // his number) × 18.4 (glass 18.1 measured + 0.3). The board is lifted so the 2.08 mm bonded panel sits
+  // INSIDE the 1.2 mm plate: clearance_top 1.0 => glass top 0.12 below the outer face (protected, not
+  // proud). Both JSTs open straight off their nearest edge (W and N). Window centre (19.8, 15) is still
+  // NOT calipered — with no bezel overlap any centre error shows as a gap on one side.
+  display:   { name:'display',    w:40, h:30, clearance_top:1.0,  pcb:1.6, clearance_bottom:3.0,
+    holes:[[2.25,2.25],[2.25,27.75],[37.75,2.25],[37.75,27.75]], conn:[['W',3.1,15],['N',20,26.9]], top:{type:'window', x:19.8, y:15, w:37.5, h:18.4} },
   // PicoHub: the Pico carrier. Geometry from the V2.0 production files (outline gerber, NPTH drill,
   // pick&place) — EasyEDA exports those in a top-view Y-up frame and the payload side IS the top side,
   // so NO Y-mirror here (unlike the display). Six JST-SH (3 on S, 3 on N) + USB-C power in on E and
@@ -462,7 +483,8 @@ svg.addEventListener('pointerup', (e) => {
 });
 
 // ================= 3D box generation =================
-const BOX = { frontT:1.2, backT:2.0, wallT:1.5, postR:2.0, pegR:1.15, pegLen:1.6, socketR:1.8 };   // backT 2.0: thicker, more rigid bottom cover
+const BOX = { frontT:PLATE_T, backT:2.0, wallT:1.5, postR:2.0, pegR:1.15, pegLen:1.6, socketR:1.8,   // backT 2.0: thicker, more rigid bottom cover
+  locWall: { t:1.4, h:2.0, clr:0.25 } };   // bottom-cover locating wall: thickness, height, gap to the top cover's wall
 const SOCKET_H = 2.95;   // JST-SH socket body height above the PCB (support columns press here)
 // Box-joining dovetail (vertical slide-in). A male RAIL on the outside of one box's wall slides DOWN into
 // the female GROOVE on the other box. neck/tip = trapezoid widths (tip wider than neck => can't pull
@@ -487,7 +509,7 @@ function topCut(p, H) {                                  // front-plate opening 
   const m = MODULES[p.key], f = m.top, w = loc(p, f.x, f.y);
   const z = H - BOX.frontT/2, hh = BOX.frontT + 1.2;
   if (f.type === 'grille')     return grilleCut(f, w.x, w.y, z, hh, p.rot % 180 !== 0);
-  if (f.type === 'dome_mount') return cylinder({ radius:domeCutR(DOMES[f.dome]), height:hh, segments:72, center:[w.x, w.y, z] });   // the ring refills it with the thread
+  if (f.type === 'dome_mount') return domePlateCut(DOMES[f.dome], w.x, w.y, H);   // bore + 45° countersink; domeSocket() adds the lugs
   if (f.type === 'round_hole') return cylinder({ radius:f.dia/2, height:hh, segments:48, center:[w.x, w.y, z] });
   const sw = (p.rot%180===0)? f.w : f.h, sh = (p.rot%180===0)? f.h : f.w;   // rect: swap if rotated
   return cuboid({ size:[sw, sh, hh], center:[w.x, w.y, z] });
@@ -520,89 +542,127 @@ function recessCollar(p, m, H, pcbFrontZ) {
   return translate([p.x+T[0], p.y+T[1], 0], rotate([0,0,rad], solid));
 }
 
-// ---- coarse "jar" thread (noknok Dome Mount) ----------------------------------------------------
-// A solid, externally-threaded cylinder centred on the Z axis, base at z=0. `grow` inflates every
-// radius (use grow = clearance to make the female-thread cutter for the matching lid). The thread is
-// `starts` parallel helices of a trapezoidal tooth swept with extrudeHelical; the result is trimmed
-// flush to [0, height].
-function threadSolid(cfg, grow = 0, segs = 64) {
-  const { majorD, depth, height, lead, starts } = cfg;
-  const rMaj = majorD/2 + grow, rMin = rMaj - depth, cp = lead/starts;   // cp = crest-to-crest spacing
-  const tB = cp*0.66, tC = cp*0.20;                                      // tooth base / crest heights
-  const tooth = polygon({ points: [[rMin-0.3,-tB/2],[rMaj,-tC/2],[rMaj,tC/2],[rMin-0.3,tB/2]] });
-  let s = cylinder({ radius: rMin, height, segments: segs, center:[0,0,height/2] });
-  const angle = (height/lead)*TAU;
-  for (let i=0; i<starts; i++)
-    s = union(s, extrudeHelical({ angle, pitch: lead, startAngle: i*TAU/starts, segmentsPerRotation: segs }, tooth));
-  return intersect(s, cylinder({ radius: rMaj+1, height, segments: segs, center:[0,0,height/2] }));   // trim flush
+// ---- noknok Dome Mount: bayonet socket (top cover) + lid + diffuser ---------------------------------
+// See the DOMES/BAYO block at the top for the design rationale. All solids are built as revolved (r,z)
+// profiles; extrudeRotate needs counter-clockwise outlines, so every profile goes through ccwPoly.
+const DEG = Math.PI / 180;
+function ccwPoly(pts) {
+  let a = 0; for (let i=0; i<pts.length; i++) { const j=(i+1)%pts.length; a += pts[i][0]*pts[j][1] - pts[j][0]*pts[i][1]; }
+  return polygon({ points: a < 0 ? pts.slice().reverse() : pts });
 }
-// The ring on the housing top cover = a FEMALE-threaded ring, base at z=0, projecting up (placed to
-// point DOWN into the box). The female thread + bore are carved by subtracting a clearance-grown male
-// thread from a plain ring cylinder. Bore is large enough that the board sits inside it.
-function domeRing(D) {
-  const wall = 0.9, ringOR = D.threadMajor/2 + D.clearance + wall;
-  let ring = subtract(cylinder({ radius: ringOR, height: D.height, segments:72, center:[0,0,D.height/2] }),
-                      domeThread(D, D.clearance));
-  // clamp lip under the ring (d44): inner edge = the lid's light bore, so it shades nothing. It prints as a
-  // flat ~2 mm inward ledge on top of the ring (top cover prints plate-down) — short enough to not need support.
-  if (D.lip) ring = union(ring, subtract(
-    cylinder({ radius: ringOR, height: LIP_T, segments:72, center:[0,0,-LIP_T/2] }),
-    cylinder({ radius: domeBoreR(D), height: LIP_T+1, segments:72, center:[0,0,-LIP_T/2] })));
-  return ring;
+const lugAngles = () => Array.from({ length: BAYO.lugs }, (_, k) => 90 + k*360/BAYO.lugs);   // cover lugs = lid entry slots
+
+// Outline of a "cone-topped globe" shell centred on (0,cz): a sphere from the equator up to 45°, then the
+// 45° tangent cone to a point (no flat, overhanging top). Inner surface = same shape at radius Ri, which is
+// an exact parallel offset. Returns the outer points (equator -> apex) then the inner ones (apex -> equator).
+function capOutline(cz, Ro, Ri, n = 24) {
+  const out = [], inn = [];
+  for (let i=0; i<=n; i++) { const a = (Math.PI/4)*i/n; out.push([Ro*Math.cos(a), cz + Ro*Math.sin(a)]); }
+  out.push([0, cz + Ro*Math.SQRT2]);
+  inn.push([0, cz + Ri*Math.SQRT2]);
+  for (let i=n; i>=0; i--) { const a = (Math.PI/4)*i/n; inn.push([Ri*Math.cos(a), cz + Ri*Math.sin(a)]); }
+  return [...out, ...inn];
 }
-const domeGlobeOR = (D) => D.form/2 - 0.5;   // dome globe / skirt outer radius
-const domeBoreR   = (D) => D.threadMajor/2 - D.depth - 1.8;   // clear light bore through the lid
-const domeSkirtTop = (D) => D.height + (domeGlobeOR(D) - D.threadMajor/2);   // z where the 45° skirt meets the globe equator (run = rise => 45°)
-// Reference lid (screws INTO the ring): a MALE-threaded tube (bored for light) + a flared SKIRT + a domed
-// translucent cap. Base at z=0. The skirt is a 45° cone (not a flat flange) so its underside is a printable
-// slope, not a horizontal ledge cantilevered off the thread — the whole lid prints thread-down, no support.
-function referenceDome(D) {
-  const wall = 1.8, gOR = domeGlobeOR(D), boreR = domeBoreR(D), rMaj = D.threadMajor/2, sTop = domeSkirtTop(D), gz = sTop;
-  const tube = subtract(domeThread(D, 0), cylinder({ radius: boreR, height: D.height+2, segments:64, center:[0,0,D.height/2] }));
-  // 45° conical skirt (bored), revolved from its (r,z) cross-section: bottom edge flush with the thread OD
-  // (rMaj) so nothing overhangs, flaring out to the cap OD (gOR) at the skirt top = globe equator.
-  const skirt = extrudeRotate({ segments:72 }, polygon({ points: [
-    [boreR, D.height], [rMaj, D.height], [gOR, sTop], [boreR, sTop] ] }));
-  const cap = intersect(
-    subtract(sphere({ radius: gOR, segments:40, center:[0,0,gz] }), sphere({ radius: gOR-wall, segments:40, center:[0,0,gz] })),
-    cylinder({ radius: gOR+1, height: gOR+1, segments:64, center:[0,0, gz+(gOR+1)/2] }));   // keep the cap from the equator UP (matches the skirt top => no ledge)
-  return union(tube, skirt, cap);
+
+// TOP-COVER plate cut for a dome: the bore + the 45° countersink at the outer face (z = H).
+function domePlateCut(D, x, y, H) {
+  const g = domeGeo(D);
+  const prof = ccwPoly([[0, -PLATE_T-0.5], [g.rH, -PLATE_T-0.5], [g.rH, -BAYO.cs], [g.csR+0.5, 0.5], [0, 0.5]]);
+  return translate([x, y, H], extrudeRotate({ segments:96 }, prof));
 }
-// Honeycomb variant: the same lid with hex holes punched radially through the globe cap (thread/flange
-// intact), so it works as a light-shade in opaque filament too. Holes are hex-packed on rings of latitude.
-// Everything is sized FROM THE GLOBE, not in fixed mm/degrees: the old fixed ø6.8 holes on fixed 13° rings
-// fitted the ø58 globe but on the smaller ø44 globe the rings were only 5.4 mm apart, so neighbouring holes
-// (and the first ring vs the apex hole) merged into distorted blobs. Now: hole size scales with the globe,
-// every pair of holes keeps >= HONEY_WEB of material, rings are spaced by arc length.
+// TOP-COVER socket below the plate (z = 0 is the outer face, the socket hangs into the box): collar ring,
+// optional 45° board seat, and the lugs with their detent bumps. Unioned onto the front cover.
+function domeSocket(D) {
+  const g = domeGeo(D), B = BAYO, top = -PLATE_T + 0.1;              // 0.1 overlap fuses it to the plate
+  const collar = D.seat
+    ? [[g.rH, top], [g.rH, -g.chamferStart], [g.seatIR, -g.seatD], [g.collarOR, -g.seatD], [g.collarOR, top]]
+    : [[g.rH, top], [g.rH, -g.lugBotD], [g.collarOR, -g.lugBotD], [g.collarOR, top]];
+  const parts = [extrudeRotate({ segments:96 }, ccwPoly(collar))];
+  const lugProf = ccwPoly([[g.rH+0.5, -(B.cs-0.5)], [g.lugIn, -g.lugTopD], [g.lugIn, -g.lugBotD], [g.rH+0.5, -g.lugBotD]]);
+  for (const A of lugAngles()) {
+    parts.push(extrudeRotate({ segments:96, startAngle:(A - B.lugW/2)*DEG, angle:B.lugW*DEG }, lugProf));
+    const bump = rotate([0, Math.PI/2, 0], cylinder({ radius:B.bump, height:g.rH - g.lugIn, segments:12 }));
+    parts.push(rotate([0, 0, A*DEG], translate([(g.lugIn + g.rH)/2, 0, -g.lugBotD], bump)));   // half sticks out below the lug
+  }
+  return union(...parts);
+}
+
+// LID. z = 0 is the bottom of the tube (prints tube-down, no support); the cover's outer face is at z = Lt.
+function domeLidBody(D) {
+  const g = domeGeo(D), B = BAYO;
+  const pts = [[D.boreR, 0], [g.tubeOR, 0], [g.tubeOR, g.Lt - (B.cs + B.clr)],     // tube, then the 45° cone
+               ...capOutline(g.gz, g.gOR, g.gIR), [D.boreR, g.gz]];                // that meets the countersink
+  return extrudeRotate({ segments:96 }, ccwPoly(pts));
+}
+// The lugs' path in the lid: per lug a vertical ENTRY slot + a horizontal GROOVE whose floor ramps up over
+// the 30° twist (staircase of 8 steps, 0.08 mm each — below one print layer) + a DIMPLE where the bump
+// clicks in. Groove roof = 45°, parallel to the lug's chamfer, so the lid prints without support.
+const slackAt = (th) => { const B = BAYO; if (th <= B.lugW/2) return B.slackMax;
+  return Math.max(B.slackMin, B.slackMax - (B.slackMax - B.slackMin)*(th - B.lugW/2)/B.twist); };
+function domeLidCuts(D) {
+  const g = domeGeo(D), B = BAYO, r0 = g.lugIn - 0.3, r1 = g.tubeOR + 1, hw = B.lugW/2 + B.clrA;
+  const zRoof = (r) => r - g.csR + g.Lt + 0.4;
+  const floorZ = (s) => g.Lt - (g.lugBotD + s);
+  const piece = (zf, a0, a1) => extrudeRotate({ segments:96, startAngle:a0*DEG, angle:(a1-a0)*DEG },
+    ccwPoly([[r0, zf], [r1, zf], [r1, zRoof(r1)], [r0, zRoof(r0)]]));
+  const one = [piece(-1, -hw, hw)];                                                  // entry slot, open at the tube bottom
+  const N = 8, t0 = B.lugW/2, t1 = B.twist + B.lugW/2;
+  one.push(piece(floorZ(B.slackMax), -hw, t0 + 0.01));
+  for (let i=0; i<N; i++) { const a = t0 + (t1-t0)*i/N, b = t0 + (t1-t0)*(i+1)/N;
+    one.push(piece(floorZ(slackAt(a)), a - 0.01, b + 0.01)); }                       // deepest end of each step
+  one.push(piece(floorZ(B.slackMin), t1 - 0.01, B.twist + hw));
+  const stepAt = (th) => { const i = Math.min(N-1, Math.floor((th - t0)/(t1 - t0)*N)); return slackAt(t0 + (t1-t0)*i/N); };
+  const dimple = rotate([0, Math.PI/2, 0], cylinder({ radius:B.bump + 0.25, height:r1 - r0, segments:12 }));
+  one.push(rotate([0, 0, B.twist*DEG], translate([(r0 + r1)/2, 0, floorZ(stepAt(B.twist))], dimple)));
+  const cut = union(...one);
+  return union(...lugAngles().map(A => rotate([0, 0, A*DEG], cut)));
+}
+// Plain lid (print translucent).
+function referenceDome(D) { return subtract(domeLidBody(D), domeLidCuts(D)); }
+
+// Honeycomb lid: the same lid with hex holes punched along the surface normal through the cap. Sized FROM
+// the globe (not fixed mm): hex circumradius ~R/10, rows spaced by arc length, hexes turned flats-N/S so
+// two holes that line up in neighbouring rows still keep HONEY_WEB between them. Rows run from the apex
+// (a hole cuts the tip off) down the 45° cone, then down the sphere, stopping above the equator.
 const HONEY_WEB = 1.2;   // min material between holes (mid-surface; ~0.9 on the inner face)
 function referenceDomeHoney(D) {
-  const wall = 1.8, gOR = domeGlobeOR(D), gz = domeSkirtTop(D), R = gOR - wall/2, cutterPolys = [];
-  const holeR = Math.min(3.4, Math.max(2.2, R*0.1));     // hex circumradius: ø58 -> 3.36 (as before), ø44 -> 2.36
-  const halfF = holeR*Math.sqrt(3)/2;                     // half across-flats (hex is turned flats-N/S, see below)
-  const rowStep = (2*halfF + HONEY_WEB) / R;              // ring-to-ring (rad): flats face each other -> web even when two holes line up
-  const pitch = 2*holeR + HONEY_WEB;                      // min centre spacing along a ring (corners face each other)
-  const theta1 = (holeR + halfF + HONEY_WEB) / R;         // first ring clears the apex hole
-  const thetaMax = Math.PI/2 - (halfF + HONEY_WEB) / R;   // last ring stays above the equator (skirt below)
-  let ring = 0;
-  // The hex cutters are disjoint, so we collect their polygons into ONE geom3 and do a single subtract —
+  const g = domeGeo(D), wall = BAYO.capWall, Rm = g.gOR - wall/2, apex = g.gz + Rm*Math.SQRT2, cutterPolys = [];
+  // point + outward normal on the mid-surface at slant distance s from the apex
+  const at = (s) => { if (s <= Rm) return { r: s/Math.SQRT2, z: apex - s/Math.SQRT2, nr: Math.SQRT1_2, nz: Math.SQRT1_2 };
+    const a = Math.PI/4 - (s - Rm)/Rm; return { r: Rm*Math.cos(a), z: g.gz + Rm*Math.sin(a), nr: Math.cos(a), nz: Math.sin(a) }; };
+  const holeR = Math.min(3.4, Math.max(2.2, Rm*0.1)), halfF = holeR*Math.sqrt(3)/2;
+  const rowStep = 2*halfF + HONEY_WEB, pitch = 2*holeR + HONEY_WEB;
+  const s1 = holeR*Math.SQRT2 + halfF + HONEY_WEB;           // the apex hole is ~holeR·√2 long on the 45° cone
+  const sEnd = Rm*(1 + Math.PI/4) - (halfF + HONEY_WEB);       // stay above the equator (skirt below)
+  // The hex cutters are disjoint, so collect their polygons into ONE geom3 and do a single subtract —
   // a 100+-way union() here is ~20 s, this is ~9 s.
   const punch = (h) => { for (const p of geom3.toPolygons(h)) cutterPolys.push(p); };
-  for (let theta = theta1; theta <= thetaMax + 1e-6; theta += rowStep) {
-    const ringR = R*Math.sin(theta);
-    const n = Math.max(3, Math.floor(2*Math.PI*ringR / pitch));   // floor: never closer than pitch
-    const phi0 = (ring % 2) * (Math.PI / n);                 // stagger alternate rings -> honeycomb look
-    for (let k=0; k<n; k++) {
-      const phi = phi0 + k*2*Math.PI/n;
-      // rotate 30° first so the hex's FLATS face north/south along the meridian
-      const hex = rotate([0,0,Math.PI/6], cylinder({ radius:holeR, height:wall*3, segments:6 }));
-      const h = rotate([0,0,phi], rotate([0,theta,0], hex));
-      const dir = [Math.sin(theta)*Math.cos(phi), Math.sin(theta)*Math.sin(phi), Math.cos(theta)];
-      punch(translate([R*dir[0], R*dir[1], gz + R*dir[2]], h));
-    }
+  const hex = rotate([0, 0, Math.PI/6], cylinder({ radius:holeR, height:wall*3, segments:6 }));   // flats face the meridian
+  let ring = 0;
+  for (let s = s1; s <= sEnd + 1e-6; s += rowStep) {
+    const p = at(s), n = Math.max(3, Math.floor(2*Math.PI*p.r / pitch)), tilt = Math.atan2(p.nr, p.nz);
+    const phi0 = (ring % 2) * (Math.PI / n);                   // stagger alternate rings -> honeycomb look
+    for (let k=0; k<n; k++) { const phi = phi0 + k*2*Math.PI/n;
+      punch(translate([p.r*Math.cos(phi), p.r*Math.sin(phi), p.z], rotate([0, 0, phi], rotate([0, tilt, 0], hex)))); }
     ring++;
   }
-  punch(translate([0,0,gz+R], cylinder({ radius:holeR, height:wall*3, segments:6 })));   // hole at the apex
+  punch(translate([0, 0, apex], hex));                         // hole at the apex
   return subtract(referenceDome(D), geom3.create(cutterPolys));
+}
+
+// DIFFUSER (optional, separate print in thin WHITE filament): a smaller cone-topped globe on a short tube
+// with a flat flange. Drop it into the cover's bore before the lid: the flange rests on the 45° seat
+// chamfer and the lid's tube end clamps it when you twist the lid on. It sits inside the lid's ø-bore all
+// the way up, so the lid passes straight over it. z = 0 = flange bottom (prints flange-down, no support).
+// Only for domes with a seat (the ø44); 0.8 mm wall = 2 perimeters of a 0.4 nozzle.
+const DIFF = { wall:0.8, flangeT:0.8, gap:0.8 };
+function domeDiffuser(D) {
+  if (!D.seat) return null;
+  const g = domeGeo(D), Ro = D.boreR - DIFF.gap, Ri = Ro - DIFF.wall, FT = DIFF.flangeT;
+  const flangeOR = g.rH - (g.Lt + FT - g.chamferStart);       // where the seat chamfer is at the flange bottom
+  const zc = g.gz + FT;                                        // same globe centre as the lid
+  const pts = [[Ri, 0], [flangeOR, 0], [flangeOR, FT], [Ro, FT], ...capOutline(zc, Ro, Ri)];
+  return extrudeRotate({ segments:96 }, ccwPoly(pts));
 }
 
 // A shallow engraved-text solid for one label, positioned over its reserved strip on the top cover.
@@ -802,6 +862,23 @@ function buildBox(assembled) {
   // user-placed cable hooks rise from the bottom cover in empty tiles
   for (const h of hooks) back = union(back, cableHook(h.gx, h.gy, backT));
 
+  // LOCATING WALL (Christopher, 2026-10-03): a low 1.4 mm wall around the bottom cover's edge that drops
+  // INSIDE the top cover's walls (0.25 mm clearance). It self-centres the halves, stiffens the flat
+  // bottom plate, closes the light/cable gap at the seam. Interrupted wherever a wall feature needs the
+  // seam: the latch arms, the USB-C cable notches, the cable openings and the female dovetail bosses.
+  { const LW = BOX.locWall;
+    let rim = subtract(offset({ delta: -LW.clr, corners:'edge' }, cavity2d),
+                       offset({ delta: -(LW.clr + LW.t), corners:'edge' }, cavity2d));
+    rim = translate([0,0,backT], extrudeLinear({ height: LW.h }, rim));
+    const gap = (key, w) => { const [gx,gy,s] = key.split(','); const f = wallFrame(+gx,+gy,s);
+      const c = { x: f.wm.x + f.on[0]*(WALL_GAP - 2), y: f.wm.y + f.on[1]*(WALL_GAP - 2) };   // straddles the rim, inside the wall
+      rim = subtract(rim, cuboid({ size: f.alongY ? [6, w, 3*LW.h] : [w, 6, 3*LW.h], center:[c.x, c.y, backT + LW.h/2] })); };
+    for (const k of latches)  gap(k, 6 + 3);          // arm width + room to flex
+    for (const k of holes)    gap(k, 5 + 2);          // cable notch (slotW 5)
+    for (const k of openings) gap(k, GRID);           // whole wall segment is open there
+    for (const k of dtFemale) gap(k, GRID);           // the boss fills that tile down to the floor
+    back = union(back, rim); }
+
   // cover-to-cover JOIN — flexing latches on the walls the USER picked: a spring arm on the back
   // cover clicks a detent into a window in the front-cover wall. Press the detent through the
   // window from OUTSIDE to release, so the box opens (nothing internal is trapped).
@@ -850,11 +927,11 @@ function buildBox(assembled) {
     const owW = GRID - 2.0, thick = BOX.wallT + 4, owB = backT - 0.5, owT = H - frontT;
     front = subtract(front, cuboid({ size: f.alongY?[thick,owW,owT-owB]:[owW,thick,owT-owB], center:[wc.x, wc.y, (owB+owT)/2] })); }
 
-  // dome-mount variant: the female thread ring runs from the outer face (flush, refilling the plate hole
-  // with the thread) down into the box, so the outer face stays flat and prints without supports.
+  // dome-mount variant: the bayonet socket (collar + lugs + seat) hangs from the plate into the box, so the
+  // outer face stays flat and the cover prints plate-down without supports.
   for (const p of placed) { const f = MODULES[p.key].top;
     if (f && f.type === 'dome_mount') { const w = loc(p, f.x, f.y), D = DOMES[f.dome];
-      front = union(front, translate([w.x, w.y, H - D.height], domeRing(D))); } }
+      front = union(front, translate([w.x, w.y, H], domeSocket(D))); } }
 
   // engrave the module labels into the top cover (subtract shallow grooves). Guard each one so a single
   // troublesome label can never crash the whole box. Text is engraved NORMALLY (no pre-mirror) — the print
@@ -937,6 +1014,9 @@ function generate() {
       document.getElementById(id).style.display = hasDome ? 'block' : 'none';
       document.getElementById(id).disabled = !hasDome;
     }
+    const hasSeat = domesInDesign().some(k => DOMES[k].seat);   // the diffuser rests on the seat (ø44 only)
+    document.getElementById('dlDiffuser').style.display = hasSeat ? 'block' : 'none';
+    document.getElementById('dlDiffuser').disabled = !hasSeat;
     setStatus(`box ${boxH.toFixed(1)} mm tall · ${placed.length} modules · STL ready (${(currentSTL.byteLength/1024).toFixed(0)} KB)`);
   } catch(e) { console.error(e); setStatus('generate error: ' + e.message); }
 }
@@ -1052,9 +1132,11 @@ document.getElementById('dlBottom').addEventListener('click', () => {
 // one lid per dome SIZE in the design (usually one; a box mixing the 8× and 16x domes gets both files)
 const domesInDesign = () => [...new Set(placed.map(p => MODULES[p.key].top).filter(f => f && f.type==='dome_mount').map(f => f.dome))];
 document.getElementById('dlDome').addEventListener('click', () => busyThen('Building dome lid…',
-  () => { for (const k of domesInDesign()) downloadBlob(toSTL(referenceDome(DOMES[k])), `noknok_dome_mount_${DOMES[k].label}_lid.stl`); }));   // matching screw-in lid (print translucent)
+  () => { for (const k of domesInDesign()) downloadBlob(toSTL(referenceDome(DOMES[k])), `noknok_dome_mount_${DOMES[k].label}_lid.stl`); }));   // matching bayonet lid (print translucent)
 document.getElementById('dlDomeHoney').addEventListener('click', () => busyThen('Building honeycomb dome… (a few seconds)',
   () => { for (const k of domesInDesign()) downloadBlob(toSTL(referenceDomeHoney(DOMES[k])), `noknok_dome_mount_${DOMES[k].label}_lid_honeycomb.stl`); }));   // hex-perforated (any filament)
+document.getElementById('dlDiffuser').addEventListener('click', () => busyThen('Building diffuser…',
+  () => { for (const k of domesInDesign()) { const d = domeDiffuser(DOMES[k]); if (d) downloadBlob(toSTL(d), `noknok_dome_mount_${DOMES[k].label}_diffuser.stl`); } }));   // optional inner diffuser (thin white)
 
 // ---- save / load the 2D design (JSON) ----
 // Serialise everything that defines the layout (Sets -> arrays). UI-only state (selection, active modes,
