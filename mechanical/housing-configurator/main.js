@@ -41,7 +41,11 @@ const DOMES = {
 };
 // Bayonet tuning (print-test these). Radial numbers in mm, angles in degrees.
 const BAYO = { tubeWall:3.0, clr:0.4, cs:1.0, lugR:1.8, lugFlat:0.6, lugW:15, clrA:1.2, twist:30, lugs:3,
-  slackMax:0.8, slackMin:0.15, bump:0.55, below:1.5, capWall:1.8 };   // bump vs the ramped floor = up to ~0.15 mm interference over the last ~10° of twist, then it drops into the dimple (the click)
+  slackMax:0.8, slackMin:0.15, bump:0.55, ridge:0.25, below:1.5, capWall:1.8 };
+// The click: the cover lug's bump (0.55) rides over a raised RIDGE in the lid's groove floor (slack 0.25)
+// 2–4° before the lock point = 0.30 mm interference, then drops into the dimple. 2026-10-05: the first print
+// (no ridge, ~0.15 mm max) "didn't really snap". To tune, change only `ridge` (lower = stiffer click) —
+// it lives in the LID, so the printed base can stay.
 // All the derived radii/depths of one dome size. d = depth below the cover's OUTER face.
 function domeGeo(D) {
   const B = BAYO, tubeOR = D.boreR + B.tubeWall, rH = tubeOR + B.clr, csR = rH + B.cs, lugIn = rH - B.lugR;
@@ -63,8 +67,8 @@ function domeGeo(D) {
 const MODULES = {
   buzzer:    { name:'buzzer',     w:20, h:20, clearance_top:3.0,  pcb:1.6, clearance_bottom:3.0,
     holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'grille', x:10, y:10, dia:8.5} },
-  knob:      { name:'knob',       w:20, h:20, clearance_top:6.0,  pcb:1.6, clearance_bottom:3.0,   // 6.0 (was 9.0): shaft sticks out further
-    holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'round_hole', x:10, y:10.25, dia:7.6} },
+  knob:      { name:'knob',       w:20, h:20, clearance_top:6.0,  pcb:1.6, clearance_bottom:3.0,   // 6.0 (was 9.0): shaft sticks out further; hole 7.5 (2nd print: 7.6 a bit loose)
+    holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'round_hole', x:10, y:10.25, dia:7.5} },
   ledbutton: { name:'LED button', w:20, h:20, clearance_top:4.5, pcb:1.6, clearance_bottom:3.0,   // 4.5 (was 5.0): key cap 0.5 mm prouder
     holes:[[2.25,2.25],[17.75,17.75]], conn:[['W',3.1,15.5],['E',16.9,4.5]], top:{type:'button', x:10, y:10, w:16.4, h:16.2} },
   usbled:    { name:'USB LEDs',   w:40, h:40, clearance_top:1.6,  pcb:1.6, clearance_bottom:9.0,
@@ -606,14 +610,19 @@ function domeLidCuts(D) {
   const piece = (zf, a0, a1) => extrudeRotate({ segments:96, startAngle:a0*DEG, angle:(a1-a0)*DEG },
     ccwPoly([[r0, zf], [r1, zf], [r1, zRoof(r1)], [r0, zRoof(r0)]]));
   const one = [piece(-1, -hw, hw)];                                                  // entry slot, open at the tube bottom
-  const N = 8, t0 = B.lugW/2, t1 = B.twist + B.lugW/2;
-  one.push(piece(floorZ(B.slackMax), -hw, t0 + 0.01));
-  for (let i=0; i<N; i++) { const a = t0 + (t1-t0)*i/N, b = t0 + (t1-t0)*(i+1)/N;
-    one.push(piece(floorZ(slackAt(a)), a - 0.01, b + 0.01)); }                       // deepest end of each step
-  one.push(piece(floorZ(B.slackMin), t1 - 0.01, B.twist + hw));
-  const stepAt = (th) => { const i = Math.min(N-1, Math.floor((th - t0)/(t1 - t0)*N)); return slackAt(t0 + (t1-t0)*i/N); };
+  // Floor segments: 8 ramp steps (each cut at the deepest = start value) + the detent RIDGE, a short raised
+  // band of floor just before the lock point. The lug's flat face clears it (slack B.ridge > 0); only the
+  // bump on the lug centre rides over it (bump − ridge = the click), then drops into the dimple.
+  const N = 8, t0 = B.lugW/2, t1 = B.twist + B.lugW/2, rA = B.twist - 4.0, rB = B.twist - 2.2;
+  const cuts = [-hw, t0, rA, rB, t1, B.twist + hw];
+  for (let i=1; i<N; i++) cuts.push(t0 + (t1-t0)*i/N);
+  cuts.sort((a, b) => a - b);
+  const segSlack = (a, b) => Math.min(slackAt(a), (a >= rA - 1e-9 && b <= rB + 1e-9) ? B.ridge : Infinity);
+  for (let i=0; i<cuts.length-1; i++) { const a = cuts[i], b = cuts[i+1];
+    one.push(piece(floorZ(segSlack(a, b)), a - 0.01, b + 0.01)); }
+  const k = cuts.findIndex((c, i) => i < cuts.length-1 && c <= B.twist && cuts[i+1] > B.twist);
   const dimple = rotate([0, Math.PI/2, 0], cylinder({ radius:B.bump + 0.25, height:r1 - r0, segments:12 }));
-  one.push(rotate([0, 0, B.twist*DEG], translate([(r0 + r1)/2, 0, floorZ(stepAt(B.twist))], dimple)));
+  one.push(rotate([0, 0, B.twist*DEG], translate([(r0 + r1)/2, 0, floorZ(segSlack(cuts[k], cuts[k+1]))], dimple)));
   const cut = union(...one);
   return union(...lugAngles().map(A => rotate([0, 0, A*DEG], cut)));
 }
@@ -621,8 +630,8 @@ function domeLidCuts(D) {
 function referenceDome(D) { return subtract(domeLidBody(D), domeLidCuts(D)); }
 
 // Honeycomb lid: the same lid with hex holes punched along the surface normal through the cap. Sized FROM
-// the globe (not fixed mm): hex circumradius ~R/10, rows spaced by arc length, hexes turned flats-N/S so
-// two holes that line up in neighbouring rows still keep HONEY_WEB between them. Rows run from the apex
+// the globe (not fixed mm): hex circumradius ~R/10, rows spaced by arc length so two holes that line up in
+// neighbouring rows still keep HONEY_WEB between them. Rows run from the apex
 // (a hole cuts the tip off) down the 45° cone, then down the sphere, stopping above the equator.
 const HONEY_WEB = 1.2;   // min material between holes (mid-surface; ~0.9 on the inner face)
 function referenceDomeHoney(D) {
@@ -630,14 +639,17 @@ function referenceDomeHoney(D) {
   // point + outward normal on the mid-surface at slant distance s from the apex
   const at = (s) => { if (s <= Rm) return { r: s/Math.SQRT2, z: apex - s/Math.SQRT2, nr: Math.SQRT1_2, nz: Math.SQRT1_2 };
     const a = Math.PI/4 - (s - Rm)/Rm; return { r: Rm*Math.cos(a), z: g.gz + Rm*Math.sin(a), nr: Math.cos(a), nz: Math.sin(a) }; };
+  // Hexes are POINTY toward the apex (a corner at the top of every hole, Christopher 2026-10-05): the top of
+  // a hole is then two ~30°-sloped edges that each build on the layer below, not a flat edge bridged in
+  // the air. Along the meridian a hole is 2·holeR long (corner to corner), across it 2·halfF (flat to flat).
   const holeR = Math.min(3.4, Math.max(2.2, Rm*0.1)), halfF = holeR*Math.sqrt(3)/2;
-  const rowStep = 2*halfF + HONEY_WEB, pitch = 2*holeR + HONEY_WEB;
-  const s1 = holeR*Math.SQRT2 + halfF + HONEY_WEB;           // the apex hole is ~holeR·√2 long on the 45° cone
-  const sEnd = Rm*(1 + Math.PI/4) - (halfF + HONEY_WEB);       // stay above the equator (skirt below)
+  const rowStep = 2*holeR + HONEY_WEB, pitch = 2*halfF + HONEY_WEB;
+  const s1 = holeR*Math.SQRT2 + holeR + HONEY_WEB;           // the apex hole is ~holeR·√2 long on the 45° cone
+  const sEnd = Rm*(1 + Math.PI/4) - (holeR + HONEY_WEB);       // stay above the equator (skirt below)
   // The hex cutters are disjoint, so collect their polygons into ONE geom3 and do a single subtract —
   // a 100+-way union() here is ~20 s, this is ~9 s.
   const punch = (h) => { for (const p of geom3.toPolygons(h)) cutterPolys.push(p); };
-  const hex = rotate([0, 0, Math.PI/6], cylinder({ radius:holeR, height:wall*3, segments:6 }));   // flats face the meridian
+  const hex = cylinder({ radius:holeR, height:wall*3, segments:6 });   // corners on local ±X = up/down the meridian after the tilt
   let ring = 0;
   for (let s = s1; s <= sEnd + 1e-6; s += rowStep) {
     const p = at(s), n = Math.max(3, Math.floor(2*Math.PI*p.r / pitch)), tilt = Math.atan2(p.nr, p.nz);

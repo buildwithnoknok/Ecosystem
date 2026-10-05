@@ -45774,6 +45774,7 @@ var BAYO = {
   slackMax: 0.8,
   slackMin: 0.15,
   bump: 0.55,
+  ridge: 0.25,
   below: 1.5,
   capWall: 1.8
 };
@@ -45805,10 +45806,10 @@ var MODULES = {
     clearance_top: 6,
     pcb: 1.6,
     clearance_bottom: 3,
-    // 6.0 (was 9.0): shaft sticks out further
+    // 6.0 (was 9.0): shaft sticks out further; hole 7.5 (2nd print: 7.6 a bit loose)
     holes: [[2.25, 2.25], [17.75, 17.75]],
     conn: [["W", 3.1, 15.5], ["E", 16.9, 4.5]],
-    top: { type: "round_hole", x: 10, y: 10.25, dia: 7.6 }
+    top: { type: "round_hole", x: 10, y: 10.25, dia: 7.5 }
   },
   ledbutton: {
     name: "LED button",
@@ -46587,19 +46588,18 @@ function domeLidCuts(D) {
     ccwPoly([[r0, zf], [r1, zf], [r1, zRoof(r1)], [r0, zRoof(r0)]])
   );
   const one = [piece(-1, -hw, hw)];
-  const N = 8, t0 = B.lugW / 2, t1 = B.twist + B.lugW / 2;
-  one.push(piece(floorZ(B.slackMax), -hw, t0 + 0.01));
-  for (let i = 0; i < N; i++) {
-    const a = t0 + (t1 - t0) * i / N, b = t0 + (t1 - t0) * (i + 1) / N;
-    one.push(piece(floorZ(slackAt(a)), a - 0.01, b + 0.01));
+  const N = 8, t0 = B.lugW / 2, t1 = B.twist + B.lugW / 2, rA = B.twist - 4, rB = B.twist - 2.2;
+  const cuts = [-hw, t0, rA, rB, t1, B.twist + hw];
+  for (let i = 1; i < N; i++) cuts.push(t0 + (t1 - t0) * i / N);
+  cuts.sort((a, b) => a - b);
+  const segSlack = (a, b) => Math.min(slackAt(a), a >= rA - 1e-9 && b <= rB + 1e-9 ? B.ridge : Infinity);
+  for (let i = 0; i < cuts.length - 1; i++) {
+    const a = cuts[i], b = cuts[i + 1];
+    one.push(piece(floorZ(segSlack(a, b)), a - 0.01, b + 0.01));
   }
-  one.push(piece(floorZ(B.slackMin), t1 - 0.01, B.twist + hw));
-  const stepAt = (th) => {
-    const i = Math.min(N - 1, Math.floor((th - t0) / (t1 - t0) * N));
-    return slackAt(t0 + (t1 - t0) * i / N);
-  };
+  const k = cuts.findIndex((c, i) => i < cuts.length - 1 && c <= B.twist && cuts[i + 1] > B.twist);
   const dimple = rotate([0, Math.PI / 2, 0], cylinder({ radius: B.bump + 0.25, height: r1 - r0, segments: 12 }));
-  one.push(rotate([0, 0, B.twist * DEG], translate([(r0 + r1) / 2, 0, floorZ(stepAt(B.twist))], dimple)));
+  one.push(rotate([0, 0, B.twist * DEG], translate([(r0 + r1) / 2, 0, floorZ(segSlack(cuts[k], cuts[k + 1]))], dimple)));
   const cut = union(...one);
   return union(...lugAngles().map((A) => rotate([0, 0, A * DEG], cut)));
 }
@@ -46615,13 +46615,13 @@ function referenceDomeHoney(D) {
     return { r: Rm * Math.cos(a), z: g.gz + Rm * Math.sin(a), nr: Math.cos(a), nz: Math.sin(a) };
   };
   const holeR = Math.min(3.4, Math.max(2.2, Rm * 0.1)), halfF = holeR * Math.sqrt(3) / 2;
-  const rowStep = 2 * halfF + HONEY_WEB, pitch = 2 * holeR + HONEY_WEB;
-  const s1 = holeR * Math.SQRT2 + halfF + HONEY_WEB;
-  const sEnd = Rm * (1 + Math.PI / 4) - (halfF + HONEY_WEB);
+  const rowStep = 2 * holeR + HONEY_WEB, pitch = 2 * halfF + HONEY_WEB;
+  const s1 = holeR * Math.SQRT2 + holeR + HONEY_WEB;
+  const sEnd = Rm * (1 + Math.PI / 4) - (holeR + HONEY_WEB);
   const punch = (h) => {
     for (const p of geom3.toPolygons(h)) cutterPolys.push(p);
   };
-  const hex = rotate([0, 0, Math.PI / 6], cylinder({ radius: holeR, height: wall * 3, segments: 6 }));
+  const hex = cylinder({ radius: holeR, height: wall * 3, segments: 6 });
   let ring = 0;
   for (let s = s1; s <= sEnd + 1e-6; s += rowStep) {
     const p = at(s), n = Math.max(3, Math.floor(2 * Math.PI * p.r / pitch)), tilt = Math.atan2(p.nr, p.nz);
