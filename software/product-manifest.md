@@ -226,6 +226,9 @@ changed and only after 5 s without further changes.
 `time` caveat: the brain has no battery clock. Online products get the time via NTP;
 offline products only while the app is connected (`clock.set`, DEV-36). The app shows
 that hint automatically for any product that declares a `time` setting.
+**Not shipped yet:** `type: "time"` is accepted by the schema, but the clock behind it
+(NTP timezone + `clock.set`) is still open work (DEV-36). Until that lands, do not build
+a product whose behaviour depends on knowing the wall-clock time after a power cut.
 
 ## `controls` — the user manual (optional)
 
