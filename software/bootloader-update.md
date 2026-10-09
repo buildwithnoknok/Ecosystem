@@ -153,8 +153,9 @@ ever see it. `rescue_parked_module(get_image)` runs **first, before `enumerate()
 3. `GET_UID` → look the UID up in the Conductor's saved state (the brain's runtime Store,
    key `state`; a legacy `noknok_state.json` is only read as a fallback when the Store is
    empty) → the type it enumerated as last time.
-4. `get_image(type, layout)` for that type → `flash()` (already in the bootloader) → `BOOT`.
-   The brain only supplies a cached image whose layout equals the module's.
+4. `get_image(entry)` for that type (the entry also carries the bootloader's layout from
+   step 2) → `flash()` (already in the bootloader) → `BOOT`. The brain only supplies a
+   cached image whose layout equals the module's.
 
 Two things this depends on:
 
