@@ -136,12 +136,19 @@ gate, is in [`firmware-index.md`](firmware-index.md).
 
 ## `files` — what gets installed on the brain
 
+**Today exactly one entry is used:** the one whose `dest` is `product.py`. The app takes its
+`url` and sends it to the brain as `script_url`; the brain downloads that single file,
+compile-checks it and stores it as `/data/product.py` (never on the CIRCUITPY root). The
+brain never reads the manifest itself, so any other entry, and the `version` and `required`
+keys, are ignored for now. Keep them in the manifest anyway: they describe intent and keep
+the format open for multi-file products later.
+
 | Key | Required | Notes |
 | --- | --- | --- |
-| `dest` | yes | Filename on CIRCUITPY. At minimum one entry with `product.py`. |
+| `dest` | yes | Target file name. Must include one entry with `product.py` (the only one installed today, as `/data/product.py`). |
 | `url` | yes | Raw GitHub URL to the source (usually `poc/scripts/`). Must be pushed to `main` — unpushed means uninstallable. |
-| `version` | yes | Version of this file. |
-| `required` | yes | If `true`, provisioning fails when the file can't be fetched. |
+| `version` | yes | Version of this file. Informational; not checked by app or brain today. |
+| `required` | yes | Intended: if `true`, provisioning fails when the file can't be fetched. Not evaluated today: a failed `product.py` download always keeps the brain in setup / the old product. |
 
 ## `roles` — telling identical modules apart
 
@@ -212,10 +219,16 @@ the value is `null` (no provider registered yet, or the provider failed).
 Rules: `default` is **required** for every entry except `info` (the app sends all defaults to the
 brain at install as `config_defaults`, so device and app agree from first boot);
 `id` is lowercase snake_case; optional `group` sections the page, `help` adds a hint.
-The **app validates** input against the schema; the **brain stores values verbatim**
-and `product.py` clamps (never trust a value blindly). The brain never needs the
-schema — the app finds the product id in the device's settings record and fetches
-the manifest from the catalog.
+The **app validates** input fully against the schema (ranges, options, lengths). The
+**brain** never sees the schema, so it checks only what it can derive from the
+defaults: the value's type must match its default (boolean / number / string), a
+default shaped `#RRGGBB` or `HH:MM` forces that format, and size limits apply (32 keys,
+key ≤ 32 chars, string ≤ 256 chars, scalars only). Mismatches come back in `rejected`.
+Ranges and `select` options are **not** checked by the brain, so `product.py` clamps
+(never trust a value blindly). The app finds the product through `hello`: it returns
+`product.id` (the manifest id saved with the WiFi credentials at setup) and the script
+file name; the app takes the catalog manifest with that id, or, for older setups without
+an id, the one whose `product.py` URL ends in that file name.
 
 Lifetimes: same product reinstalled → values **kept** (new entries get defaults,
 removed ones are dropped); different product → **replaced** by its defaults;
