@@ -127,9 +127,10 @@ Adding a module type to the ecosystem is a line here — **not** a change to eve
 product manifest, and not a Pico library update.
 
 > **A module's repo must be public** for the brain to fetch its index over a raw
-> URL. `module-I2C-1.42-display` is private, so it has no registry entry yet and
-> the brain will not manage its firmware; add the entry when the repo goes
-> public. A type missing from the registry is a safe no-op — it is logged and no
+> URL. `module-I2C-1.42-display` (`display`) and `module-usb-led-16x`
+> (`usb_leds_16x`) are private, so they have no registry entry yet and the brain
+> will not update, cache or rescue their firmware; add the entries when the repos
+> go public. A type missing from the registry is a safe no-op — it is logged and no
 > firmware is installed for it.
 
 ## The bootloader has an index too
@@ -159,8 +160,9 @@ app region and has no rollback, so nothing about it is guessed.
 How the brain applies it, on a due check, **before** the app pass:
 
 - Each I²C module's installed stage-1 version is read **once** (a bootloader
-  round-trip: `0xB0`, `0xB1`, `BOOT`, re-enumerate) and remembered in
-  `noknok_state.json` (`"bl": [proto, major, minor, patch, layout]`, or `null`
+  round-trip: `0xB0`, `0xB1`, `BOOT`, re-enumerate) and remembered in the
+  Conductor's saved state in the brain's runtime Store (not a file;
+  `"bl": [proto, major, minor, patch, layout]`, or `null`
   for a legacy monolithic bootloader). After that, a newer published stage-1 is
   a free comparison.
 - A module below the published version gets the new stage-1 **and its current
@@ -174,7 +176,7 @@ How the brain applies it, on a due check, **before** the app pass:
 - A legacy bootloader (no `0xB1`) cannot self-update; it is logged once and
   left for SWD.
 
-Outcomes go to `noknok_events.txt` as `[BL]` lines, and a refusal or failure
+Outcomes go to the brain's event log (kept in the Store, not a file) as `[BL]` lines, and a refusal or failure
 triggers the customer alert like any other.
 
 **When:** on the first connected boot after provisioning, then at most **once

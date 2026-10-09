@@ -46,7 +46,7 @@ These are fixed across the USB modules — every CH32V203 module honours them:
 Every updatable application MUST be linked at the `0x2000` offset, reserve the handoff
 RAM cell, and implement `0xB0`. The manifest `.bin` for a module is this offset-linked
 application image — the bootloader is a separate binary and is never part of the OTA
-payload. (This is the USB analogue of the I2C `0x1000` relink rule.)
+payload. (This is the USB analogue of the I2C `0x1400` relink rule, flash layout 2.)
 
 ## A device that changes USB PID mid-update
 

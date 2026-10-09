@@ -124,7 +124,7 @@ Conductor writes 2 bytes to `0x7F`:
 | Byte | Value |
 |------|-------|
 | 0 | `0x1D` — ASSIGN register |
-| 1 | New address (from pool `0x08–0x77`) |
+| 1 | New address: the module's previous address if it has one, else the lowest free address counting up from `0x08` (`0x50–0x57` are skipped). The Conductor sets no upper bound; at the module counts a bus supports (see FAQ) it never gets near the 7-bit limit `0x77`. |
 
 The module switches to the new address and enters `ASSIGNED` state.
 
@@ -190,7 +190,10 @@ version) in the brain's **runtime Store** — CircuitPython's `nvm` (an optional
 `0x50` is supported but no noknok board fits one) — **never as a file on the CIRCUITPY filesystem**
 (DEV-18: a power cut during any FAT write can destroy the filesystem; see
 [authoring-products.md](authoring-products.md) → Gotchas). On the next boot it pings each
-saved address first; modules that respond are restored immediately, without the 3 s backoff.
+saved address first; modules that respond are restored immediately (no `0x7F` handshake needed).
+The Conductor then **still polls `0x7F` until 3000 ms of silence**, every time, so a newly
+plugged module with a long backoff is never missed. Every `enumerate()` therefore takes at
+least ~3 s, also after a soft reboot; this is deliberate.
 
 **Addresses are stable.** A module the Conductor has seen before is assigned the **same
 address again** when it re-enumerates from `0x7F` after a power cycle, and addresses of known
@@ -201,7 +204,8 @@ added or removed — which is what keeps the Store write-free on a normal boot. 
 
 ```
 First boot:   enumerate() → waits up to 3 s → finds all modules → saves state (once)
-Soft reboot:  enumerate() → pings saved addresses instantly → all respond → done, no write
+Soft reboot:  enumerate() → pings saved addresses instantly → all respond → still polls
+              0x7F for 3 s (nothing new) → done, no write
 Power cycle:  enumerate() → modules back at 0x7F → each gets its previous address → no write
 New module:   enumerate() → known ones restored/re-assigned → continues polling 0x7F
               → finds the new module → next free address → saves updated state
@@ -268,7 +272,7 @@ skipped; no USB host support / no USB modules → USB is skipped. Each side fail
 ## FAQ
 
 **Are addresses permanent?**
-No — runtime only. Lost on power cycle. The Conductor re-enumerates (or fast-restores from JSON) on every boot. No EEPROM writes, no address conflicts between different products.
+Not on the module: the module stores nothing and comes back at `0x7F` after every power cycle. But they are **stable**: the Conductor remembers UID → address in its Store (nvm) and hands each known module the same address again. After a soft reboot (modules kept power) it fast-restores them from the Store without the `0x7F` handshake. No EEPROM writes on the module, no address conflicts between different products. A legacy `noknok_state.json` is only read as a fallback, never written.
 
 **What if two timers collide?**
 The Conductor sees a CRC mismatch and retries after 50 ms. Meanwhile both modules time out after 200 ms and re-back off with a different seed. Resolves automatically within one extra cycle.
@@ -320,20 +324,24 @@ The Conductor and the role system treat this serial exactly as they treat an I²
 ```
 1. Conductor opens the USB host port (PIO-USB) and scans the bus.
 2. For each device whose VID = noknok:
-     - read iSerialNumber    -> instance ID  (which physical module)
-     - read PID              -> app (0x4E4E) or bootloader (0x4E42)
-     - send 0xF0 identity    -> [0x4E, 0x4E, type] -> module type (which driver class)
+     - keep only PID 0x4E4E (app). A module sitting in its bootloader
+       (PID 0x4E42) is skipped: it is not part of enumeration.
+     - read iSerialNumber    -> instance ID  (which physical module; no serial = ignored)
+     - send 0xF0 identity    -> [0x4E, 0x4E, type] -> module type (which driver class;
+                                unknown type = skipped, no answer = retried next scan)
      - send GET_VERSION 0xB1 -> firmware version
-3. Build the registry { serial: (type, version, handle) }.
+3. Create the driver for each module and add it to the Conductor registry
+   { serial: driver } (the version is an attribute of the driver). Repeat the scan
+   every 0.3 s.
 ```
 
-No address assignment, no backoff, no collision handling — the host enumerates each device automatically and the serial provides the stable identity. Enumeration is **sequential** (~3 s per module as each attaches through the hub), comparable to the I²C timeline.
+No address assignment, no backoff, no collision handling — the host enumerates each device automatically and the serial provides the stable identity. Timing: discovery gives up after **6 s** if no module appears, otherwise stops **3 s after the last new module**, with a hard cap of **20 s**. USB modules are not written to the Store state; they are identified afresh on every boot.
 
 > **Power is mandatory.** A USB module behind an *unpowered* hub enumerates its short descriptors but browns out on larger transfers. Hubs in a product must be externally powered (the DataHub is, by design).
 
 ### State & roles
 
-Roles map **role → serial**, exactly as I²C maps **role → UID**. Because both identities are unique strings, the role map, the persisted registry, and the product manifest handle I²C and USB modules **uniformly**. See [Role Assignment](roles.md).
+Roles map **role → serial**, exactly as I²C maps **role → UID**. Because both identities are unique strings, the role map, the Conductor registry, and the product manifest handle I²C and USB modules **uniformly**. See [Role Assignment](roles.md).
 
 > **Output-module role assignment.** Input modules (knob, button) are role-assigned by *interaction* — the customer touches the one to assign. Output-only USB modules (e.g. the LED ring) are assigned by *cue-and-confirm*: the Conductor lights each module in turn and the customer confirms which physical one responded.
 

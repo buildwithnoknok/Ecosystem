@@ -5,8 +5,11 @@ firmware must do to take part, and how a fleet is carried from one "world" (prot
 identity scheme) to the next without stranding anyone. This is the runbook DEV-31 asked
 for; the mechanism behind it is bench-proven (11 Sep 2026).
 
-> Applies to CH32V003 I2C modules today. The CH32V203 USB modules get the same design on
-> their own layout — see [Firmware Updates (USB Bootloader)](firmware-update-usb.md).
+> Applies to CH32V003 I2C modules only. The CH32V203 USB modules do **not** have this design:
+> USB bootloader v1.1.0 is a single-stage bootloader with no stage-0, no bootloader
+> self-update, no watchdog / boot-attempt counter, no parking and rescue, and no `0xB1` /
+> `0xB3` (only `0xB2` diagnostics). Its bootloader is updated over SWD only — see
+> [Firmware Updates (USB Bootloader)](firmware-update-usb.md).
 > Design and implementation detail: `module-I2C-bootloader/docs/stage0-design.md`.
 
 ## 1. Why this exists
@@ -98,7 +101,7 @@ stage-1 update:      0xB0 -> ERASE -> WRITE_CHUNK xN -> VERIFY_STAGE1(0x06) -> B
 
 In the Conductor: `noknok.py` `stage1_update(entry, stage1_image, app_image)` does all of
 it, including re-pushing the app and re-enumerating. `bootloader_version(entry)` reads the
-installed stage-1 version. Both are I2C-only until the USB port lands.
+installed stage-1 version. Both are I2C-only: the USB bootloader cannot update itself.
 
 **What gets checked, and by whom, before anything is erased:**
 
@@ -106,7 +109,7 @@ installed stage-1 version. Both are I2C-only until the USB port lands.
 |---|---|---|
 | Staged image fits the stage-1 region (4 KB) | stage-1, `VERIFY_STAGE1` | error 4 |
 | Staged image CRC matches what the host declared | stage-1 | error 5 |
-| Staged image **is a stage-1 for this layout** (header at `+0x100`: `NKS1`, base `0x0400`, layout 1) | stage-1 | error 8 |
+| Staged image **is a stage-1 for this layout** (header at `+0x100`: `NKS1`, base `0x0400`, layout 2) | stage-1 | error 8 |
 | Control block descriptor intact (its own CRC) | **stage-0** | not pending → boots old stage-1 |
 | Descriptor geometry sane (can only ever address the stage-1 region) | stage-0 | not pending |
 | Staged image CRC — **recomputed by stage-0**, it does not trust stage-1 | stage-0 | not pending |
@@ -118,7 +121,7 @@ chip does. Stage-0 also waits ~50 ms before its first flash access on the update
 **Host-side rule:** after `BOOT`, the *old* stage-1 is still answering at `0x7E` for a
 moment. Wait for it to **disappear, then reappear**, then read `0xB1` to confirm the version
 actually changed. Waiting only for it to appear returns the old one and you learn nothing.
-Same on USB — same PID on both sides of the update.
+(I2C only: USB modules have no bootloader self-update.)
 
 ## 5. Failure and recovery at every step
 
@@ -147,18 +150,30 @@ ever see it. `rescue_parked_module(get_image)` runs **first, before `enumerate()
 1. Probe `0x7E`. Nothing there → normal start-up.
 2. Something there → `GET_VERSION`. No answer → legacy monolithic bootloader; it cannot be
    identified over the bus. Log it; a human flashes it over SWD.
-3. `GET_UID` → look the UID up in `noknok_state.json` → the type it enumerated as last time.
-4. `get_image(entry)` for that type → `flash()` (already in the bootloader) → `BOOT`.
+3. `GET_UID` → look the UID up in the Conductor's saved state (the brain's runtime Store,
+   key `state`; a legacy `noknok_state.json` is only read as a fallback when the Store is
+   empty) → the type it enumerated as last time.
+4. `get_image(type, layout)` for that type → `flash()` (already in the bootloader) → `BOOT`.
+   The brain only supplies a cached image whose layout equals the module's.
 
 Two things this depends on:
 
 - **The Conductor must not forget modules that don't answer.** `_save_state()` merges into
-  `noknok_state.json` rather than replacing it (a bug found and fixed on 11 Sep 2026: one
+  the saved state rather than replacing it (a bug found and fixed on 11 Sep 2026: one
   enumeration with a module parked wiped its entry, and the rescue reported "unknown UID"
   for the very module it exists to rescue).
 - **Rescue before any new update.** With a module already at `0x7E`, starting another update
   would put two modules there and neither could be reached. Doing rescue first is what
   keeps the "one module in the bootloader at a time" rule true in practice.
+
+**When the rescue runs (brain `code.py` today):** on every **offline** boot and on every
+connected boot whose daily update check is **not due**, from the on-device image cache. On a
+connected boot where the check **is** due it runs only once the update data has been resolved;
+it is **skipped** that boot if the product manifest has no `module_firmware`, the HTTPS
+session cannot be set up, or nothing resolves (for example the registry is unreachable). One
+probe of `0x7E` per boot, so at most one parked module is rescued per boot. USB modules have
+no rescue: a USB module left in its bootloader is not enumerated and is not re-flashed
+automatically.
 
 ## 7. Releasing a stage-1 (the process that stands in for rollback)
 
@@ -184,7 +199,7 @@ through this, no exceptions:
    (`[proto, major, minor, patch, layout]`; `0` = pre-1.2.0, did not say); the brain
    compares it to the index rather than inferring anything from the version (the 12 Sep 2026
    incident: a layout-2 app pushed onto a layout-1 module). A brain reads each module's
-   stage-1 version once and remembers it in `noknok_state.json` (`"bl"`).
+   stage-1 version once and remembers it in its saved state in the Store (`"bl"`).
    **There is no canary channel** — the index reaches every brain at once. The staging is
    steps 1–2: nothing goes into `index.json` that has not passed the regression and a
    bench install through `bench_stage1_rollout.py`.
@@ -217,8 +232,8 @@ When the post-crowdfunding refactor lands, this is how a fleet moves:
    the button-hold factory-reset on modules that have a button (DEV-22); SWD in-house.
 
 **What the maker sees:** "Your modules can be upgraded" in the app → a guided flow → each
-module blinks through its update in turn → done. Any module that fails is parked, not
-bricked, and the next start-up rescues it.
+module blinks through its update in turn → done. Any I²C module that fails is parked, not
+bricked, and a later start-up rescues it (see §6 for which boots run the rescue).
 
 ## 9. Bench validation summary (11 Sep 2026)
 
@@ -233,7 +248,7 @@ bricked, and the next start-up rescues it.
 | Wrong file as a stage-1 (valid CRC, no header) | refused, error 8, nothing armed |
 | Full regression `regress_all.sh` (all of the above, one command, stage-1 2908 B, layout 1) | 6/6 PASS, 11 Sep 2026 evening |
 | Layout 2 (stage-1 4 KB, apps at `0x1400`) | full image boots, LED Button 2.4.0 enumerates, `bootloader_version()` 1.1.1, boots back (smoke test; full regression pending) |
-| Stage-1 v1.2.0 (IWDG armed before the jump, `0xB1` 5 bytes) | built 12 Sep 2026, 2984 B; **regression (now 7 steps, incl. `silentapp`) pending** — not installed on any module yet |
+| Stage-1 v1.2.0 (IWDG armed before the jump, `0xB1` 5 bytes) | built 12 Sep 2026, 2984 B. **Released:** published in `module-I2C-bootloader/firmware/index.json` (released 2026-09-12), so every brain's daily check rolls it out to its I²C modules. It is the stage-1 of the v1.0.0 system baseline (2 Oct 2026). |
 
 ## Related documentation
 

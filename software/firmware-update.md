@@ -2,8 +2,9 @@
 
 How a noknok I2C module gets new firmware **over the I2C bus, with no SWD cable**.
 
-> Applies to all CH32V003 I2C modules (Buzzer, Knob, LED Button). USB-C modules
-> (CH32V203) use the same idea over a different transport — see
+> Applies to all CH32V003 I2C modules (Buzzer, Knob, LED Button, Display — same bootloader,
+> same flash layout 2). USB-C modules (CH32V203) use the same idea over a different
+> transport, with a simpler single-stage bootloader — see
 > [Firmware Updates (USB Bootloader)](firmware-update-usb.md).
 
 ## Overview
@@ -30,7 +31,7 @@ These are fixed across the ecosystem — every CH32V003 module honours them:
 | `ENTER_BOOTLOADER` command | `0xB0` |
 | Handoff RAM cell | `0x200007F0` (top 16 B of RAM, reserved in every module) |
 | CRC32 | zlib (polynomial `0xEDB88320`) |
-| Status LED | SWIO / PD1 (active-low); firmware disables SDI to drive it — see below |
+| Status LED | SWIO / PD1 (active-low). Stage-1 v1.2.0 only toggles it in flash mode; the full scheme (SDI takeover, per-state patterns) is planned — see below |
 
 Every updatable application MUST be linked at the `0x1400` offset, reserve the handoff
 RAM cell, implement `0xB0`, **run the independent watchdog, and clear the boot-attempt
@@ -42,6 +43,12 @@ application OTA payload. A stage-1 (bootloader) image is a separate payload deli
 the same transport.
 
 ## Status LED & the SWIO flashing window (Flashing Interface V3)
+
+> **Status: target design, not implemented yet (planned, DEV-22).** What the released
+> stage-1 (v1.2.0) actually does today: it never disables SDI, has no SWD window, and in
+> flash mode (at `0x7E`) toggles PD1 at one fixed rate; there is no per-state blink scheme.
+> The Conductor (`noknok.py`) sends no "go" broadcast on the I2C general call `0x00`.
+> Everything below this box describes the planned scheme.
 
 The status LED sits on **PD1 — the SWIO debug pin** (active-low), so firmware must reclaim
 the pin from the debugger before it can drive it. While SWD/SDI is enabled the debug module
