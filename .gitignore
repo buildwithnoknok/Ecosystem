@@ -1,0 +1,15 @@
+# Ecosystem - files that must never be committed (DEV-61)
+
+# KiCad backups and local caches (the symbol editor writes <lib>.bak on save)
+*.bak
+*-backups/
+_autosave-*
+~*.lck
+fp-info-cache
+
+# Editor and OS leftovers
+*.orig
+*~
+*.swp
+.DS_Store
+Thumbs.db

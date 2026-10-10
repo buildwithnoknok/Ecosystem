@@ -1,4 +1,4 @@
-﻿# Binary assets - never apply line-ending conversion.
+# Binary assets - never apply line-ending conversion.
 # Without this, core.autocrlf=true corrupts PDFs (and any binary git
 # misdetects as text) on checkout. Verified: a 388495-byte schematic PDF
 # came out of a fresh clone at 414032 bytes.
