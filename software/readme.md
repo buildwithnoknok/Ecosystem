@@ -17,10 +17,22 @@ The Conductor runs the main application logic, orchestration routines, and modul
 
 - **CircuitPython** is the standard language for all Conductor‑side code.
 - Recommended IDE: **Thonny**
-- Standard I2C pins: **I2C0 = GP8 SDA / GP9 SCL** (100 kHz). A second bus, where a board provides one, is **I2C1 = GP10 SDA / GP11 SCL** — the next pair on the same side of the Pico (header pins 14/15). Standard USB host pins **GP16 = D+, GP17 = D−**. Hub / carrier boards **must** route their connectors to exactly these GPIOs; the Conductor and every bench script assume them.
-  noknok hardware (PicoHub) is wired to this standard. A maker wiring their own Pico sets the
-  pins in **`settings.toml`** on the brain (`NOKNOK_I2C_SDA`, `NOKNOK_I2C_SCL`, `NOKNOK_USB_DP`,
-  `NOKNOK_USB_DM`) — never by editing `noknok.py`. Reference: brain-Pico README → *settings.toml*.
+- **Bus pins are configuration, not a fixed standard** (decided 17 Oct 2026; replaces the old
+  "GP8/GP9 + GP10/GP11, carriers must follow" rule). Every brain names its pins in
+  **`settings.toml`** (`NOKNOK_I2C_SDA`, `NOKNOK_I2C_SCL`, `NOKNOK_USB_DP`, `NOKNOK_USB_DM`) —
+  never by editing `noknok.py`, and no script hard-codes a GPIO. I2C runs at 100 kHz.
+  Reference: brain-Pico README → *settings.toml*.
+- **Reference carrier = noknok PicoHub (MOD-0011)**, the board most brains sit on:
+
+  | Bus | SDA / D+ | SCL / D− | Ports |
+  | --- | --- | --- | --- |
+  | I2C bus A | GP10 | GP11 | J3, J4 (+ the board's power manager) |
+  | I2C bus B | GP20 | GP21 | J5, J6 |
+  | USB host (PIO-USB) | GP0 | GP1 | J2 |
+
+  Bus B needs two-bus support in the Conductor (DEV-74), which also names its settings. Until then
+  the library default is still GP8/GP9, so a MOD-0011 brain needs `NOKNOK_I2C_SDA = "GP10"` and
+  `NOKNOK_I2C_SCL = "GP11"` in its `settings.toml`.
 - The brain never writes its filesystem while a product runs (DEV-18 — bench-proven: a power cut during any FAT write can wipe the directory); products
   keep state in RAM or in the brain's runtime Store (`noknok.store()`, backed by CircuitPython `nvm`). See *authoring-products.md* → Gotchas.
 - The Conductor uses the `noknok.py` library which provides:

@@ -234,7 +234,7 @@ Full implementation lives in [`brain-Pico/software/noknok.py`](https://github.co
 ```python
 from noknok import Conductor
 
-c = Conductor()       # GP8 = SDA, GP9 = SCL, 100 kHz
+c = Conductor()       # bus pins from settings.toml (NOKNOK_I2C_SDA / _SCL), 100 kHz
 c.enumerate()         # discovers all modules, assigns addresses (~3 s)
 
 # Access by type + index (discovery order):
