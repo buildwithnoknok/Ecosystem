@@ -167,12 +167,16 @@ Two things this depends on:
   would put two modules there and neither could be reached. Doing rescue first is what
   keeps the "one module in the bootloader at a time" rule true in practice.
 
-**When the rescue runs (brain `code.py` today):** on every **offline** boot and on every
-connected boot whose daily update check is **not due**, from the on-device image cache. On a
-connected boot where the check **is** due it runs only once the update data has been resolved;
-it is **skipped** that boot if the product manifest has no `module_firmware`, the HTTPS
-session cannot be set up, or nothing resolves (for example the registry is unreachable). One
-probe of `0x7E` per boot, so at most one parked module is rescued per boot. USB modules have
+**When the rescue runs (brain `code.py` 0.20 and later):** on **every** boot that starts a
+product. Offline boots, connected boots whose daily update check is not due, and connected
+boots that cannot run the update (the product manifest has no `module_firmware`, the HTTPS
+session cannot be set up, or nothing resolves, for example the registry is unreachable) all
+rescue from the on-device image cache. A connected boot that runs the full update rescues
+after refreshing that cache. If the rescue cannot help (no cached image for the module's
+type, an image whose layout does not match the module's bootloader, or a module the brain
+does not remember), the brain says so loudly: a log line, a `[RESCUE]` entry in the event
+history the app reads, and the buzzer/LED alert. Every later boot tries again. One probe of
+`0x7E` per boot, so at most one parked module is rescued per boot. USB modules have
 no rescue: a USB module left in its bootloader is not enumerated and is not re-flashed
 automatically.
 
