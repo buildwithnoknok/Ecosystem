@@ -247,6 +247,28 @@ c.ledbutton[0].set_color(0, 255, 0)
 c.by_uid("e290...").play(440, 200)
 ```
 
+### Two I²C buses
+
+A brain can have a second I²C bus (`noknok.py` 1.15+). The noknok PicoHub has two: bus A
+(ports J3/J4) and bus B (ports J5/J6). Bus B is configured in `settings.toml`
+(`NOKNOK_I2C_B_SDA` / `NOKNOK_I2C_B_SCL`); without those keys the brain is single-bus.
+
+- **Each bus runs the protocol on its own.** Modules on bus B queue at their bus's `0x7F` and
+  get their address on that bus. The Conductor polls both `0x7F` addresses in turn every 20 ms
+  and stops once both have been quiet for 3 s, so a second bus adds no boot time.
+- **One address space across both buses.** No runtime address is handed out twice, whichever
+  bus a module is on. A module moved from one bus to the other therefore keeps its address.
+- **One registry.** `c.buzzer`, `c.knob`, ... list the modules of both buses (bus A first);
+  `by_uid()` and roles work across A, B and USB. Each module object has `i2c_bus` (`"A"` / `"B"`)
+  and talks to its own bus; `c.i2c` is bus A, `c.i2c_b` bus B.
+- **The saved state records the bus** (`"i2c_bus"` per UID; an entry without it is bus A).
+  Restore pings each module on its recorded bus; one that moved is found by the next `0x7F`
+  sweep on its new bus.
+- **Firmware updates and rescue** follow the module's bus: `firmware_report()` entries carry
+  `i2c_bus`, and the parked-module rescue probes `0x7E` on both buses.
+- **The two buses must use different I²C peripherals** of the RP2040/RP2350 (PicoHub: GP10/11 =
+  I2C1, GP20/21 = I2C0). A bus that cannot start is reported and the other keeps working.
+
 ### Mixing I2C and USB modules (unified control)
 
 USB modules are discovered separately (see [USB Module Discovery & Identity](#usb-module-discovery--identity))

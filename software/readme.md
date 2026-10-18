@@ -19,9 +19,11 @@ The Conductor runs the main application logic, orchestration routines, and modul
 - Recommended IDE: **Thonny**
 - **Bus pins are configuration, not a fixed standard** (decided 17 Oct 2026; replaces the old
   "GP8/GP9 + GP10/GP11, carriers must follow" rule). Every brain names its pins in
-  **`settings.toml`** (`NOKNOK_I2C_SDA`, `NOKNOK_I2C_SCL`, `NOKNOK_USB_DP`, `NOKNOK_USB_DM`) —
-  never by editing `noknok.py`, and no script hard-codes a GPIO. I2C runs at 100 kHz.
-  Reference: brain-Pico README → *settings.toml*.
+  **`settings.toml`** (`NOKNOK_I2C_SDA` / `_SCL` for bus A, `NOKNOK_I2C_B_SDA` / `_B_SCL` for the
+  optional bus B, `NOKNOK_USB_DP` / `_DM`) — never by editing `noknok.py`, and no code or script
+  hard-codes a GPIO: since `noknok.py` 1.15 a missing pin group is off and reported, with a
+  last-known-good copy for a lost file. I2C runs at 100 kHz. Reference: brain-Pico README →
+  *settings.toml*.
 - **Reference carrier = noknok PicoHub (MOD-0011)**, the board most brains sit on:
 
   | Bus | SDA / D+ | SCL / D− | Ports |
@@ -30,9 +32,8 @@ The Conductor runs the main application logic, orchestration routines, and modul
   | I2C bus B | GP20 | GP21 | J5, J6 |
   | USB host (PIO-USB) | GP0 | GP1 | J2 |
 
-  Bus B needs two-bus support in the Conductor (DEV-74), which also names its settings. Until then
-  the library default is still GP8/GP9, so a MOD-0011 brain needs `NOKNOK_I2C_SDA = "GP10"` and
-  `NOKNOK_I2C_SCL = "GP11"` in its `settings.toml`.
+  The brain-Pico repo's `settings.toml` carries exactly these values. Both buses are enumerated
+  into one registry with one address space; see [enumeration.md](enumeration.md) → *Two I²C buses*.
 - The brain never writes its filesystem while a product runs (DEV-18 — bench-proven: a power cut during any FAT write can wipe the directory); products
   keep state in RAM or in the brain's runtime Store (`noknok.store()`, backed by CircuitPython `nvm`). See *authoring-products.md* → Gotchas.
 - The Conductor uses the `noknok.py` library which provides:
