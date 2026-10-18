@@ -127,11 +127,13 @@ Adding a module type to the ecosystem is a line here — **not** a change to eve
 product manifest, and not a Pico library update.
 
 > **A module's repo must be public** for the brain to fetch its index over a raw
-> URL. `module-I2C-1.42-display` (`display`) and `module-usb-led-16x`
-> (`usb_leds_16x`) are private, so they have no registry entry yet and the brain
-> will not update, cache or rescue their firmware; add the entries when the repos
-> go public. A type missing from the registry is a safe no-op — it is logged and no
-> firmware is installed for it.
+> URL, so a module type gets its registry entry when its repo goes public. All six
+> module types (`buzzer`, `knob`, `led_button`, `usb_leds`, `display`,
+> `usb_leds_16x`) are listed. A type missing from the registry is a safe no-op: it
+> is logged and no firmware is installed, cached or rescued for it. The check
+> `brain-Pico/tools/test_registry_complete.py` fails when a module type the brain
+> knows has no entry here (and, with `--online`, when an entry's index or image
+> does not load or does not match).
 
 ## The bootloader has an index too
 
