@@ -1,7 +1,7 @@
 {
   "format": 1,
-  "registry_version": "1.3.0",
-  "updated": "2026-10-18",
+  "registry_version": "1.4.0",
+  "updated": "2026-10-19",
   "_comment": "Official noknok module registry: maps each module type string to its firmware index, and names the current stage-1 bootloader index. The brain fetches this, then each index.json, to decide what firmware to install. See firmware-index.md. A repo must be PUBLIC for the brain to reach its index; private-repo modules are listed here only once their repo is public.",
   "bootloader": {
     "stage1": {
@@ -33,6 +33,10 @@
     "usb_leds_16x": {
       "repo": "module-usb-led-16x",
       "index": "https://raw.githubusercontent.com/buildwithnoknok/module-usb-led-16x/main/firmware/index.json"
+    },
+    "picohub": {
+      "repo": "module-I2C-picohub-MOD-0011",
+      "index": "https://raw.githubusercontent.com/buildwithnoknok/module-I2C-picohub-MOD-0011/main/firmware/index.json"
     }
   }
 }
