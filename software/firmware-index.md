@@ -80,7 +80,11 @@ every check the bootloader has and then hangs the module the moment it runs.
 | --- | --- | --- | --- |
 | `0` | legacy monolithic | `0x1000` | none — does not answer `0xB1` |
 | `1` | stage-0 / stage-1 | `0x1000` | 1.0.x |
-| `2` | stage-0 / stage-1 | `0x1400` | 1.1.x |
+| `2` | stage-0 / stage-1 | `0x1400` | 1.1.x and later |
+| `3` | stage-0 / stage-1, **CH32X035** (noknok PicoHub power manager, DEV-124) | `0x1400` | X035 line 1.0.x |
+
+Layout ids are unique across chip families: a layout says which chip AND which map, so the exact
+match below also keeps one chip's image off another.
 
 Read it off the module's `app.ld` `ORIGIN`: `0x1000` under stage-1 1.0.x is
 layout 1, `0x1400` is layout 2.

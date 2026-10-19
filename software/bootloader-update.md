@@ -5,7 +5,12 @@ firmware must do to take part, and how a fleet is carried from one "world" (prot
 identity scheme) to the next without stranding anyone. This is the runbook DEV-31 asked
 for; the mechanism behind it is bench-proven (11 Sep 2026).
 
-> Applies to CH32V003 I2C modules only. The CH32V203 USB modules do **not** have this design:
+> Applies to CH32V003 I2C modules and, since DEV-124, to the CH32X035 power manager of the noknok
+> PicoHub (flash layout 3, its own stage-1 version line starting at 1.0.0; addresses in
+> [firmware-update.md](firmware-update.md) "Other chips"). The brain's automatic stage-1 rollout
+> below covers the CH32V003 stage-1 only; an X035 stage-1 is updated with the same commands
+> (`Conductor.stage1_update()`), not yet over the registry.
+> The CH32V203 USB modules do **not** have this design:
 > USB bootloader v1.1.0 is a single-stage bootloader with no stage-0, no bootloader
 > self-update, no watchdog / boot-attempt counter, no parking and rescue, and no `0xB1` /
 > `0xB3` (only `0xB2` diagnostics). Its bootloader is updated over SWD only — see
@@ -109,7 +114,7 @@ installed stage-1 version. Both are I2C-only: the USB bootloader cannot update i
 |---|---|---|
 | Staged image fits the stage-1 region (4 KB) | stage-1, `VERIFY_STAGE1` | error 4 |
 | Staged image CRC matches what the host declared | stage-1 | error 5 |
-| Staged image **is a stage-1 for this layout** (header at `+0x100`: `NKS1`, base `0x0400`, layout 2) | stage-1 | error 8 |
+| Staged image **is a stage-1 for this layout** (header at `+0x100`: `NKS1`, base `0x0400`, layout 2; CH32X035: at `+0x200`, layout 3, target `X035`) | stage-1 | error 8 |
 | Control block descriptor intact (its own CRC) | **stage-0** | not pending → boots old stage-1 |
 | Descriptor geometry sane (can only ever address the stage-1 region) | stage-0 | not pending |
 | Staged image CRC — **recomputed by stage-0**, it does not trust stage-1 | stage-0 | not pending |

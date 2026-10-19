@@ -3,7 +3,8 @@
 How a noknok I2C module gets new firmware **over the I2C bus, with no SWD cable**.
 
 > Applies to all CH32V003 I2C modules (Buzzer, Knob, LED Button, Display — same bootloader,
-> same flash layout 2). USB-C modules (CH32V203) use the same idea over a different
+> same flash layout 2) and, since DEV-124 (Oct 2026), to the **CH32X035 power manager of the noknok
+> PicoHub** (module type `0x07`, flash layout 3 — see "Other chips" below). USB-C modules (CH32V203) use the same idea over a different
 > transport, with a simpler single-stage bootloader — see
 > [Firmware Updates (USB Bootloader)](firmware-update-usb.md).
 
@@ -41,6 +42,27 @@ broken application release). The manifest `.bin` for a module is this offset-lin
 application image — the bootloader is a separate binary and is never part of the
 application OTA payload. A stage-1 (bootloader) image is a separate payload delivered by
 the same transport.
+
+## Other chips: the CH32X035 (noknok PicoHub power manager)
+
+The same stage-0 / stage-1 bootloader, protocol and brain flow run on the CH32X035 that manages the
+noknok PicoHub's power: one shared core, one small port per chip (repo `module-I2C-bootloader`,
+`firmware/port/`; its README section "Chip ports" is the authoritative table). What a host or an
+app author needs to know:
+
+| Item | CH32V003 modules | CH32X035 (PicoHub) |
+|------|------|------|
+| Flash layout id (`0xB1` byte 5, `index.json` `layout`) | 2 | **3** |
+| Application offset / region | `0x1400`, ~10.9 KB | `0x1400`, 56 KB |
+| Handoff RAM cell | `0x200007F0` | `0x20004FF0` |
+| Application header | none | required: 16 B at app base + `0x200`, `{"NKA1", "X035", 3, version}`; `VERIFY` refuses an image without it with **error 9** |
+| `WRITE_CHUNK` | 64 B = one flash page | 64 B, four chunks make one 256 B flash page (no protocol change) |
+
+Layout ids are unique across chip families, so the brain's exact layout gate (see
+[firmware-index.md](firmware-index.md)) never sends one chip's image to another, and each chip's
+stage-1 refuses the other's stage-1 (error 8). While the X035 is in its bootloader the PicoHub keeps
+running on its hardware defaults (buses on, Pico powered, J2 and the mezzanine 5 V off); details in
+the PicoHub repo's `firmware/readme.md`.
 
 ## Status LED & the SWIO flashing window (Flashing Interface V3)
 
