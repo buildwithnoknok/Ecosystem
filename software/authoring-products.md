@@ -249,6 +249,29 @@ while True:
 
 ---
 
+## A product that needs more power: the PicoHub (`c.picohub`)
+
+On a noknok PicoHub the board chooses its input voltage by demand (9 V up to 20 V) and protects
+itself; a product only steps in when it knows better. Example: a mezzanine that needs 20 V.
+
+```python
+c = Conductor()
+c.enumerate()
+hub = c.picohub                        # None when the brain is not on a PicoHub
+if hub:
+    if hub.set_min_input_voltage(20) == hub.NO_POWER:
+        print("this charger cannot give 20 V - use a stronger USB-C PD charger")
+    s = hub.status()
+    if "weak_charger" in s["warnings"]:
+        print("weak charger: %.1f V / %.1f A" % (s["contract_v"], s["contract_a"]))
+```
+
+The minimum survives a reboot of the brain; set it back with `hub.set_min_input_voltage(None)`.
+Full API: brain-Pico README → *noknok PicoHub power manager*. Catch `noknok.PicoHubError` if your
+product must keep running when the board does not answer.
+
+---
+
 ## Worked example: Whack-a-Mole
 
 The cleanest reference for the **symmetric-modules** pattern:
