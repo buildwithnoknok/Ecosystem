@@ -181,9 +181,12 @@ after refreshing that cache. If the rescue cannot help (no cached image for the 
 type, an image whose layout does not match the module's bootloader, or a module the brain
 does not remember), the brain says so loudly: a log line, a `[RESCUE]` entry in the event
 history the app reads, and the buzzer/LED alert. Every later boot tries again. One probe of
-`0x7E` per boot, so at most one parked module is rescued per boot. USB modules have
-no rescue: a USB module left in its bootloader is not enumerated and is not re-flashed
-automatically.
+`0x7E` per boot, so at most one parked module is rescued per boot. USB modules (since
+brain code.py 0.27): every boot that rescues also flashes any noknok USB module it finds
+waiting in its USB bootloader (PID `0x4E42`) with the cached app for its type (remembered
+per USB serial, which the bootloader reports unchanged), at most twice per module, then
+hard-resets the brain so the app is seen again (the Pico's USB host does not see a
+re-enumeration within one session).
 
 ## 7. Releasing a stage-1 (the process that stands in for rollback)
 

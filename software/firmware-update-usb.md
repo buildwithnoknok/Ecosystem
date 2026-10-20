@@ -54,7 +54,10 @@ Unlike I2C (one stable bus address the whole time), a USB module **changes its U
 across an update — `app 0x4E4E → bootloader 0x4E42 → app 0x4E4E` — so the host must
 **re-enumerate** the device at each transition and match it by its chip-UID serial (the
 bootloader reports the same serial as the app). The Pico-side flasher handles this; it
-is the one behaviour that has no I2C equivalent.
+is the one behaviour that has no I2C equivalent. On a Pico brain the USB host does not see
+a re-enumeration within one host session, so the brain's update goes around hard resets:
+send `0xB0`, reset, flash the module found waiting in its bootloader, reset, check the
+version (brain-Pico `CHANGELOG.md`, code.py 0.27).
 
 ## Unified across both buses (Conductor)
 
