@@ -29,6 +29,12 @@ Characteristics:
 - Supports power + data  
 - Mandatory for modules requiring > 500 mA or > I2C bandwidth  
 
+**USB host ports on a Pico 2 W (PIO-USB) need external pull-downs on D+ and D-** (decided 23 Oct 2026):
+5.1 k to GND on each line, 8.2 k at most. The RP2350's internal pull-downs latch high (erratum RP2350-E9),
+so without external ones the host never sees a device unplug or restart and does not find it again until
+the brain resets. Below the USB 15 k nominal on purpose; a full-speed device's 1.5 k pull-up still holds
+D+ near 2.5 V. Harmless on an RP2040. Reference: MOD-0011 rev 1.1 (spec, section 2).
+
 ---
 
 ## 2. Power Rules
