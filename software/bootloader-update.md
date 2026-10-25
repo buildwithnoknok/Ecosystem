@@ -153,8 +153,9 @@ A module parked in its bootloader does not enumerate, so nothing else in the Con
 ever see it. `rescue_parked_module(get_image)` runs **first, before `enumerate()`**:
 
 1. Probe `0x7E`. Nothing there → normal start-up.
-2. Something there → `GET_VERSION`. No answer → legacy monolithic bootloader; it cannot be
-   identified over the bus. Log it; a human flashes it over SWD.
+2. Something there → `GET_VERSION`. No stage-1 reply (no answer, or the legacy bootloader's
+   status padded with zeros, `0,0,0,0,0` — anything not starting with protocol `0x01` and a
+   major ≥ 1) → legacy monolithic bootloader; it cannot be identified over the bus. Log it; a human flashes it over SWD.
 3. `GET_UID` → look the UID up in the Conductor's saved state (the brain's runtime Store,
    key `state`; a legacy `noknok_state.json` is only read as a fallback when the Store is
    empty) → the type it enumerated as last time.

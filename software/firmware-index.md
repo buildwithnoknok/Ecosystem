@@ -78,7 +78,7 @@ every check the bootloader has and then hangs the module the moment it runs.
 
 | `layout` | Bootloader | App base | Stage-1 version |
 | --- | --- | --- | --- |
-| `0` | legacy monolithic | `0x1000` | none — does not answer `0xB1` |
+| `0` | legacy monolithic | `0x1000` | none — does not implement `0xB1` (answers its status padded with zeros, `0,0,0,0,0`; DEV-155) |
 | `1` | stage-0 / stage-1 | `0x1000` | 1.0.x |
 | `2` | stage-0 / stage-1 | `0x1400` | 1.1.x and later |
 | `3` | stage-0 / stage-1, **CH32X035** (noknok PicoHub power manager, DEV-124) | `0x1400` | X035 line 1.0.x |
@@ -95,7 +95,7 @@ bootloader states its own layout** — byte 4 of stage-1's `0xB1` reply, since
 stage-1 1.2.0 — and the brain (`Conductor.bootloader_layout()`) compares it to
 the index. Nothing host-side infers a layout from a version number. It refuses
 on a mismatch and **fails closed**: an index with no `layout` for an I²C module,
-a legacy bootloader (no `0xB1`), or a stage-1 older than 1.2.0 (answers `0` for
+a legacy bootloader (no real `0xB1` reply), or a stage-1 older than 1.2.0 (answers `0` for
 the layout byte — "did not say") is refused rather than guessed at. A module on
 the wrong layout, or on a stage-1 too old to say, must be moved with a stage-1
 update or over SWD; it cannot receive an app until it can state its layout.
@@ -179,7 +179,7 @@ How the brain applies it, on a due check, **before** the app pass:
   module itself (`VERIFY_STAGE1`, error 8), so the brain refuses it first
   rather than transferring it. A layout change is a combined stage-1 + all-apps
   release — see `bootloader-update.md` §7.
-- A legacy bootloader (no `0xB1`) cannot self-update; it is logged once and
+- A legacy bootloader (no real `0xB1` reply) cannot self-update; it is logged once and
   left for SWD.
 
 Outcomes go to the brain's event log (kept in the Store, not a file) as `[BL]` lines, and a refusal or failure
