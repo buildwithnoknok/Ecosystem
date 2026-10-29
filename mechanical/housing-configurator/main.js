@@ -103,10 +103,10 @@ const MODULES = {
   // mirror). Both USB-C at x 68: power in (J1) opens S, host port (J2) opens N — `label` names them on the
   // tile because they look identical. JST-SH J3/J4 open N, J5/J6 open S. The 8 edge holes clamp the board
   // (the 4 holes at (20,20) are under the Pico, unreachable). The Pico is always plugged in, drawn as a
-  // dotted keepout; its micro-USB gets no opening (Christopher). clearance_top 15.0 = 8.5 socket + ~2.5
-  // header spacer + 1.0 Pico + ~3.0 parts — PROVISIONAL, caliper it. Sockets are top-side (`connTop`), so
+  // dotted keepout; its micro-USB gets no opening (Christopher). clearance_top 18.0 = Christopher's figure
+  // (2026-10-29) from the PicoHub surface to the Pico's upright debug connector, its highest part, incl. margin. Sockets are top-side (`connTop`), so
   // no support columns go under them. Full-board vent grille: the buck U2/L1 and LDOs U6/U9 run warm.
-  picohub:   { name:'PicoHub',    w:80, h:40, clearance_top:15.0, pcb:1.6, clearance_bottom:3.5, connTop:true,
+  picohub:   { name:'PicoHub',    w:80, h:40, clearance_top:18.0, pcb:1.6, clearance_bottom:3.5, connTop:true,
     holes:[[2.25,2.25],[37.75,2.25],[42.25,2.25],[77.75,2.25],[2.25,37.75],[37.75,37.75],[42.25,37.75],[77.75,37.75]],
     conn:[['S',68,2.84,'usb','POWER'],['N',68,37.16,'usb','HOST'],
           ['N',10,36.8],['N',20.6,36.8],['S',10,3.2],['S',20.6,3.2]],
