@@ -98,14 +98,25 @@ const MODULES = {
   // NOT calipered — with no bezel overlap any centre error shows as a gap on one side.
   display:   { name:'display',    w:40, h:30, clearance_top:1.0,  pcb:1.6, clearance_bottom:3.0,
     holes:[[2.25,2.25],[2.25,27.75],[37.75,2.25],[37.75,27.75]], conn:[['W',3.1,15],['N',20,26.9]], top:{type:'window', x:19.8, y:15, w:37.5, h:18.4} },
-  // PicoHub: the Pico carrier. Geometry from the V2.0 production files (outline gerber, NPTH drill,
-  // pick&place) — EasyEDA exports those in a top-view Y-up frame and the payload side IS the top side,
-  // so NO Y-mirror here (unlike the display). Six JST-SH (3 on S, 3 on N) + USB-C power in on E and
-  // USB-C host out on W. clearance_top 19.0 = Christopher's measured 17.0 (PCB top -> highest part of a
-  // plugged-in Pico) + 2.0 so a micro-USB plug in the Pico isn't crushed. The Pico is ALWAYS part of the
-  // stack — the board is useless without one — which is why this is the tallest module by far (see the
-  // mixed-box note in render()). Mount holes are ø2.8 here, not the usual ø2.5, so the pegs are loose.
-  picohub:   { name:'PicoHub',    w:60, h:40, clearance_top:19.0, pcb:1.6, clearance_bottom:2.0,
+  // noknok PicoHub (MOD-0011 rev 1.0): the CH32X035-managed USB-C PD carrier for the Pico 2 W. From the
+  // KiCad PCB (module repo mechanical/housing.json); payload = KiCad TOP, so x = kx−120, y = 120−ky (no
+  // mirror). Both USB-C at x 68: power in (J1) opens S, host port (J2) opens N — `label` names them on the
+  // tile because they look identical. JST-SH J3/J4 open N, J5/J6 open S. The 8 edge holes clamp the board
+  // (the 4 holes at (20,20) are under the Pico, unreachable). The Pico is always plugged in, drawn as a
+  // dotted keepout; its micro-USB gets no opening (Christopher). clearance_top 15.0 = 8.5 socket + ~2.5
+  // header spacer + 1.0 Pico + ~3.0 parts — PROVISIONAL, caliper it. Sockets are top-side (`connTop`), so
+  // no support columns go under them. Full-board vent grille: the buck U2/L1 and LDOs U6/U9 run warm.
+  picohub:   { name:'PicoHub',    w:80, h:40, clearance_top:15.0, pcb:1.6, clearance_bottom:3.5, connTop:true,
+    holes:[[2.25,2.25],[37.75,2.25],[42.25,2.25],[77.75,2.25],[2.25,37.75],[37.75,37.75],[42.25,37.75],[77.75,37.75]],
+    conn:[['S',68,2.84,'usb','POWER'],['N',68,37.16,'usb','HOST'],
+          ['N',10,36.8],['N',20.6,36.8],['S',10,3.2],['S',20.6,3.2]],
+    keepouts:[{ x:1.37, y:9.46, w:51, h:21, text:'Pico 2 W' }],
+    top:{type:'grille', x:40, y:20, w:75, h:30, hole:3.0, pitch:4.5, nx:17, ny:7} },   // ~35% open over the whole board
+  // PicoHub OLD: the earlier passive Pico carrier (V2.0, MOD-0008), kept on Christopher's request
+  // (2026-10-29). Geometry from its EasyEDA production files (top-view Y-up, payload = top, NO mirror).
+  // Six JST-SH (3 S, 3 N) + USB-C power in on E and host out on W. clearance_top 19.0 = measured 17.0
+  // (PCB top -> top of plugged Pico) + 2.0 for a micro-USB plug. Mount holes are ø2.8 on that board.
+  picohub_old: { name:'PicoHub OLD', w:60, h:40, clearance_top:19.0, pcb:1.6, clearance_bottom:2.0,
     holes:[[3,3],[37,3],[57,3],[3,37],[37,37],[57,37]],
     conn:[['S',12.637,3.219],['S',29.229,3.219],['S',47.501,3.219],
           ['N',12.637,36.82],['N',29.229,36.82],['N',47.501,36.82],
@@ -113,6 +124,26 @@ const MODULES = {
     top:{type:'grille', x:30, y:20, w:48, h:16.5, hole:3.0, pitch:4.5, nx:11, ny:4} },   // ventilation over the Pico, ~39% open
 };
 const USBC_W = 9, USBC_H = 4.5;   // USB-C power slot: width along the wall × height (click a wall)
+// Plug opening for a top-side USB-C (PicoHub): a typical plug overmold is ~12 × 6.5 mm, the receptacle's
+// centre sits ~1.6 mm above the PCB front (HRO TYPE-C-31-M-12, 3.26 mm tall).
+const USBC_PLUG = { w:12.5, h:7.0, zc:1.6 };
+// Is there a top-side USB-C (module with connTop) facing wall (gx,gy,s), inside that wall segment?
+// Returns its world x/y and the plug-axis z, else null. The connector arrow direction rotates with the
+// module exactly like the 2D arrows.
+function topUsbFacing(gx, gy, s, H) {
+  for (const p of placed) { const m = MODULES[p.key]; if (!m.connTop) continue;
+    for (const [dir, cx, cy, kind] of m.conn || []) { if (kind !== 'usb') continue;
+      const D = { N:[0,1], S:[0,-1], E:[1,0], W:[-1,0] }[dir]; let dx, dy;
+      switch (p.rot) { case 90: dx=-D[1]; dy=D[0]; break; case 180: dx=-D[0]; dy=-D[1]; break;
+        case 270: dx=D[1]; dy=-D[0]; break; default: dx=D[0]; dy=D[1]; }
+      const wdir = dx>0 ? 'E' : dx<0 ? 'W' : dy>0 ? 'N' : 'S'; if (wdir !== s) continue;
+      const w = loc(p, cx, cy), cgx = Math.floor(w.x / GRID), cgy = Math.floor(w.y / GRID);
+      if (cgx !== gx || cgy !== gy) continue;                   // the socket must sit in that wall's cell
+      const pcbFrontZ = (H - BOX.frontT) - m.clearance_top;
+      return { x:w.x, y:w.y, z:pcbFrontZ + USBC_PLUG.zc };
+    } }
+  return null;
+}
 const GRID = 10;         // mm per cell
 const WALL_GAP = 2;      // clearance between a module and the outer wall (so it's easy to drop in)
 const LOGO_SIZE = 9.5;   // mm, the noknok logo's larger axis — nearly fills the 10 mm tile (~0.25 mm margin)
@@ -217,7 +248,7 @@ function ensureDefaultLogo() {
 }
 const update = () => { if (autoBox) recomputeBox(); render(); };
 // The box has ONE uniform interior height, set by the tallest board's stack. Mixing a very tall module
-// (the PicoHub, which is 22.6 mm because a Pico is always plugged into it) with flat ones therefore
+// (the PicoHub, ~20 mm because a Pico is always plugged into it) with flat ones therefore
 // inflates the whole housing. We don't forbid it — a single box is sometimes exactly what the designer
 // wants — but we say what it costs and point at the alternative (separate boxes, joined by a dovetail).
 const stackOf = (p) => { const m = MODULES[p.key]; return m.clearance_top + m.pcb + m.clearance_bottom; };
@@ -305,6 +336,13 @@ function render() {
     if (m.round) { const c = loc(p, m.round.x, m.round.y);   // round board: show its real outline in the tile
       el('circle', { cx:c.x, cy:VBH-c.y, r:m.round.d/2, fill:'none', stroke:'#5c3d08', 'stroke-width':0.5,
         'stroke-dasharray':'2 1.2', 'pointer-events':'none' }, grp); }
+    for (const k of m.keepouts || []) {   // dotted outline of a part that sits on the board (the PicoHub's Pico)
+      const a = loc(p, k.x, k.y), b = loc(p, k.x + k.w, k.y + k.h);
+      const kx = Math.min(a.x, b.x), ky = Math.max(a.y, b.y), kw = Math.abs(b.x - a.x), kh = Math.abs(b.y - a.y);
+      el('rect', { x:kx, y:VBH-ky, width:kw, height:kh, rx:0.8, fill:'none', stroke:'#5c3d08', 'stroke-width':0.5,
+        'stroke-dasharray':'2 1.2', 'pointer-events':'none' }, grp);
+      if (k.text) el('text', { x:kx+kw/2, y:VBH-ky+kh-1.5, 'font-size':2.6, fill:'#5c3d08', 'text-anchor':'middle',
+        'pointer-events':'none' }, grp).textContent = k.text; }
     el('text',{ x:sx+fp.w/2, y:sy+fp.h/2, 'font-size':4.2, fill:'#1a1205',
       'text-anchor':'middle', 'dominant-baseline':'central', 'pointer-events':'none' }, grp).textContent = m.name;
     for (const [hx,hy] of m.holes) { const w = loc(p,hx,hy);
@@ -312,7 +350,7 @@ function render() {
     // connector: an ARROW at the socket, pointing the way the plug is inserted / the cable exits. That
     // direction is an explicit compass letter in the connector data (conn[0]) — it varies per board, so
     // it is stored, not derived. The arrow rotates with the module and is length-clamped to stay inside.
-    for (const [dir, cx, cy, kind] of m.conn || []) {
+    for (const [dir, cx, cy, kind, tag] of m.conn || []) {
       const w = loc(p,cx,cy), sx = w.x, sy = VBH - w.y;
       const D = { N:[0,1], S:[0,-1], E:[1,0], W:[-1,0] }[dir] || [0,-1];    // module-local arrow direction
       const ldx = D[0], ldy = D[1];
@@ -327,6 +365,9 @@ function render() {
       el('line', { x1:sx, y1:sy, x2:hx-ux*2.2, y2:hy-uy*2.2, stroke:col, 'stroke-width':1.2, 'stroke-linecap':'round', 'pointer-events':'none' }, grp);
       el('polygon', { points:`${hx},${hy} ${hx-ux*2.6+px*1.6},${hy-uy*2.6+py*1.6} ${hx-ux*2.6-px*1.6},${hy-uy*2.6-py*1.6}`,
         fill:col, 'pointer-events':'none' }, grp);
+      // optional port name (PicoHub: POWER / HOST look identical), set just behind the arrow tail, 2D only
+      if (tag) el('text', { x:sx - ux*2.2, y:sy - uy*2.2, 'font-size':2.8, 'font-weight':'bold', fill:col,
+        'text-anchor':'middle', 'dominant-baseline':'central', 'pointer-events':'none' }, grp).textContent = tag;
     }
   }
   // labels: reserved strip + the text that will be engraved on the top cover
@@ -498,7 +539,7 @@ const DT = { neck:3.5, tip:6.0, depth:3.5, clr:0.35, bossDepth:6.5 };
 
 // Matrix of round holes in the front plate. Defaults = the buzzer's validated acoustic grille
 // (5×5 of ø1.7 at 2.5 mm => ~0.8 mm webs); a profile can override nx/ny/pitch/hole for a bigger
-// VENT (the PicoHub uses 11×4 of ø3 at 4.5 mm over the Pico). rot90 swaps the matrix with the
+// VENT (the PicoHub uses 17×7 of ø3 at 4.5 mm over the whole board). rot90 swaps the matrix with the
 // module so a non-square grille still lands over the payload after a rotate.
 function grilleCut(f, cx, cy, z, hh, rot90) {
   let nx = f.nx ?? 5, ny = f.ny ?? 5;
@@ -809,6 +850,16 @@ function buildBox(assembled) {
     const [gx,gy,s] = key.split(','); const alongY = (s==='E'||s==='W');
     const on = { N:[0,1], S:[0,-1], E:[1,0], W:[-1,0] }[s];                  // outward normal
     const wm = wallMid(+gx,+gy,s), mid = { x: wm.x + on[0]*WALL_GAP, y: wm.y + on[1]*WALL_GAP };  // out to the wall
+    // A TOP-side USB-C (PicoHub) sits ~14 mm up, far above the low cable notch below. There the slot is a
+    // PLUG opening instead: centred on the socket, open from the seam up to the plug's top edge, so the
+    // cable plugs in from outside. (Prints fine: the cover prints face-down, so the notch's end is a floor.)
+    const tp = topUsbFacing(+gx, +gy, s, H);
+    if (tp) {
+      const ox = alongY ? mid.x : tp.x, oy = alongY ? tp.y : mid.y, z0 = backT - 1.4, z1 = tp.z + USBC_PLUG.h/2;
+      front = subtract(front, cuboid({ size: alongY ? [wallT+6, USBC_PLUG.w, z1-z0] : [USBC_PLUG.w, wallT+6, z1-z0],
+        center:[ox, oy, (z0+z1)/2] }));
+      continue;
+    }
     // Open U-notch cut DOWN from the wall's free (parting-line) rim: the plug is fitted to the module
     // before assembly, so only the bare cable needs room. Lay the cable into the slot from the top,
     // then close the covers — no threading a whole plug through a hole.
@@ -865,7 +916,7 @@ function buildBox(assembled) {
     // the back cover to just under the socket body (2.95 mm above the PCB back), so the plastic socket
     // takes the load and the board is braced at all four corners.
     for (const [ , cx, cy, kind] of m.conn || []) {
-      if (kind === 'usb') continue;                       // USB-C connector: no support column
+      if (kind === 'usb' || m.connTop) continue;          // USB-C, or sockets on the top side: no support column
       const w = loc(p, cx, cy), topZ = pcbBackZ - SOCKET_H, h = topZ - backT;
       if (h > 0.5) back = union(back, cylinder({ radius:socketR, height:h, segments:20, center:[w.x, w.y, backT + h/2] }));
     }

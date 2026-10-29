@@ -43,7 +43,7 @@ This document is the authoritative spec for the file format.
 | `connectors` | array | ✔ | Connector list for cable routing. See §4. |
 | `top_feature` | object \| null | ✔ | What the lid must provide over this module. `null` = blank lid. See §5. |
 | `outline` | object | – | Only for a non-rectangular board: `{ "shape": "circle", "x", "y", "dia" }` inside the `footprint` box (e.g. the round USB LEDs 16x). `footprint` stays the bounding square the grid uses. |
-| `keepouts` | array | – | Zones no housing feature may touch: `{ "id", "x", "y", "w", "h", "side", "note" }` (e.g. the display's FPC fold). |
+| `keepouts` | array | – | Zones no housing feature may touch: `{ "id", "x", "y", "w", "h", "side", "note" }` (e.g. the display's FPC fold, the PicoHub's plugged-in Pico). The configurator draws a keepout as a dotted outline on the module tile. |
 | `variants` | array | – | Alternative housings for the same board (e.g. a dome tile): `{ "id", "configurator_module", "tile", "clearance_top", "note" }`. |
 | `notes` | string | – | Free text: measurement caveats, estimates, TODOs. |
 
@@ -82,6 +82,7 @@ per the PCB mechanical guideline). Two diagonal holes on 20 × 20 modules; four 
 | `edge` | `N`, `E`, `S`, `W` | Which board edge the connector faces. **This is the load-bearing field for routing** — exact `x`/`y` is secondary. |
 | `x`, `y` | mm | Connector centre from origin. |
 | `role` | `chain`, `external`, `power` | `chain` = routed to a neighbour bay; `external` = must reach the housing outer wall (USB-C ports, power in). |
+| `label` | string (optional) | Short name shown next to the connector arrow in the configurator (e.g. `POWER`, `HOST` on the PicoHub), so users can tell same-looking ports apart. 2D only; nothing is engraved. |
 
 ---
 

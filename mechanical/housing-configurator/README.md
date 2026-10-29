@@ -127,7 +127,14 @@ table in `main.js`, mirroring each module repo's **housing profile**
 (`mechanical/housing.json`, spec: [`../housing-profile.md`](../housing-profile.md)).
 Currently: buzzer, knob, LED button (20 × 20), USB LEDs (40 × 40, +dome 70 × 70), USB LEDs 16x
 (round ø40 in a 40 × 40 tile, +dome 50 × 50), display (40 × 30, re-checked against rev 1.1 — unchanged),
-PicoHub (60 × 40).
+**PicoHub** (80 × 40, the noknok PicoHub MOD-0011 with a Pico 2 W plugged in), **PicoHub OLD** (60 × 40,
+the earlier passive Pico carrier).
+
+PicoHub specifics: the plugged-in Pico is drawn as a dotted outline (`keepouts`), the two USB-C ports are
+named POWER and HOST on the tile (connector `label`, 2D only), and the whole board is under a vent grille.
+Its USB-C ports are on the TOP side of the board (`connTop`), so a power slot clicked on the wall a port
+faces becomes a 12.5 × 7 mm PLUG opening at the port's height (the cable plugs in from outside) instead of
+the low cable notch used for the other USB modules.
 
 ## Files
 
