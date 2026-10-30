@@ -142,9 +142,13 @@ named POWER and HOST on the tile (connector `label`, 2D only), and the whole boa
 Its USB-C ports are on the TOP side of the board (`connTop`), so a power slot clicked on the wall a port
 faces becomes a 12.5 × 7 mm PLUG opening at the port's height (the cable plugs in from outside) instead of
 the low cable notch used for the other USB modules (the wall may be up to one cell beyond the port). Its
-top-side JST sockets each get an automatic 1-cell **bay** (`connBayCells()`) so the plug and cable fit,
-without widening the rest of the box. A `connTop` board also skips the +5 mm cable plenum and the 1.2 mm
-seat (nothing is underneath): back posts = `clearance_bottom` (3.5, the Pico socket pin tails).
+top-side JST plugs need ~1 cm in front of the board: the designer adds an empty cell there with box mode
+where needed (no automatic bay, Christopher's call). A `connTop` board skips the +5 mm cable plenum and
+the 1.2 mm seat (nothing is underneath): back posts = `clearance_bottom` (3.5, the Pico socket pin tails).
+
+**Grip pegs (all modules):** each back-post locating peg carries 3 vertical crush ribs (`PEG_RIB`,
+~0.15 mm interference in a ø2.5 hole), so a board pressed onto its posts stays put while the next module
+is wired in, and still pulls off by hand.
 
 ## Files
 

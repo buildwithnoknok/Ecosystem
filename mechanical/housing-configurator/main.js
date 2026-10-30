@@ -209,20 +209,9 @@ function labelCells(l) {
   return out;
 }
 function allLabelCells() { const s=new Set(); for (const l of labels) for (const [gx,gy] of labelCells(l)) s.add(ck(gx,gy)); return s; }
-// A top-side JST socket (connTop board, the PicoHub) takes a horizontal plug + cable bend of ~1 cm in front
-// of the board edge, so the box needs one extra cell there. Only those cells are added — the box still hugs
-// the board elsewhere, so a USB-C on the same edge can sit at the wall (print 2026-10-30).
-function connBayCells() {
-  const s = new Set();
-  for (const p of placed) { const m = MODULES[p.key]; if (!m.connTop) continue;
-    for (const [dir, cx, cy, kind] of m.conn || []) { if (kind === 'usb') continue;
-      const D = { N:[0,1], S:[0,-1], E:[1,0], W:[-1,0] }[dir];
-      const ex = D[0] ? (D[0] > 0 ? m.w : 0) + D[0]*GRID/2 : cx, ey = D[1] ? (D[1] > 0 ? m.h : 0) + D[1]*GRID/2 : cy;
-      const w = loc(p, ex, ey); s.add(ck(Math.floor(w.x/GRID), Math.floor(w.y/GRID))); } }
-  return s;
-}
-function requiredCells(noBays) { const s = moduleCells(); for (const c of allLabelCells()) s.add(c); for (const c of femaleCells()) s.add(c);
-  if (!noBays) for (const c of connBayCells()) s.add(c); return s; }   // must be inside the box
+// (No automatic room in front of top-side JST sockets: the designer adds an empty cell with "box" mode
+// where a plug needs it — Christopher, 2026-10-30.)
+function requiredCells() { const s = moduleCells(); for (const c of allLabelCells()) s.add(c); for (const c of femaleCells()) s.add(c); return s; }   // must be inside the box
 // cells occupied by OTHER modules + OTHER modules' labels (own labels follow the module, so they're excluded)
 function occupiedBy(exceptId) {
   const s = new Set();
@@ -245,12 +234,11 @@ function labelStripWorld(l) {
            y0:Math.min(...gys)*GRID, y1:(Math.max(...gys)+1)*GRID, horizontal:(l.side==='N'||l.side==='S') };
 }
 function recomputeBox() {          // auto box = bounding rectangle of the module + label cells
-  const mc = [...requiredCells(true)].map(c => c.split(',').map(Number));
+  const mc = [...requiredCells()].map(c => c.split(',').map(Number));
   region = new Set(); if (!mc.length) return;
   const xs = mc.map(c=>c[0]), ys = mc.map(c=>c[1]);
   const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
   for (let gx=x0; gx<=x1; gx++) for (let gy=y0; gy<=y1; gy++) region.add(ck(gx,gy));
-  for (const c of connBayCells()) region.add(c);   // connector bays stick out of the rectangle, not widen it
 }
 // Default-ON branding (opt-out): if the user hasn't removed the logo and there's an empty in-box tile with
 // solid top plate, drop one noknok logo in an unobtrusive corner. Removing it sets logoDismissed so it
@@ -849,6 +837,20 @@ function dovetailPoly(f, nw, tw, dp, inward) {
   return polygon({ points: pts });
 }
 
+// Locating peg with 3 vertical CRUSH RIBS (Christopher 2026-10-30: boards should stay put on the bottom
+// cover's posts while the next module is wired in). The ribs reach r 1.40 in the r 1.25 (dia 2.5) hole =
+// ~0.15 mm interference: press the board on, friction holds it, it still pulls off by hand. They stop
+// PEG_RIB.lead below the peg top so the hole starts over the plain peg. Not a mushroom head: a dia 2.5 hole
+// leaves no room for a split snap peg that survives in PLA, and a head above the PCB would hit the front post.
+const PEG_RIB = { r:0.3, at:1.1, lead:0.4 };
+function gripPeg(x, y, zc) {
+  const { pegR, pegLen } = BOX, ribH = pegLen - PEG_RIB.lead, z0 = zc - pegLen/2;
+  const parts = [cylinder({ radius:pegR, height:pegLen, segments:16, center:[x, y, zc] })];
+  for (let k = 0; k < 3; k++) { const a = k * TAU / 3;
+    parts.push(cylinder({ radius:PEG_RIB.r, height:ribH, segments:10,
+      center:[x + PEG_RIB.at*Math.cos(a), y + PEG_RIB.at*Math.sin(a), z0 + ribH/2] })); }
+  return union(...parts);
+}
 // Build the box from the current layout. Returns { front, back, H }.
 function buildBox(assembled) {
   const { frontT, backT, wallT, postR, pegR, pegLen, socketR } = BOX;
@@ -926,13 +928,13 @@ function buildBox(assembled) {
           cylinder({ radius:postR, height:frontLen, segments:24, center:[w.x,w.y, pcbFrontZ + frontLen/2] }));
         back = union(back,
           cylinder({ radius:postR, height:backLen, segments:24, center:[w.x,w.y, backT + backLen/2] }),
-          cylinder({ radius:pegR, height:pegLen, segments:16, center:[w.x,w.y, pegZ] }));
+          gripPeg(w.x, w.y, pegZ));
       } else {
         // flush payload, OR the hole sits under the opening -> no front post; hold from the back only
         // (peg rides on the back post). Recessed boards are also clamped by the collar added below.
         back = union(back,
           cylinder({ radius:postR, height:backLen, segments:24, center:[w.x,w.y, backT + backLen/2] }),
-          cylinder({ radius:pegR, height:pegLen, segments:16, center:[w.x,w.y, pegZ] }));
+          gripPeg(w.x, w.y, pegZ));
       }
     }
     // recessed board with mount holes under the opening: retain it with a collar (well-wall) around
