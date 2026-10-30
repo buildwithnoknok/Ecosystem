@@ -60,8 +60,15 @@ feature positions yourself (the 10 mm grid keeps that simple). All three are **w
 - **Female dovetail** — a solid boss grown *inward* from the wall (it reserves that tile, so no module
   sits there), with the matching groove carved in and cut up **through the top plate** so the other
   box's rail drops in from above.
-- **Cable opening** — most of a wall segment removed at the floor line (front plate left as a lintel),
-  so a cable passes between the two boxes. Lay the cable in, then close the covers.
+- **Cable opening** — most of a wall segment removed at the floor line, up to a FIXED `OPEN_TOP_Z` =
+  11 mm above the table (not the box's own height), so a tall and a low box get matching holes. Lay the
+  cable in, then close the covers.
+
+Fit (print 2026-10-30): the plain 0.35 mm groove clearance slid apart too easily, so the groove now has
+two vertical **crush ribs** (`DT.rib`, r 0.5, ~0.15–0.2 mm interference) on its flanks near the wide end;
+they deform on insertion, which forgives printer size error, and stop `DT.ribTop` below the top for a free
+start. Tune `DT.rib` only. The female boss reaches `DT.bossDepth` 3.25 past the wall (was 6.5): ~2.9 mm
+solid behind the groove.
 
 **Assembly:** put the male rail on one box and the female groove at the mirror position on the other,
 then **slide the second box straight down** onto the first. The dovetail locks the boxes against pulling
@@ -134,7 +141,10 @@ PicoHub specifics: the plugged-in Pico is drawn as a dotted outline (`keepouts`)
 named POWER and HOST on the tile (connector `label`, 2D only), and the whole board is under a vent grille.
 Its USB-C ports are on the TOP side of the board (`connTop`), so a power slot clicked on the wall a port
 faces becomes a 12.5 × 7 mm PLUG opening at the port's height (the cable plugs in from outside) instead of
-the low cable notch used for the other USB modules.
+the low cable notch used for the other USB modules (the wall may be up to one cell beyond the port). Its
+top-side JST sockets each get an automatic 1-cell **bay** (`connBayCells()`) so the plug and cable fit,
+without widening the rest of the box. A `connTop` board also skips the +5 mm cable plenum and the 1.2 mm
+seat (nothing is underneath): back posts = `clearance_bottom` (3.5, the Pico socket pin tails).
 
 ## Files
 

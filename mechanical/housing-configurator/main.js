@@ -138,7 +138,11 @@ function topUsbFacing(gx, gy, s, H) {
         case 270: dx=D[1]; dy=-D[0]; break; default: dx=D[0]; dy=D[1]; }
       const wdir = dx>0 ? 'E' : dx<0 ? 'W' : dy>0 ? 'N' : 'S'; if (wdir !== s) continue;
       const w = loc(p, cx, cy), cgx = Math.floor(w.x / GRID), cgy = Math.floor(w.y / GRID);
-      if (cgx !== gx || cgy !== gy) continue;                   // the socket must sit in that wall's cell
+      // the wall must be in line with the socket and at most ONE cell beyond it (a plug overmold is ~15 mm
+      // long, so it still reaches the socket through the opening)
+      const ahead = s==='N' ? gy-cgy : s==='S' ? cgy-gy : s==='E' ? gx-cgx : cgx-gx;
+      const inLine = (s==='N'||s==='S') ? cgx === gx : cgy === gy;
+      if (!inLine || ahead < 0 || ahead > 1) continue;
       const pcbFrontZ = (H - BOX.frontT) - m.clearance_top;
       return { x:w.x, y:w.y, z:pcbFrontZ + USBC_PLUG.zc };
     } }
@@ -205,7 +209,20 @@ function labelCells(l) {
   return out;
 }
 function allLabelCells() { const s=new Set(); for (const l of labels) for (const [gx,gy] of labelCells(l)) s.add(ck(gx,gy)); return s; }
-function requiredCells() { const s = moduleCells(); for (const c of allLabelCells()) s.add(c); for (const c of femaleCells()) s.add(c); return s; }   // must be inside the box
+// A top-side JST socket (connTop board, the PicoHub) takes a horizontal plug + cable bend of ~1 cm in front
+// of the board edge, so the box needs one extra cell there. Only those cells are added — the box still hugs
+// the board elsewhere, so a USB-C on the same edge can sit at the wall (print 2026-10-30).
+function connBayCells() {
+  const s = new Set();
+  for (const p of placed) { const m = MODULES[p.key]; if (!m.connTop) continue;
+    for (const [dir, cx, cy, kind] of m.conn || []) { if (kind === 'usb') continue;
+      const D = { N:[0,1], S:[0,-1], E:[1,0], W:[-1,0] }[dir];
+      const ex = D[0] ? (D[0] > 0 ? m.w : 0) + D[0]*GRID/2 : cx, ey = D[1] ? (D[1] > 0 ? m.h : 0) + D[1]*GRID/2 : cy;
+      const w = loc(p, ex, ey); s.add(ck(Math.floor(w.x/GRID), Math.floor(w.y/GRID))); } }
+  return s;
+}
+function requiredCells(noBays) { const s = moduleCells(); for (const c of allLabelCells()) s.add(c); for (const c of femaleCells()) s.add(c);
+  if (!noBays) for (const c of connBayCells()) s.add(c); return s; }   // must be inside the box
 // cells occupied by OTHER modules + OTHER modules' labels (own labels follow the module, so they're excluded)
 function occupiedBy(exceptId) {
   const s = new Set();
@@ -228,11 +245,12 @@ function labelStripWorld(l) {
            y0:Math.min(...gys)*GRID, y1:(Math.max(...gys)+1)*GRID, horizontal:(l.side==='N'||l.side==='S') };
 }
 function recomputeBox() {          // auto box = bounding rectangle of the module + label cells
-  const mc = [...requiredCells()].map(c => c.split(',').map(Number));
+  const mc = [...requiredCells(true)].map(c => c.split(',').map(Number));
   region = new Set(); if (!mc.length) return;
   const xs = mc.map(c=>c[0]), ys = mc.map(c=>c[1]);
   const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
   for (let gx=x0; gx<=x1; gx++) for (let gy=y0; gy<=y1; gy++) region.add(ck(gx,gy));
+  for (const c of connBayCells()) region.add(c);   // connector bays stick out of the rectangle, not widen it
 }
 // Default-ON branding (opt-out): if the user hasn't removed the logo and there's an empty in-box tile with
 // solid top plate, drop one noknok logo in an unobtrusive corner. Removing it sets logoDismissed so it
@@ -535,7 +553,15 @@ const SOCKET_H = 2.95;   // JST-SH socket body height above the PCB (support col
 // the female GROOVE on the other box. neck/tip = trapezoid widths (tip wider than neck => can't pull
 // straight out), depth = radial protrusion, clr = print clearance on the groove, bossDepth = how far the
 // female socket reaches into the box past the wall. All print-test-tunable.
-const DT = { neck:3.5, tip:6.0, depth:3.5, clr:0.35, bossDepth:6.5 };
+// rib = radius of the two vertical CRUSH RIBS on the groove flanks near the wide end (print 2026-10-30:
+// the plain 0.35 clearance slid apart easily). Each rib stands ~0.15 mm proud of the rail, which squeezes
+// or shaves it on insertion, so the hold forgives printer-to-printer size error. They stop ribTop below
+// the top so the rail starts in freely. bossDepth halved 6.5 -> 3.25 (the solid behind the groove was too thick).
+const DT = { neck:3.5, tip:6.0, depth:3.5, clr:0.35, bossDepth:3.25, rib:0.5, ribTop:2.0 };
+// Cable openings between joined boxes stop at a FIXED height above the table (not the box's own height),
+// so a tall and a low box get matching holes (print 2026-10-30: the tall box's opening gaped above the
+// low one). 11 mm stays below the inner roof of the lowest box (~14.6 mm, a buzzer).
+const OPEN_TOP_Z = 11.0;
 
 // Matrix of round holes in the front plate. Defaults = the buzzer's validated acoustic grille
 // (5×5 of ø1.7 at 2.5 mm => ~0.8 mm webs); a profile can override nx/ny/pitch/hole for a bigger
@@ -830,8 +856,12 @@ function buildBox(assembled) {
   // SEAT lifts even the TALLEST board off the floor, so its JST-socket support columns stay a
   // printable height (otherwise a socket whose body nearly fills clearance_bottom rests ~on the floor
   // and the column would be ~0). +5 keeps cable space for shorter boards.
+  // Boards with all connectors on TOP (connTop, the PicoHub) have no sockets or cables underneath, so they
+  // need neither: their back posts are just clearance_bottom (print 2026-10-30: the columns were too tall).
   const SEAT = 1.2;
-  const interior = Math.max(Math.max(...stacks) + SEAT, Math.min(...stacks) + 5);
+  const under = placed.filter(p => !MODULES[p.key].connTop).map(stackOf);
+  const interior = Math.max(...placed.map(p => stackOf(p) + (MODULES[p.key].connTop ? 0 : SEAT)),
+                            under.length ? Math.min(...under) + 5 : 0);
   const H = frontT + backT + interior;
 
   const cells = [...region].map(c => c.split(',').map(Number));
@@ -982,12 +1012,20 @@ function buildBox(assembled) {
     const bcx = f.outFace.x - f.on[0]*Ld/2, bcy = f.outFace.y - f.on[1]*Ld/2;
     front = union(front, cuboid({ size: f.alongY?[Ld,bw,H-backT]:[bw,Ld,H-backT], center:[bcx, bcy, backT+(H-backT)/2] }));
     const groove = dovetailPoly(f, DT.neck+2*DT.clr, DT.tip+2*DT.clr, DT.depth+DT.clr, true);
-    front = subtract(front, translate([0,0,backT], extrudeLinear({ height: (H-backT)+2 }, groove))); }   // +2 => also cuts the entry slot through the top plate
+    front = subtract(front, translate([0,0,backT], extrudeLinear({ height: (H-backT)+2 }, groove)));   // +2 => also cuts the entry slot through the top plate
+    // crush ribs: centred ON each flank, 30% of the way from the wide end toward the neck
+    const nw = DT.neck+2*DT.clr, tw = DT.tip+2*DT.clr, dp = DT.depth+DT.clr, ribH = (H-backT) - DT.ribTop;
+    for (const sd of [-1, 1]) {
+      const T = [f.outFace.x - f.on[0]*dp + f.tan[0]*sd*tw/2, f.outFace.y - f.on[1]*dp + f.tan[1]*sd*tw/2];
+      const B = [f.outFace.x + f.tan[0]*sd*nw/2,              f.outFace.y + f.tan[1]*sd*nw/2];
+      const c = [T[0] + (B[0]-T[0])*0.3, T[1] + (B[1]-T[1])*0.3];
+      front = union(front, cylinder({ radius:DT.rib, height:ribH, segments:16, center:[c[0], c[1], backT + ribH/2] }));
+    } }
   // CABLE openings: remove most of a wall segment, open at the floor line (front plate left as a lintel),
   // so a cable passes between two joined boxes. Lay the cable in, then close the covers.
   for (const key of openings) { const [gx,gy,s] = key.split(','); const f = wallFrame(+gx,+gy,s);
     const wc = { x: f.wm.x + f.on[0]*(WALL_GAP+BOX.wallT/2), y: f.wm.y + f.on[1]*(WALL_GAP+BOX.wallT/2) };
-    const owW = GRID - 2.0, thick = BOX.wallT + 4, owB = backT - 0.5, owT = H - frontT;
+    const owW = GRID - 2.0, thick = BOX.wallT + 4, owB = backT - 0.5, owT = Math.min(H - frontT, OPEN_TOP_Z);
     front = subtract(front, cuboid({ size: f.alongY?[thick,owW,owT-owB]:[owW,thick,owT-owB], center:[wc.x, wc.y, (owB+owT)/2] })); }
 
   // dome-mount variant: the bayonet socket (collar + lugs + seat) hangs from the plate into the box, so the
