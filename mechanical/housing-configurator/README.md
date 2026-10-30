@@ -65,8 +65,8 @@ feature positions yourself (the 10 mm grid keeps that simple). All three are **w
   cable in, then close the covers.
 
 Fit (print 2026-10-30): the plain 0.35 mm groove clearance slid apart too easily, so the groove now has
-two vertical **crush ribs** (`DT.rib`, r 0.5, ~0.15–0.2 mm interference) on its flanks near the wide end;
-they deform on insertion, which forgives printer size error, and stop `DT.ribTop` below the top for a free
+two vertical **crush ribs** on its flanks near the wide end, TAPERED from r 0.3 at the entry (top, ~no
+interference) to `DT.rib` r 0.5 at the bottom (~0.15–0.2 mm), so the squeeze builds up gradually; they deform on insertion, which forgives printer size error, and stop `DT.ribTop` below the top for a free
 start. Tune `DT.rib` only. The female boss reaches `DT.bossDepth` 3.25 past the wall (was 6.5): ~2.9 mm
 solid behind the groove.
 

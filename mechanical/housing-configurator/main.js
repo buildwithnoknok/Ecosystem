@@ -8,7 +8,7 @@ import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import jscad from '@jscad/modeling';
 import stlSerializer from '@jscad/stl-serializer';
 const { primitives, booleans, transforms, extrusions, expansions, hulls } = jscad;
-const { cuboid, cylinder, rectangle, circle, polygon, sphere } = primitives;
+const { cuboid, cylinder, cylinderElliptic, rectangle, circle, polygon, sphere } = primitives;
 const { union, subtract, intersect } = booleans;
 const { hull } = hulls;
 const { translate, rotate, mirror } = transforms;
@@ -542,10 +542,10 @@ const SOCKET_H = 2.95;   // JST-SH socket body height above the PCB (support col
 // straight out), depth = radial protrusion, clr = print clearance on the groove, bossDepth = how far the
 // female socket reaches into the box past the wall. All print-test-tunable.
 // rib = radius of the two vertical CRUSH RIBS on the groove flanks near the wide end (print 2026-10-30:
-// the plain 0.35 clearance slid apart easily). Each rib stands ~0.15 mm proud of the rail, which squeezes
-// or shaves it on insertion, so the hold forgives printer-to-printer size error. They stop ribTop below
-// the top so the rail starts in freely. bossDepth halved 6.5 -> 3.25 (the solid behind the groove was too thick).
-const DT = { neck:3.5, tip:6.0, depth:3.5, clr:0.35, bossDepth:3.25, rib:0.5, ribTop:2.0 };
+// the plain 0.35 clearance slid apart easily). The ribs TAPER (Christopher 2026-10-30): radius ribTip at the
+// entry (top, ~0 interference) growing to rib at the bottom (~0.15-0.2 mm), so the squeeze builds up gradually
+// as the rail slides down and forgives printer-to-printer size error. They start ribTop below the top. bossDepth halved 6.5 -> 3.25 (the solid behind the groove was too thick).
+const DT = { neck:3.5, tip:6.0, depth:3.5, clr:0.35, bossDepth:3.25, rib:0.5, ribTip:0.3, ribTop:2.0 };
 // Cable openings between joined boxes stop at a FIXED height above the table (not the box's own height),
 // so a tall and a low box get matching holes (print 2026-10-30: the tall box's opening gaped above the
 // low one). 11 mm stays below the inner roof of the lowest box (~14.6 mm, a buzzer).
@@ -1021,7 +1021,8 @@ function buildBox(assembled) {
       const T = [f.outFace.x - f.on[0]*dp + f.tan[0]*sd*tw/2, f.outFace.y - f.on[1]*dp + f.tan[1]*sd*tw/2];
       const B = [f.outFace.x + f.tan[0]*sd*nw/2,              f.outFace.y + f.tan[1]*sd*nw/2];
       const c = [T[0] + (B[0]-T[0])*0.3, T[1] + (B[1]-T[1])*0.3];
-      front = union(front, cylinder({ radius:DT.rib, height:ribH, segments:16, center:[c[0], c[1], backT + ribH/2] }));
+      front = union(front, cylinderElliptic({ height:ribH, startRadius:[DT.rib, DT.rib], endRadius:[DT.ribTip, DT.ribTip],
+        segments:16, center:[c[0], c[1], backT + ribH/2] }));   // start = bottom (full), end = top (entry, thin)
     } }
   // CABLE openings: remove most of a wall segment, open at the floor line (front plate left as a lintel),
   // so a cable passes between two joined boxes. Lay the cable in, then close the covers.
