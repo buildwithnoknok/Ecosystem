@@ -112,6 +112,8 @@ Every I²C module reports its type in the enumeration response (byte 8). The Con
 | `0x02` | noknokknob | `NoknokKnob` |
 | `0x03` | noknokledbutton | `NoknokLedButton` |
 
+This table lists the first three codes only. The complete, current list (USB LEDs, Display, LEDs 16x, PicoHub power manager and later) is in [Enumeration Protocol → Module type codes](enumeration.md#module-type-codes).
+
 ---
 
 ## 5. Standard System Commands
@@ -128,11 +130,12 @@ Command bytes **`0xB0` through `0xBF` are reserved ecosystem-wide** for standard
 | `GET_VERSION` | `0xB1` | write, then read 4 bytes (5 from the bootloader) | Report protocol + firmware version (see below). **Also answered by the bootloader at `0x7E`** (stage-1 version; **5 bytes since stage-1 v1.2.0** — the 5th is the flash layout id, `0` if the stage-1 predates it) — the legacy monolithic bootloader does not implement `0xB1`: it answers its 2-byte status padded with zeros (`0,0,0,0,0`), so only a reply that starts with protocol `0x01` and a major ≥ 1 is a stage-1 (DEV-155). |
 | `GET_DIAGNOSTIC` | `0xB2` | write, then read | USB bootloader only — DEV-12 boot-decision diagnostic. |
 | `GET_UID` | `0xB3` | write, then read 8 bytes | **Bootloader only** (`0x7E`): the chip UID, same bytes and order as the enumeration reply, so a module parked in its bootloader can be matched to the type it enumerated as. See [bootloader-update.md](bootloader-update.md). |
-| *reserved* | `0xB4`–`0xBF` | — | Reserved for future standard commands. Do not use. |
+| `GET_ID` | `0xB4` | write, then read 10 bytes | **Decided, not yet implemented** (ADR-005, build stories DEV-21 / DEV-22): the same 10 bytes as the enumeration reply (`[UID×8][TYPE][CRC8]`), answerable at any time by every app and by the stage-1 bootloader, so a module can always say what it is and which one it is. `0xB1` and `PROTOCOL_VERSION` stay unchanged. Until it ships, do not use `0xB4` for anything else. |
+| *reserved* | `0xB5`–`0xBF` | — | Reserved for future standard commands. Do not use. |
 
 ### `GET_VERSION` (`0xB1`) — mandatory for all modules
 
-Lets the Conductor read a module's **installed** firmware version so it can compare it against the **current published** version — the `version` field of that module's [`firmware/index.json`](firmware-index.md) — and decide whether an update is needed. This is the prerequisite for the module-firmware update flow (PoC v1: log "update available"; PoC v2: flash over the I²C bootloader).
+Lets the Conductor read a module's **installed** firmware version so it can compare it against the **current published** version — the `version` field of that module's [`firmware/index.json`](firmware-index.md) — and decide whether an update is needed. This is the prerequisite for the module-firmware update flow: the brain reads the installed version, compares it with the published one and flashes over the I²C bootloader when it is older.
 
 > The product manifest does **not** name a version to install. It declares only a *floor* (`module_firmware[type].min`); what actually gets installed is whatever the module repo currently publishes. See [Module Firmware Index](firmware-index.md).
 
@@ -152,9 +155,9 @@ After the read, the module returns to its normal read behaviour (its status/data
 
 **Why a dedicated command and not part of enumeration:** the 10-byte enumeration response (`[UID×8][TYPE][CRC8]`) is a fixed, stable wire format. Version reporting is kept separate so the enumeration format never has to change and the version can be re-read whenever needed.
 
-**Semantic versioning:** firmware versions follow [semver](https://semver.org) — `MAJOR.MINOR.PATCH`. The version reported here **must equal** the `version` in that module's `firmware/index.json`; that equality is what lets the Conductor decide whether an update is needed without downloading the binary first. The Conductor logs "update available" when the reported version is lower than the published one (PoC v1); PoC v2 triggers the I²C-bootloader OTA flash.
+**Semantic versioning:** firmware versions follow [semver](https://semver.org) — `MAJOR.MINOR.PATCH`. The version reported here **must equal** the `version` in that module's `firmware/index.json`; that equality is what lets the Conductor decide whether an update is needed without downloading the binary first. When the reported version differs from the published one, the Conductor triggers the I²C-bootloader OTA flash. The source-file header and the places a version must be kept in sync are specified in [Firmware File Header & Versioning Standard](firmware-header.md).
 
-**Firmware implementation notes (CH32V003):** the command is recognised in the `DEV_ASSIGNED` state. Receiving `0xB1` sets a one-shot `version_pending` latch **inside the I²C ISR at the STOP condition** — the same place the `0x1D` assign command is handled — so the very next read returns the version bytes race-free (no dependency on the main loop running first). `PROTOCOL_VERSION` and `FW_VERSION_{MAJOR,MINOR,PATCH}` are `#define`d at the top of each module's firmware and kept equal to the module's released version tag.
+**Firmware implementation notes (CH32V003):** the command is recognised in the `DEV_ASSIGNED` state. Receiving `0xB1` sets a one-shot `version_pending` latch **inside the I²C ISR at the STOP condition** — the same place the `0x1D` assign command is handled — so the very next read returns the version bytes race-free (no dependency on the main loop running first). `PROTOCOL_VERSION` and `FW_VERSION_{MAJOR,MINOR,PATCH}` are `#define`d at the top of each module's firmware and kept equal to the `version` in its `firmware/index.json`.
 
 ---
 
@@ -218,6 +221,8 @@ Power cycle: enumerate() → modules back at 0x7F → each re-assigned its old a
 - [Authoring a noknok Product](authoring-products.md) — how to build a new product (manifest + product.py)
 - [Product Manifest — structure reference](product-manifest.md) — every field, what it means, full annotated example
 - [Product Manifest schema](product-manifest.schema.json) — machine-checkable manifest spec
+- [Firmware File Header & Versioning Standard](firmware-header.md) — the version block and source header every module firmware carries
+- [noknok ID Scheme (draft)](noknok-ids.md) — `MOD-xxxx` / `SET-xxxx`
 - [Module Firmware Index](firmware-index.md) — how the brain decides which firmware to install (`firmware/index.json` + `modules.json`)
 - [Enumeration Protocol — full spec](enumeration.md)
 - [Firmware Updates (I2C Bootloader)](firmware-update.md)

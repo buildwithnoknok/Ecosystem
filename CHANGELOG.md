@@ -8,6 +8,14 @@ Newest first. Each entry has: date, pinned component versions, highlights, break
 migration notes, and links to the component changelogs. Written by the noknok team; internal test
 reports and delivery checklists are not part of this file.
 
+## Unreleased
+
+Documentation only, no component changes.
+
+- DEV-184 - new [Firmware File Header & Versioning Standard](software/firmware-header.md): the source-file header and version block every module firmware carries, and the places a version must be kept in sync.
+- DEV-184 - new [noknok ID Scheme](software/noknok-ids.md) (`MOD-xxxx` / `SET-xxxx`), published as a **draft** proposal.
+- DEV-184 - `software/readme.md`: `GET_VERSION` text brought up to date, `0xB4 GET_ID` recorded as decided but not yet implemented, module type codes now point to the full list.
+
 ## v1.2.0 - 2026-10-22
 
 Two I2C buses, safer setup and updates, and first support for the noknok PicoHub. Every change was
