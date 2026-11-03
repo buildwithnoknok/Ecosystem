@@ -50,13 +50,13 @@ Rules:
 
 ### **Voltage Levels**
 - Standard system voltage: **3.3 V**  
-- USB-C modules may use USB-PD **5 V**, **9 V**, **12 V** with up to **3 Amps** if used with the noknok USB Power module or noknok USB Hub module 
+- USB-C modules may use USB-PD **5 V**, **9 V**, **12 V** with up to **3 Amps** when powered by a USB-PD source of their own. The USB host port of the noknok PicoHub itself provides switched **5 V**, up to 1.45 A 
 
 ### **Daisy-Chain Power Budget (I²C 3.3 V rail)**
 
 I²C modules draw power from the 3.3 V pin of the JST-SH connector. Two limits cap how many can be daisy-chained (independent of the I²C bus-capacitance limit in §3):
 
-- **Host 3.3 V source budget** — the Pico's onboard 3V3 supplies ~**300 mA** usable; a **dedicated 3.3 V regulator** on the host/PicoHub (fed from the PowerHub 5 V) gives ~**800 mA–1 A**.
+- **Host 3.3 V source budget** — the Pico's onboard 3V3 supplies ~**300 mA** usable; a **dedicated 3.3 V regulator** on the host/PicoHub (the PicoHub carries one, AP2114H-3.3, 1 A) gives ~**800 mA–1 A**.
 - **Voltage drop** — in a daisy chain the **first cable link carries the sum of all downstream current**, so keep it short/thick to avoid browning out far modules (the CH32V003 is brownout-sensitive).
 
 Approximate per-module current (**measure to confirm**):
@@ -75,7 +75,7 @@ Realistic daisy-chain count:
 
 Guidance:
 
-- For products with **several LED Buttons**, give the host/PicoHub a **dedicated 3.3 V regulator** (from the PowerHub) rather than leaning on the Pico's onboard 3V3.
+- For products with **several LED Buttons**, give the host/PicoHub a **dedicated 3.3 V regulator** (the PicoHub has one) rather than leaning on the Pico's onboard 3V3.
 - Keep the **first cable link short** when chain current is high.
 - Provide a firmware **global brightness / current cap** to bound the worst case.
 - **Measure** actual per-module current before publishing a max-module figure.
@@ -135,7 +135,7 @@ Add both to KiCad with the library nickname **`noknok`**. Current parts:
 - Display panels: `noknok_ER-TFT1.42-1`, `noknok_ER-TFT020-7`, `noknok_ER-OLED0.96-1B` (+ matching footprints where the panel is soldered).
 - `noknok_Mezzanine_A` / `_B` / `_C` / `_D` (one symbol per cluster) + `noknok_Mezzanine_<X>_Pads_M2.5` (flat pads, hub bottom) / `noknok_Mezzanine_<X>_PogoPins_BWCD_M2.5` (spring pins, mezzanine top) — the PicoHub-to-mezzanine board-to-board interface, rev 2 (frozen 22 Sep 2026): 24 contacts on 3.5 mm pitch in four clusters, each beside a mounting hole and each a complete port on its own, so a mezzanine places only the clusters it uses. **Every footprint contains the real M2.5 mounting hole** (2.5 mm NPTH, the standard `noknok_MountingHole` geometry) at its origin, like the flash-pad footprints, so it replaces the plain hole at that corner (A → (3, 3), B → (37, 3), C → (37, 37), D → (3, 37) of the MOD-0008 pattern): place it at the hole position, rotation 0, on both boards, and the geometry matches without measuring. **A** (2×3): VBUS_PD ×4 + GND + MEZZ_EN — raw 5–20 V for boards with their own regulator. **D** (2×3): USB D±, GND, MEZZ_5V, MEZZ_PRESENT, MEZZ_FAULT — a USB port. **B** (2×4): SPI + IRQ + AIN + GND + MEZZ_5V — an SPI port. **C** (2×2): +3V3_A, GND, SDA_A, SCL_A — a Qwiic port. MEZZ_5V = switched 5 V (SY6280, 1.45 A) enabled by MEZZ_EN; PRESENT low = "I take the USB uplink". Pad numbers A1…D6, pin names = nets; coordinates and rules in the MOD-0011 spec §6. Each contact has a 0.5 mm local clearance (a pour cannot creep between the contacts; same-net GND contacts still merge with the plane, solid), and the M2.5 hole has a courtyard on **both** sides so nothing is placed under the screw head or standoff on either layer. The `_PogoPins_BWCD_M2.5` footprints are generated as the exact mirror of the `_Pads_M2.5` ones — edit only the pad footprints, then re-run `sync_mezz.ps1` in the MOD-0011 repo. Spring pin: BAT WIRELESS BWCD-L5.5W2.0H3.0 (LCSC C2826550), 4.5 mm board-to-board on M2.5 × 4.5 standoffs. (Rev 1, `noknok_Mezzanine_2x12`, was removed before any board used it.)
 - `noknok_RaspberryPi_Pico_Socket_THT` (footprint only; symbol = KiCad's `Module:RaspberryPi_Pico_2W` or Pico W) — socket for a Pico on 2 × 1×20 female headers 2.54 mm (CONNFLY DS1023-1x20SF11, LCSC C7509519). Same 40 holes, silkscreen, antenna copper keep-out and USB-cable courtyard as KiCad's `RaspberryPi_Pico_Common_THT`, but the courtyard covers only the two header strips, so parts may be placed under the raised Pico (8.5 mm clearance) without DRC courtyard errors. Keep tall parts and the LDOs out from under it anyway; the antenna keep-out rule area stays.
-- Parts KiCad has no symbol for, used by the PicoHub concept: `noknok_ME6203A33M3G` (40 V-in 3.3 V LDO, SOT-23-3), `noknok_AP2114H-3.3` (1 A LDO, SOT-223), `noknok_SY6280AAC` (load switch with current limit, SOT-23-5). Standard-package footprints from the KiCad library. (The CH32X035 is in KiCad: `MCU_WCH_RiscV:CH32X035G8U6`.)
+- Parts KiCad has no symbol for, used by the PicoHub: `noknok_ME6203A33M3G` (40 V-in 3.3 V LDO, SOT-23-3), `noknok_AP2114H-3.3` (1 A LDO, SOT-223), `noknok_SY6280AAC` (load switch with current limit, SOT-23-5). Standard-package footprints from the KiCad library. (The CH32X035 is in KiCad: `MCU_WCH_RiscV:CH32X035G8U6`.)
 
 ### **ECAD Tools**
 Read-only helper scripts for reviewing a design live in **[`electrical/tools/`](tools/readme.md)**.

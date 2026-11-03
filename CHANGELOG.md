@@ -14,6 +14,7 @@ Documentation only, no component changes.
 
 - DEV-184 - new [Firmware File Header & Versioning Standard](software/firmware-header.md): the source-file header and version block every module firmware carries, and the places a version must be kept in sync.
 - DEV-184 - new [noknok ID Scheme](software/noknok-ids.md) (`MOD-xxxx` / `SET-xxxx`), published as a **draft** proposal.
+- DEV-184 - `electrical/readme.md`: removed references to power and hub boards that are not products; power guidance now refers to the noknok PicoHub.
 - DEV-184 - `software/enumeration.md`: USB modules are connected directly to the host port (hub operation is not validated yet); PicoHub type `0x07` driver status corrected.
 - DEV-184 - `software/readme.md`: `GET_VERSION` text brought up to date, `0xB4 GET_ID` recorded as decided but not yet implemented, module type codes now point to the full list.
 
