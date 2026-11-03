@@ -10,13 +10,85 @@ reports and delivery checklists are not part of this file.
 
 ## Unreleased
 
-Documentation only, no component changes.
+Nothing yet.
+
+## v1.3.0 - 2026-11-03
+
+A reliability release. The brain now copes much better with weak WiFi, power cuts and busy app traffic,
+and it never sits silent without a reason. Every change was verified on the noknok bench, and the
+release as a whole was checked on a brain with all modules attached, including a 7-hour soak with
+486 real power cuts.
+
+### Pinned component versions
+
+| Component | Version | Source |
+|---|---|---|
+| noknok Buzzer firmware | 3.5.0 | [module-I2C-buzzer](https://github.com/buildwithnoknok/module-I2C-buzzer) |
+| noknok Knob firmware | 2.3.0 | [module-I2C-knob](https://github.com/buildwithnoknok/module-I2C-knob) |
+| noknok LED Button firmware | 2.4.1 | [module-I2C-ledbutton](https://github.com/buildwithnoknok/module-I2C-ledbutton) |
+| noknok LEDs firmware | 1.8.2 | [module-usb-led](https://github.com/buildwithnoknok/module-usb-led) |
+| noknok LEDs 16x firmware | 2.2.1 | [module-usb-led-16x](https://github.com/buildwithnoknok/module-usb-led-16x) |
+| noknok Display firmware | 0.7.1 | [module-I2C-1.42-display](https://github.com/buildwithnoknok/module-I2C-1.42-display) |
+| noknok PicoHub power manager firmware | 0.3.0 | [module-I2C-picohub-MOD-0011](https://github.com/buildwithnoknok/module-I2C-picohub-MOD-0011) |
+| I2C module bootloader (stage-1), CH32V003 | 1.2.0 | [module-I2C-bootloader](https://github.com/buildwithnoknok/module-I2C-bootloader) |
+| I2C module bootloader (stage-1), CH32X035 | 1.0.0 | [module-I2C-bootloader](https://github.com/buildwithnoknok/module-I2C-bootloader) |
+| USB module bootloader | 1.1.0 | [module-USB-bootloader](https://github.com/buildwithnoknok/module-USB-bootloader) |
+| Module registry (`software/modules.json`) | 1.4.0 | this repository |
+| Brain library (`noknok.py`) | 1.24 | [brain-Pico](https://github.com/buildwithnoknok/brain-Pico) |
+| Brain USB driver (`noknok_usb.py`) | 1.3 | [brain-Pico](https://github.com/buildwithnoknok/brain-Pico) |
+| Brain app channel (`noknok_rpc.py`) | 0.6.2 | [brain-Pico](https://github.com/buildwithnoknok/brain-Pico) |
+| Brain provisioning (`code.py`) | 0.39 | [brain-Pico](https://github.com/buildwithnoknok/brain-Pico) |
+| Products | Button Light 1.0.1, Smart Lamp Mini 1.0.0, Smart Lamp Midi 2.0.0, Smart Lamp Maxi 1.1.1, Multicolor Lamp 16x 1.0.0, Whack-a-Mole 1.0.0 | [poc](https://github.com/buildwithnoknok/poc) |
+| noknok app | 1.5.7 | closed source |
+
+Tested together on brain-Pico `main` at commit 45f0d93.
+
+### Highlights
+
+- **Steadier on weak WiFi.** After a weak signal or a router restart the brain now checks that the router
+  really answers and rejoins by itself. The LED Button no longer lags or queues presses while the app is
+  connected over a weak link.
+- **A busy or broken network client cannot freeze the product.** A client that connects and closes
+  without sending a request, or that stalls halfway, no longer blocks the brain. About 1 in 100 app
+  requests used to fail on the Smart Lamp Maxi; this is fixed with a larger Python stack in
+  `settings.toml`.
+- **No more hangs from a connected computer.** Console output never blocks the brain, so a computer
+  that holds the serial port open cannot freeze it, and the brain switches its radio off before a
+  deliberate restart so it comes back cleanly.
+- **Safer power cuts.** A power cut during a settings write no longer leaves the brain hanging, a brownout
+  no longer leaves it in safe mode, and an interrupted module update is rescued on the next start.
+- **More robust module updates and detection.** The noknok Display handles I2C glitches better
+  (Display firmware 0.7.1), the USB host recovers when a USB module restarts during an update, an old Knob
+  with the legacy bootloader is recognised correctly, and module bootloader versions are remembered
+  correctly after a bootloader update.
+- **Setup is more forgiving.** Setup retries the WiFi scan instead of refusing your home network after one
+  missed scan, an offline brain retries WiFi, and the brain no longer hands a noknok module an address
+  that a non-noknok I2C device already uses.
+- **Smart Lamp Maxi:** a quick on/off/on/off no longer leaves the lamp in the wrong colour.
+- **One-file brain image.** A single `.uf2` brain image is now available for factory flashing and recovery.
+
+### Documentation
 
 - DEV-184 - new [Firmware File Header & Versioning Standard](software/firmware-header.md): the source-file header and version block every module firmware carries, and the places a version must be kept in sync.
 - DEV-184 - new [noknok ID Scheme](software/noknok-ids.md) (`MOD-xxxx` / `SET-xxxx`), published as a **draft** proposal.
 - DEV-184 - `electrical/readme.md`: removed references to power and hub boards that are not products; power guidance now refers to the noknok PicoHub.
 - DEV-184 - `software/enumeration.md`: USB modules are connected directly to the host port (hub operation is not validated yet); PicoHub type `0x07` driver status corrected.
 - DEV-184 - `software/readme.md`: `GET_VERSION` text brought up to date, `0xB4 GET_ID` recorded as decided but not yet implemented, module type codes now point to the full list.
+
+### Known limitations
+
+- **Weak 5 V supply:** with a supply below about 4.9 V the noknok Display can stay dark after a cold
+  power-up. Use a proper 5 V charger or USB-C PD power. We are investigating the exact threshold.
+- **Very slow or broken network clients** can still pause the brain for about 10 seconds. Normal app use
+  is not affected.
+- **After a power cut**, a module is rarely missing at power-on. Power-cycle the product again.
+- **Re-flashing the brain with a wipe image** while the PicoHub input is powered can leave the I2C modules
+  unrecognised until you power-cycle the PicoHub input. Setting up from the app (factory reset) is not
+  affected.
+
+### Breaking changes
+
+None.
 
 ## v1.2.0 - 2026-10-22
 
