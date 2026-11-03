@@ -69,14 +69,10 @@ its modules through one call. See `brain-Pico/software/` (`noknok.py`, `noknok_u
 
 ## Full detail
 
-The complete design (factory-ROM dead-ends, flash map, CDC flashing command set, boot
-decision, brick-safety, the PID re-enumeration handling, and the Pico-side flasher +
-Conductor dispatcher) is documented in noknok's internal design page — this file stays a
-high-level overview to avoid drift:
-
-- **Full detail:** Confluence —
-  [USB Module Bootloader — Design & Process (CH32V203)](https://noknokdev.atlassian.net/wiki/spaces/SD/pages/85753857)
-  (child of *noknok System Architecture — End Game*).
+The command set, flash map and changelog are in the bootloader repository
+[module-USB-bootloader](https://github.com/buildwithnoknok/module-USB-bootloader); the Pico-side
+flow (update and rescue around a hard reset) is in the brain-Pico `README.md`. The rationale
+(why a custom bootloader, what is not built yet) is in noknok's internal design page.
 
 ## Related documentation
 

@@ -115,18 +115,10 @@ then `minichlink -w combined.bin flash -b`. This hand-writes the same validity m
 
 ## Full detail
 
-The complete wire protocol (flash map, the `0x7E` flashing command set, the boot
-decision, brick-safety, and recovery/SWD procedure) is documented in noknok's internal
-design page — this file stays a high-level overview to avoid drift:
+The wire protocol (flash map, the `0x7E` flashing command set, error codes, boot decision,
+brick safety, recovery and SWD procedures) is owned by the bootloader repository, so it is
+versioned together with the code:
 
-- **Full detail:** Confluence —
-  [Module Firmware Update — I2C Bootloader Protocol (Full Detail)](https://noknokdev.atlassian.net/wiki/spaces/SD/pages/80478209)
-  (child of *I²C Module Bootloader — Design & Process*).
-
-## Related documentation
-
-- [Bootloader Updates & World Migration](bootloader-update.md) — updating the bootloader itself; the runbook
-- [Software Guidelines](readme.md)
-- [Firmware Updates (USB Bootloader)](firmware-update-usb.md)
-- [Enumeration Protocol](enumeration.md)
-- [Role Assignment](roles.md)
+- **Protocol and flash map:** [module-I2C-bootloader `README.md`](https://github.com/buildwithnoknok/module-I2C-bootloader)
+  and `docs/stage0-design.md` (the stage-0 / stage-1 split and its bench validation).
+- **App contract and migration runbook:** [bootloader-update.md](bootloader-update.md).
