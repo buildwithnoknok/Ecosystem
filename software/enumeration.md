@@ -146,7 +146,7 @@ Conductor polls `0x7F` every 20 ms. Stops after **3000 ms** of no response.
 | `0x04` | noknok LEDs (USB, 8× RGB) | `NoknokLEDs` | ✅ complete — USB modules use a different discovery scheme, see [USB Module Discovery & Identity](#usb-module-discovery--identity) |
 | `0x05` | noknok Display (I²C) | `NoknokDisplay` | ✅ in use (firmware `MODULE_TYPE 0x05`) |
 | `0x06` | noknok LEDs 16x (USB, 16× RGBW) | `NoknokLEDs16` (`c.leds16`) | ✅ driver in noknok_usb.py 1.1 / noknok.py 1.10 (DEV-46). Firmware v2.2.0+ answers `0xF0` with `4E 4E 06`. Its own board type (decided 29 Sep 2026), not a variant of `0x04`. Manifest type string `usb_leds_16x`. |
-| `0x07` | picohub — noknok PicoHub power manager (I²C, on bus A of the carrier) | `NoknokPicoHub` (planned) | ✅ firmware 0.2.0 enumerates as `0x07`; brain driver in progress. Telemetry and steering commands (charger contract, rails, minimum input voltage, Pico reset); the command map is in the PicoHub repo `firmware/readme.md`. |
+| `0x07` | picohub — noknok PicoHub power manager (I²C, on bus A of the carrier) | `NoknokPicoHub` (`c.picohub`) | ✅ firmware enumerates as `0x07`; brain driver in `noknok.py`. Telemetry and steering commands (charger contract, rails, minimum input voltage, Pico reset); the command map is in the PicoHub repo `firmware/readme.md`. |
 
 The same code space is shared by I²C and USB modules — **never reuse a code**. For USB
 modules the code is the third byte of the `0xF0` identity reply (see below).
@@ -310,7 +310,7 @@ No. The module type code in byte 8 tells the Conductor which Python driver class
 
 ## USB Module Discovery & Identity
 
-USB modules (e.g. **noknok LEDs**) attach to the Conductor as **USB devices on a host port** — the Pico acts as USB host (PIO-USB on a consecutive GPIO pair, typically with the modules behind a **powered** hub such as the DataHub). They do **not** use the I²C backoff/address-assignment scheme above: USB addressing is handled by the host stack. Discovery instead relies on each module carrying a **globally-unique USB serial number** so identical modules can be told apart — the USB counterpart of the I²C UID.
+USB modules (e.g. **noknok LEDs**) attach to the Conductor as **USB devices on a host port** — the Pico acts as USB host (PIO-USB on a consecutive GPIO pair set in `settings.toml`; on the noknok PicoHub the host port is GP0/GP1). Connect a USB module **directly** to the host port: operation behind a hub is not validated yet. They do **not** use the I²C backoff/address-assignment scheme above: USB addressing is handled by the host stack. Discovery instead relies on each module carrying a **globally-unique USB serial number** so identical modules can be told apart — the USB counterpart of the I²C UID.
 
 ### The identity triple — symmetric with I²C
 
@@ -360,7 +360,7 @@ The Conductor and the role system treat this serial exactly as they treat an I²
 
 No address assignment, no backoff, no collision handling — the host enumerates each device automatically and the serial provides the stable identity. Timing: discovery gives up after **6 s** if no module appears, otherwise stops **3 s after the last new module**, with a hard cap of **20 s**. USB modules are not written to the Store state; they are identified afresh on every boot.
 
-> **Power is mandatory.** A USB module behind an *unpowered* hub enumerates its short descriptors but browns out on larger transfers. Hubs in a product must be externally powered (the DataHub is, by design).
+> **Power is mandatory.** A USB module behind an *unpowered* hub enumerates its short descriptors but browns out on larger transfers. If a hub is used at all it must be externally powered, but no hub is a supported noknok part yet and a module behind a hub is not validated (DEV-190); connect USB modules directly to the host port.
 
 ### State & roles
 
