@@ -838,11 +838,12 @@ function dovetailPoly(f, nw, tw, dp, inward) {
 }
 
 // Locating peg with 3 vertical CRUSH RIBS (Christopher 2026-10-30: boards should stay put on the bottom
-// cover's posts while the next module is wired in). The ribs reach r 1.40 in the r 1.25 (dia 2.5) hole =
-// ~0.15 mm interference: press the board on, friction holds it, it still pulls off by hand. They stop
+// cover's posts while the next module is wired in). The ribs reach r 1.35 in the r 1.25 (dia 2.5) hole =
+// ~0.10 mm interference: press the board on, friction holds it, it still pulls off by hand (2026-11-05:
+// eased from 0.15 mm, boards were too hard to push on; at 1.10 -> 1.05). They stop
 // PEG_RIB.lead below the peg top so the hole starts over the plain peg. Not a mushroom head: a dia 2.5 hole
 // leaves no room for a split snap peg that survives in PLA, and a head above the PCB would hit the front post.
-const PEG_RIB = { r:0.3, at:1.1, lead:0.4 };
+const PEG_RIB = { r:0.3, at:1.05, lead:0.4 };
 function gripPeg(x, y, zc) {
   const { pegR, pegLen } = BOX, ribH = pegLen - PEG_RIB.lead, z0 = zc - pegLen/2;
   const parts = [cylinder({ radius:pegR, height:pegLen, segments:16, center:[x, y, zc] })];
