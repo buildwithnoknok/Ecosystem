@@ -722,14 +722,24 @@ function referenceDomeHoney(D) {
 // chamfer and the lid's tube end clamps it when you twist the lid on. It sits inside the lid's ø-bore all
 // the way up, so the lid passes straight over it. z = 0 = flange bottom (prints flange-down, no support).
 // Only for domes with a seat (the ø44); 0.8 mm wall = 2 perimeters of a 0.4 nozzle.
-const DIFF = { wall:0.8, flangeT:0.8, gap:0.8 };
+// LUG BAYS (Christopher 2026-11-05, first diffuser print): the flange (ø43.8 on the ø44) is wider than the
+// circle the cover's 3 bayonet lugs reach in to (ø41.2), so it could not pass them. One notch per lug, same
+// 120° spacing, lug width + DIFF.bayA each side, cut radially in to DIFF.bayClr inside the lug tip: line the
+// bays up with the lugs and the diffuser drops straight through (or tilt it under two lugs and push the
+// third through its bay). Only the flange is notched; the tube and globe are well inside the lugs.
+const DIFF = { wall:0.8, flangeT:0.8, gap:0.8, bayA:1.5, bayClr:0.4 };
 function domeDiffuser(D) {
   if (!D.seat) return null;
   const g = domeGeo(D), Ro = D.boreR - DIFF.gap, Ri = Ro - DIFF.wall, FT = DIFF.flangeT;
   const flangeOR = g.rH - (g.Lt + FT - g.chamferStart);       // where the seat chamfer is at the flange bottom
   const zc = g.gz + FT;                                        // same globe centre as the lid
   const pts = [[Ri, 0], [flangeOR, 0], [flangeOR, FT], [Ro, FT], ...capOutline(zc, Ro, Ri)];
-  return extrudeRotate({ segments:96 }, ccwPoly(pts));
+  const body = extrudeRotate({ segments:96 }, ccwPoly(pts));
+  const r0 = g.lugIn - DIFF.bayClr, hw = BAYO.lugW/2 + DIFF.bayA;
+  if (r0 <= Ro + 0.3) return body;                             // bay would bite into the tube: leave it whole
+  const bayProf = ccwPoly([[r0, -1], [flangeOR + 1, -1], [flangeOR + 1, FT + 1], [r0, FT + 1]]);
+  const bays = lugAngles().map(A => extrudeRotate({ segments:96, startAngle:(A - hw)*DEG, angle:2*hw*DEG }, bayProf));
+  return subtract(body, union(...bays));
 }
 
 // A shallow engraved-text solid for one label, positioned over its reserved strip on the top cover.
