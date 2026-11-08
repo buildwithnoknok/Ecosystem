@@ -262,6 +262,62 @@ to reset from the app. The brain never reads this field.
 
 ---
 
+## `power` — what supply the product needs (planned, not in the schema yet)
+
+> **Status: design decided 8 Nov 2026, not built.** The schema does not accept `power` yet
+> (`additionalProperties: false`): do not add it to a manifest until the schema change is released
+> (noknok ticket DEV-214). This section is the single home for the field's definition and the module
+> numbers it is computed from.
+
+A product declares the power supply it needs, so the app can tell the customer which charger to use
+("Use a USB-C charger with 5 V / 2 A or more"). The block is **computed**, not hand-written: a small
+generator adds up the module values for the product's `modules_required`. The brain does not read this
+block; it reports what it measures, and the app compares the two.
+
+```json
+"power": {
+  "min_v": 4.75,
+  "typ_a": 0.51,
+  "peak_a": 1.19,
+  "supply": { "v": 5, "a": 2, "pd": "recommended" },
+  "estimate": true,
+  "computed_from": "modules.json power, registry <version>"
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `min_v` | lowest 5 V rail voltage at which every module of the product works: the highest module `min_v`, never below the USB floor of 4.75 V |
+| `typ_a` / `peak_a` | current at the 5 V input: sum of the modules' typical / peak current plus the brain base. Adding the peaks is deliberately conservative |
+| `supply` | the recommendation the app shows: `a` = `peak_a` x 1.25, rounded up to 1 / 1.5 / 2 / 3 A; `pd` = `required` / `recommended` / `no`. The app writes the words; no free text here |
+| `estimate` | `true` while any module value used is not measured yet. Estimated numbers only choose the recommended supply; the app never raises a warning from them |
+| `computed_from` | where the numbers came from |
+
+**Module values** will live in `modules.json` as an optional `power` entry per module
+(`{"min_v", "typ_ma", "peak_ma", "measured"}`, `measured` naming the evidence or `null`). Until that
+lands, these are the values to use:
+
+| Module | min_v | typ | peak | Measured? |
+|---|---|---|---|---|
+| Brain base (Pico 2 W + PicoHub, WiFi on) | 3.5 V | ~50 mA | 250 mA | typ yes; peak estimated |
+| noknok Display | 3.8 V | ~70 mA | 150 mA | min_v and typ yes; peak estimated |
+| noknok LEDs 16x | - | ~350 mA (standard USB budget) | ~630 mA (full white, 3 A source) | yes |
+| noknok LED Button | - | 20 mA | 50 mA | estimated |
+| noknok Knob | - | 10 mA | 10 mA | estimated |
+| noknok Buzzer | - | 5 mA | 100 mA (beep) | estimated |
+
+**Worked example, Smart Lamp Maxi** (LEDs 16x, LED Button, Knob, Buzzer, Display): typical 0.05 + 0.35
++ 0.07 + 0.02 + 0.01 + 0.005 = **0.51 A**; peak 0.25 + 0.63 + 0.15 + 0.05 + 0.01 + 0.10 = **1.19 A**;
+1.19 x 1.25 = 1.49 A, so the recommendation is **5 V / 2 A**, USB-PD recommended, `estimate: true`.
+Note for products with a USB module on the PicoHub: on a charger without USB-PD, the hub powers its
+USB port only if the charger advertises at least 1.5 A, so such a product cannot run on a 0.5 A
+supply at all.
+
+**What a charger can tell us:** a plain 5 V adapter does not announce how much current it can give.
+Over USB-C it shows only a coarse class (0.5 / 1.5 / 3 A), and a USB-A-to-C cable always shows
+0.5 A. So the check on the device is based on what it measures (the 5 V rail sagging under load), not
+on the adapter's rating.
+
 ## Validating a manifest
 
 ```bash
