@@ -12,6 +12,74 @@ reports and delivery checklists are not part of this file.
 
 Nothing yet.
 
+## v1.3.1 - 2026-11-09
+
+A reliability follow-up to v1.3.0. Module updates now reach a running brain, a parked brain stays
+reachable, recovery keeps your WiFi, and the app handles weak connections more gracefully. Every change
+was verified on the noknok bench, and the final code was checked together on a brain with all modules
+attached next to non-noknok I2C boards.
+
+### Pinned component versions
+
+| Component | Version | Source |
+|---|---|---|
+| noknok Buzzer firmware | 3.5.0 | [module-I2C-buzzer](https://github.com/buildwithnoknok/module-I2C-buzzer) |
+| noknok Knob firmware | 2.3.0 | [module-I2C-knob](https://github.com/buildwithnoknok/module-I2C-knob) |
+| noknok LED Button firmware | 2.4.1 | [module-I2C-ledbutton](https://github.com/buildwithnoknok/module-I2C-ledbutton) |
+| noknok LEDs firmware | 1.8.2 | [module-usb-led](https://github.com/buildwithnoknok/module-usb-led) |
+| noknok LEDs 16x firmware | 2.2.1 | [module-usb-led-16x](https://github.com/buildwithnoknok/module-usb-led-16x) |
+| noknok Display firmware | 0.7.1 | [module-I2C-1.42-display](https://github.com/buildwithnoknok/module-I2C-1.42-display) |
+| noknok PicoHub power manager firmware | 0.3.1 | [module-I2C-picohub-MOD-0011](https://github.com/buildwithnoknok/module-I2C-picohub-MOD-0011) |
+| I2C module bootloader (stage-1), CH32V003 | 1.2.0 | [module-I2C-bootloader](https://github.com/buildwithnoknok/module-I2C-bootloader) |
+| I2C module bootloader (stage-1), CH32X035 | 1.0.0 | [module-I2C-bootloader](https://github.com/buildwithnoknok/module-I2C-bootloader) |
+| USB module bootloader | 1.1.0 | [module-USB-bootloader](https://github.com/buildwithnoknok/module-USB-bootloader) |
+| Module registry (`software/modules.json`) | 1.4.0 | this repository |
+| Brain library (`noknok.py`) | 1.26 | [brain-Pico](https://github.com/buildwithnoknok/brain-Pico) |
+| Brain USB driver (`noknok_usb.py`) | 1.3 | [brain-Pico](https://github.com/buildwithnoknok/brain-Pico) |
+| Brain app channel (`noknok_rpc.py`) | 0.6.2 | [brain-Pico](https://github.com/buildwithnoknok/brain-Pico) |
+| Brain provisioning (`code.py`) | 0.43 | [brain-Pico](https://github.com/buildwithnoknok/brain-Pico) |
+| Products | Button Light 1.0.1, Smart Lamp Mini 1.0.0, Smart Lamp Midi 2.0.0, Smart Lamp Maxi 1.1.1, Multicolor Lamp 16x 1.0.0, Whack-a-Mole 1.0.0 | [poc](https://github.com/buildwithnoknok/poc) |
+| noknok app | 1.5.11 | closed source |
+
+Tested together on brain-Pico `main`, software at commit d5060da (code.py 0.43); later commits are documentation only.
+
+### Highlights
+
+- **Module updates reach a running brain.** The daily update check now downloads each module image in
+  small pieces instead of one big block, so the PicoHub update (0.3.0 to 0.3.1) arrives over the air.
+  Before, large images failed for lack of free memory.
+- **Cleaner power-up of the PicoHub.** PicoHub firmware 0.3.1 stops the 5 V rail from being switched off
+  while it is already running, so the modules no longer get a short double power-up at a cold start.
+  This was the likely reason the noknok Display sometimes stayed dark after a cold start on a weak 5 V supply.
+- **A parked brain stays reachable.** A brain that stopped its product after three crashes now joins
+  WiFi, answers the app within about 10 seconds, and the app can restart it. It no longer needs a power cycle.
+- **"Recover my device" keeps your WiFi.** Re-flashing a brain with the recovery image (not the wipe
+  image) brings it back on your home WiFi by itself, also for brains set up before the WiFi copy was stored.
+- **A swapped module is recognised.** If a different module sits at a saved address, the brain notices and
+  sets it up again. It can no longer mistake it for the old module, so a PicoHub at an old Knob address
+  does not trigger an accidental factory reset.
+- **A wiped brain adopts modules that stayed powered.** After re-flashing with the wipe image while the
+  modules keep their power, the brain finds them again.
+- **A calmer app.** The app retries a dropped request once, shows a plain-language message instead of a
+  raw network error when the phone has no internet, polls the device page gently so it no longer
+  overloads the brain, and setup recovers when the phone changes WiFi band.
+
+### Known limitations
+
+- **Weak 5 V supply:** use a proper 5 V charger or USB-C PD power. PicoHub 0.3.1 improves the cold start;
+  the long unattended power-cut proof with it (100 or more cuts) is still to come.
+- **Very slow or broken network clients** can still pause the brain for about 10 seconds. Normal app use
+  is not affected.
+- **After a power cut**, a module is rarely missing at power-on. Power-cycle the product again.
+- **Module images larger than 16 KB** are updated over the air with the new download method; the largest
+  real image today (16.8 KB) was verified, larger test images have not been tried on hardware yet.
+- **Wiped brain next to other I2C boards:** a brain with no saved modules sends one identification
+  request to each unknown I2C device. It never gives a foreign board an address or a driver.
+
+### Breaking changes
+
+None.
+
 ## v1.3.0 - 2026-11-03
 
 A reliability release. The brain now copes much better with weak WiFi, power cuts and busy app traffic,
