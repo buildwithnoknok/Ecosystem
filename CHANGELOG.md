@@ -12,12 +12,13 @@ reports and delivery checklists are not part of this file.
 
 Nothing yet.
 
-## v1.3.1 - 2026-11-09
+## v1.3.1 - 2026-11-10
 
 A reliability follow-up to v1.3.0. Module updates now reach a running brain, a parked brain stays
 reachable, recovery keeps your WiFi, and the matching app improvements follow with the next app update. Every change
 was verified on the noknok bench, and the final code was checked together on a brain with all modules
-attached next to non-noknok I2C boards.
+attached next to non-noknok I2C boards. The module update path was also verified end to end on hardware:
+a brain updated an LED Button from an older app to the current one through its own daily update check.
 
 ### Pinned component versions
 
@@ -68,6 +69,8 @@ Tested together on brain-Pico `main`, software at commit d5060da (code.py 0.43);
 
 - **Weak 5 V supply:** use a proper 5 V charger or USB-C PD power. PicoHub 0.3.1 improves the cold start;
   the long unattended power-cut proof with it (100 or more cuts) is still to come.
+- **Weak WiFi can abort a module download.** The brain then skips that image and tries again at the next
+  daily update check. In a bench test on a poor link, retrying the check completed the update.
 - **Very slow or broken network clients** can still pause the brain for about 10 seconds. Normal app use
   is not affected.
 - **After a power cut**, a module is rarely missing at power-on. Power-cycle the product again.
