@@ -15,7 +15,7 @@ Nothing yet.
 ## v1.3.1 - 2026-11-09
 
 A reliability follow-up to v1.3.0. Module updates now reach a running brain, a parked brain stays
-reachable, recovery keeps your WiFi, and the app handles weak connections more gracefully. Every change
+reachable, recovery keeps your WiFi, and the matching app improvements follow with the next app update. Every change
 was verified on the noknok bench, and the final code was checked together on a brain with all modules
 attached next to non-noknok I2C boards.
 
@@ -39,7 +39,7 @@ attached next to non-noknok I2C boards.
 | Brain app channel (`noknok_rpc.py`) | 0.6.2 | [brain-Pico](https://github.com/buildwithnoknok/brain-Pico) |
 | Brain provisioning (`code.py`) | 0.43 | [brain-Pico](https://github.com/buildwithnoknok/brain-Pico) |
 | Products | Button Light 1.0.1, Smart Lamp Mini 1.0.0, Smart Lamp Midi 2.0.0, Smart Lamp Maxi 1.1.1, Multicolor Lamp 16x 1.0.0, Whack-a-Mole 1.0.0 | [poc](https://github.com/buildwithnoknok/poc) |
-| noknok app | 1.5.11 | closed source |
+| noknok app | 1.5.7 in the store today; 1.5.11 follows | closed source |
 
 Tested together on brain-Pico `main`, software at commit d5060da (code.py 0.43); later commits are documentation only.
 
@@ -60,9 +60,9 @@ Tested together on brain-Pico `main`, software at commit d5060da (code.py 0.43);
   does not trigger an accidental factory reset.
 - **A wiped brain adopts modules that stayed powered.** After re-flashing with the wipe image while the
   modules keep their power, the brain finds them again.
-- **A calmer app.** The app retries a dropped request once, shows a plain-language message instead of a
-  raw network error when the phone has no internet, polls the device page gently so it no longer
-  overloads the brain, and setup recovers when the phone changes WiFi band.
+- **App improvements follow (app 1.5.11).** The next app update retries a dropped request once, shows a
+  plain-language message instead of a raw network error when the phone has no internet, polls the device
+  page gently so it no longer overloads the brain, and lets setup recover when the phone changes WiFi band.
 
 ### Known limitations
 
