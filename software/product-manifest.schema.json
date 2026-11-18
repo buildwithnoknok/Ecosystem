@@ -61,13 +61,24 @@
         "additionalProperties": false,
         "required": ["type", "count"],
         "properties": {
-          "type": { "$ref": "#/definitions/moduleType" },
+          "type": {
+            "anyOf": [{ "$ref": "#/definitions/moduleType" }, { "$ref": "#/definitions/thirdpartyType" }],
+            "description": "A noknok module type, or (with \"thirdparty\": true) a third-party board type."
+          },
+          "thirdparty": {
+            "type": "boolean",
+            "default": false,
+            "description": "true = a third-party Qwiic / Stemma QT board listed in thirdparty-boards.json, not a noknok module (DEV-251): no firmware and no module_firmware entry; the brain library noknok_thirdparty identifies it. Boards are plugged in with the brain off (no hot-plug)."
+          },
           "count": {
             "type": "integer",
             "minimum": 1,
             "description": "How many of this module type are needed. Identical modules are fine — enumeration gives each a unique address (scales to ~20 total)."
           }
-        }
+        },
+        "if": { "properties": { "thirdparty": { "const": true } }, "required": ["thirdparty"] },
+        "then": { "properties": { "type": { "$ref": "#/definitions/thirdpartyType" } } },
+        "else": { "properties": { "type": { "$ref": "#/definitions/moduleType" } } }
       }
     },
     "module_firmware": {
@@ -219,6 +230,19 @@
         "display"
       ],
       "description": "Controlled vocabulary of module type strings. Must match the names the Conductor exposes (c.buzzer, c.knob, c.ledbutton, c.leds, c.display ...)."
+    },
+    "thirdpartyType": {
+      "type": "string",
+      "enum": [
+        "veml7700",
+        "tmp102",
+        "ads1115",
+        "lsm6dsox",
+        "msa311",
+        "ssd1306",
+        "soldered_pir"
+      ],
+      "description": "Third-party board types (DEV-251). Must match the keys of thirdparty-boards.json and the lists the noknok_thirdparty library adds to the Conductor (c.veml7700, c.tmp102 ...). Only allowed in modules_required entries with \"thirdparty\": true."
     }
   }
 }

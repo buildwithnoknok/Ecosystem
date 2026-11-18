@@ -98,6 +98,14 @@ Conductor exposes (`c.buzzer`, `c.knob`, `c.ledbutton`, `c.leds`, `c.leds16`,
 `c.display`). `usb_leds` (8× RGB) and `usb_leds_16x` (16× RGBW) are different
 modules: a product written for one does not get the other.
 
+**Third-party boards (DEV-251).** A `modules_required` entry with `"thirdparty": true` names a
+third-party Qwiic / Stemma QT board instead of a noknok module, e.g.
+`{ "type": "veml7700", "count": 1, "thirdparty": true }`. Its `type` must be a key of
+[`thirdparty-boards.json`](thirdparty-boards.json) (`veml7700`, `tmp102`, `ads1115`, `lsm6dsox`,
+`msa311`, `ssd1306`, `soldered_pir`), and a third-party type is only valid with that flag. Third-party
+boards have no firmware: never list them in `module_firmware`. See
+[Authoring a noknok Product → Third-party boards](authoring-products.md#third-party-qwiic--stemma-qt-boards).
+
 ## `module_firmware` — a floor, not a pin
 
 ```json

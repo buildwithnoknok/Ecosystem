@@ -280,6 +280,68 @@ product must keep running when the board does not answer.
 
 ---
 
+## Third-party Qwiic / Stemma QT boards
+
+A product can use some popular third-party boards (Adafruit, SparkFun, Soldered and compatible
+copies) next to noknok modules. The supported boards and their facts live in one file,
+[`thirdparty-boards.json`](thirdparty-boards.json); the brain library `noknok_thirdparty` (in the
+brain image since DEV-248) identifies them and gives them a driver.
+
+**The rule: plug boards in with the brain off.** At boot the brain scans each bus and gives noknok
+modules only addresses where nothing answers, so modules are placed around your boards. Hot-plug is
+not supported: a board plugged in while the brain runs is not seen until the next boot and can sit on
+a module's address. (Rare edge: a board plugged onto a module's address while the PicoHub keeps the
+bus powered through a brain reset can hide that module until the next full power-off.)
+
+Manifest: mark each board with `"thirdparty": true`:
+
+```json
+"modules_required": [
+  { "type": "buzzer",   "count": 1 },
+  { "type": "veml7700", "count": 1, "thirdparty": true },
+  { "type": "tmp102",   "count": 1, "thirdparty": true }
+]
+```
+
+Script:
+
+```python
+from noknok import Conductor
+import noknok_thirdparty as tp
+
+c = Conductor()
+c.enumerate()                 # noknok modules first
+tp.attach(c)                  # then the third-party boards: c.veml7700, c.tmp102, ... (lists)
+
+if not c.veml7700 or not c.tmp102:
+    raise RuntimeError("Room Guard needs a VEML7700 light sensor and a TMP102")
+light, temp = c.veml7700[0], c.tmp102[0]   # keep these objects
+
+while True:
+    lux = light.lux               # None on an I2C hiccup - skip that turn, like noknok modules
+    t = temp.temperature
+    ...
+```
+
+What to know:
+
+- **Readings can be `None`.** Treat it like a noknok module that did not answer: skip, retry next
+  loop. After a bus power loss the driver sets its chip up again by itself.
+- **Boards without an ID** (the Soldered PIR) are never guessed. They show up in
+  `c.unknown_devices`; the user names them in the app, or the product does:
+  `tp.assign(c, "soldered_pir", "A", 0x30)`.
+- **Two identical chips on one address** cannot be told apart. Use the board's address jumper or
+  put one on the other bus.
+- **Pull-ups.** Many boards bring their own pull-up resistors; three or more Adafruit boards on one
+  bus can be too much. `tp.pullup_warnings(c)` says which jumper to cut or which board to move.
+- **RAM.** Core about 5.6 KB, each driver 1-2.3 KB, loaded only when its chip is present.
+- No firmware updates for third-party boards; do not list them in `module_firmware`.
+
+Adding a new board type means a driver in brain-Pico (`noknok_tp_<type>.py`), one entry in
+`thirdparty-boards.json` and one in the schema's `thirdpartyType` list; a CI check keeps them in sync.
+
+---
+
 ## Worked example: Whack-a-Mole
 
 The cleanest reference for the **symmetric-modules** pattern:

@@ -224,6 +224,7 @@ Power cycle: enumerate() → modules back at 0x7F → each re-assigned its old a
 - [Firmware File Header & Versioning Standard](firmware-header.md) — the version block and source header every module firmware carries
 - [noknok ID Scheme (draft)](noknok-ids.md) — `MOD-xxxx` / `SET-xxxx`
 - [Module Firmware Index](firmware-index.md) — how the brain decides which firmware to install (`firmware/index.json` + `modules.json`)
+- [Third-party board registry](thirdparty-boards.json) — supported third-party Qwiic / Stemma QT boards (DEV-251); how to use them: [Authoring](authoring-products.md#third-party-qwiic--stemma-qt-boards)
 - [Enumeration Protocol — full spec](enumeration.md)
 - [Firmware Updates (I2C Bootloader)](firmware-update.md)
 - [Bootloader Updates & World Migration](bootloader-update.md) — updating the bootloader itself; the DEV-31 runbook

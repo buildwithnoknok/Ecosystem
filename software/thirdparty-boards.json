@@ -1,0 +1,242 @@
+{
+  "format": 1,
+  "registry_version": "1.0.0",
+  "updated": "2026-11-18",
+  "_comment": "Third-party Qwiic / Stemma QT board registry (DEV-251), next to modules.json. One home per fact: what a supported third-party board IS (addresses, how the brain recognises it, bus load, what it measures). Product manifests only name the type (modules_required with \"thirdparty\": true). The brain library noknok_thirdparty (brain-Pico, DEV-248) carries the same facts in code; a CI check keeps both in sync. Boards are plugged in with the brain off; there are no reserved addresses (the boot-time scan allocates noknok modules around them). load_ohms = load on the bus when the line is LOW (boards with a level shifter count both resistor pairs). See authoring-products.md, \"Third-party boards\".",
+  "library": {
+    "name": "noknok_thirdparty",
+    "repo": "brain-Pico",
+    "min_version": "0.3.0"
+  },
+  "boards": {
+    "veml7700": {
+      "name": "Light sensor (VEML7700)",
+      "chip": "Vishay VEML7700",
+      "boards_tested": [
+        "Adafruit 4162"
+      ],
+      "addresses": [
+        "0x10"
+      ],
+      "auto_detect": true,
+      "identification": {
+        "method": "id_register",
+        "register": "0x07",
+        "expect": "low byte 0x81",
+        "confidence": "id"
+      },
+      "pullups": {
+        "load_ohms": 2350,
+        "detail": "4.7 k bus side + 4.7 k behind BSS138 shifter",
+        "removable": false
+      },
+      "capabilities": {
+        "lux": "lx",
+        "white": "counts"
+      },
+      "status": "bench-tested 16-17 Nov 2026: identify, auto-range, power-loss recovery, stuck-SDA finding",
+      "driver": {
+        "file": "noknok_tp_veml7700.mpy",
+        "since": "0.3.0"
+      }
+    },
+    "tmp102": {
+      "name": "Temperature sensor (TMP102)",
+      "chip": "TI TMP102",
+      "boards_tested": [
+        "SparkFun SEN-16304"
+      ],
+      "addresses": [
+        "0x48",
+        "0x49",
+        "0x4A",
+        "0x4B"
+      ],
+      "auto_detect": true,
+      "identification": {
+        "method": "fingerprint",
+        "register": "0x01",
+        "expect": "R1:R0 = 11, low nibble 0",
+        "confidence": "fingerprint"
+      },
+      "pullups": {
+        "load_ohms": 2200,
+        "removable": true,
+        "howto": "cut the I2C pull-up jumper on the back of the board"
+      },
+      "capabilities": {
+        "temperature": "°C"
+      },
+      "status": "bench-tested 16-17 Nov 2026: identify, reads, identity check catches a second chip on its address",
+      "driver": {
+        "file": "noknok_tp_tmp102.mpy",
+        "since": "0.3.0"
+      }
+    },
+    "ads1115": {
+      "name": "Analog input (ADS1115)",
+      "chip": "TI ADS1115",
+      "boards_tested": [
+        "generic copy of Adafruit 1085"
+      ],
+      "addresses": [
+        "0x48",
+        "0x49",
+        "0x4A",
+        "0x4B"
+      ],
+      "auto_detect": true,
+      "identification": {
+        "method": "fingerprint",
+        "register": "0x02/0x03/0x01",
+        "expect": "Lo 0x8000, Hi 0x7FFF, comparator off",
+        "confidence": "fingerprint"
+      },
+      "pullups": {
+        "load_ohms": 10000,
+        "removable": false,
+        "detail": "Adafruit 1085: 10 k, no shifter; generic copies: check"
+      },
+      "capabilities": {
+        "a0": "V",
+        "a1": "V",
+        "a2": "V",
+        "a3": "V"
+      },
+      "status": "bench-tested 17 Nov 2026: identify, 16-bit, non-blocking, power-loss recovery; accuracy not checked",
+      "driver": {
+        "file": "noknok_tp_ads1115.mpy",
+        "since": "0.3.0"
+      }
+    },
+    "lsm6dsox": {
+      "name": "Motion sensor (LSM6DSOX)",
+      "chip": "ST LSM6DSOX",
+      "boards_tested": [
+        "Adafruit 4438"
+      ],
+      "addresses": [
+        "0x6A",
+        "0x6B"
+      ],
+      "auto_detect": true,
+      "identification": {
+        "method": "id_register",
+        "register": "0x0F",
+        "expect": "0x6C",
+        "confidence": "id"
+      },
+      "pullups": {
+        "load_ohms": 5000,
+        "detail": "10 k + 10 k behind BSS138 shifter",
+        "removable": false
+      },
+      "capabilities": {
+        "acceleration": "m/s²",
+        "gyro": "dps",
+        "temperature": "°C"
+      },
+      "status": "bench-tested 17 Nov 2026: self-test, power-loss recovery, 100 ms settle after setup",
+      "driver": {
+        "file": "noknok_tp_lsm6dsox.mpy",
+        "since": "0.3.0"
+      }
+    },
+    "msa311": {
+      "name": "Motion sensor (MSA311)",
+      "chip": "MEMSensing MSA311",
+      "boards_tested": [
+        "generic copy of Adafruit 5309"
+      ],
+      "addresses": [
+        "0x62"
+      ],
+      "auto_detect": true,
+      "identification": {
+        "method": "id_register",
+        "register": "0x01",
+        "expect": "0x13",
+        "confidence": "id"
+      },
+      "pullups": {
+        "load_ohms": 5000,
+        "detail": "assumed Adafruit-style; generic copies: check",
+        "removable": false
+      },
+      "capabilities": {
+        "acceleration": "m/s²"
+      },
+      "status": "bench-tested 17 Nov 2026: identify, wake from suspend, recovery; not calibrated",
+      "driver": {
+        "file": "noknok_tp_msa311.mpy",
+        "since": "0.3.0"
+      }
+    },
+    "ssd1306": {
+      "name": "OLED display (SSD1306)",
+      "chip": "Solomon SSD1306",
+      "boards_tested": [
+        "Adafruit 4440 (0.91in 128x32)"
+      ],
+      "addresses": [
+        "0x3C",
+        "0x3D"
+      ],
+      "auto_detect": true,
+      "identification": {
+        "method": "status_byte",
+        "expect": "bit 7 clear (0x02 on / 0x42 off)",
+        "confidence": "family",
+        "note": "panel size not readable: 128x32 default, set_size(64)"
+      },
+      "pullups": {
+        "load_ohms": 5000,
+        "detail": "10 k + 10 k behind BSS138 shifter (rev B schematic)",
+        "removable": false
+      },
+      "capabilities": {
+        "display": "128x32 mono"
+      },
+      "status": "bench-tested 17 Nov 2026: text with the noknok 8x16 font, dirty-page show(), redraw after power loss",
+      "driver": {
+        "file": "noknok_tp_ssd1306.mpy",
+        "since": "0.3.0"
+      }
+    },
+    "soldered_pir": {
+      "name": "Motion detector (PIR)",
+      "chip": "AM312 + ATtiny404 (Soldered easyC)",
+      "boards_tested": [
+        "Soldered PIR with easyC V1.1.0"
+      ],
+      "addresses": [
+        "0x30",
+        "0x31",
+        "0x32",
+        "0x33",
+        "0x34",
+        "0x35",
+        "0x36",
+        "0x37"
+      ],
+      "auto_detect": false,
+      "identification": {
+        "method": "none",
+        "confidence": "user",
+        "note": "no ID; any read returns the motion byte, any 4-byte write sets the hold time - never probe, the user names it"
+      },
+      "pullups": {
+        "load_ohms": null,
+        "detail": "no pull-ups (schematic)"
+      },
+      "capabilities": {
+        "motion": "bool"
+      },
+      "status": "bench-tested 17 Nov 2026 via assign(): motion read; True right after power-up (AM312 warm-up)",
+      "driver": {
+        "file": "noknok_tp_soldered_pir.mpy",
+        "since": "0.3.0"
+      }
+    }
+  }
+}

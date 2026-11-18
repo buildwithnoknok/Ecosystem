@@ -10,7 +10,13 @@ reports and delivery checklists are not part of this file.
 
 ## Unreleased
 
-Nothing yet.
+- DEV-251 - third-party Qwiic / Stemma QT boards: new registry `software/thirdparty-boards.json`
+  (7 boards: VEML7700, TMP102, ADS1115, LSM6DSOX, MSA311, SSD1306 OLED, Soldered PIR; addresses, how
+  the brain recognises each, bus load, readings). Product manifest schema: `modules_required` entries
+  can carry `"thirdparty": true` with a `thirdpartyType`; existing manifests are unaffected. New
+  chapter "Third-party boards" in `authoring-products.md`. Boards are plugged in with the brain off;
+  there are no reserved addresses. Brain side: `noknok_thirdparty` 0.3.0 (brain-Pico, DEV-248).
+  Breaking: no.
 
 ## v1.3.1 - 2026-11-10
 
