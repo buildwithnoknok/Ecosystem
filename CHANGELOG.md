@@ -10,6 +10,7 @@ reports and delivery checklists are not part of this file.
 
 ## Unreleased
 
+- DEV-251 (docs follow-up) - `authoring-products.md`: how a `product.py` uses third-party boards (`tp.attach()`, readings can be `None`, naming boards without an ID, pull-up warnings, RAM cost, link to the brain-Pico API) and the known hot-plug edge case from ADR-011; `software/readme.md` links the registry. Docs only. Breaking: no.
 - DEV-268 - product manifests declare what they need from a brain instead of naming a board: new optional `requires` (`usb_host`, `i2c_b`, `ble`; derived from USB modules when left out), `brain_type` is now optional and deprecated (ignored). Brains report `hello.capabilities` (brain-Pico code.py 0.49) and refuse a product they cannot run; the app checks before sending the WiFi details (app 1.12.0). Every existing manifest still validates. Breaking: no.
 - DEV-251 - third-party Qwiic / Stemma QT boards: new registry `software/thirdparty-boards.json` (7 boards, version 1.0.0: addresses, identification, bus load, capabilities, pull-up removal), manifest schema accepts `modules_required[].thirdparty: true` with a type from the registry (additive; every existing manifest still validates), new check `software/tools/check_thirdparty_registry.py` (registry <-> schema <-> brain library, runs in CI), authoring-products.md chapter "Third-party boards". Brain library and ops follow in brain-Pico (DEV-248, DEV-249). Breaking: no.
 

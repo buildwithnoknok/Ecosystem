@@ -317,12 +317,49 @@ schema checks both). Third-party boards have no firmware minimum: leave them out
 - Boards add pull-up resistors to the bus. Three or more boards on one bus can overload it; the app's bus check says which
   board to move to the other bus or which pull-up jumper to cut (`pullups.removable` / `how` in the registry).
 - Two identical boards on one address cannot be told apart: use the board's address jumper.
+- Known edge case (ADR-011): a board plugged in onto a noknok module's address while the PicoHub keeps the bus powered
+  through a brain reset can hide that module until the next full power-off. Unplugging the brain fixes it.
 - The library is only imported by products that list a third-party board (`noknok_thirdparty`, brain-Pico). The brain code
   that serves them (status rows, naming, bus check) follows DEV-248 / DEV-249; this chapter and the registry are the
   contract the app and the brain both read.
 
 `python software/tools/check_thirdparty_registry.py` fails when the registry, the manifest schema and the brain
 library disagree (addresses, types, removable pull-ups), so the three cannot drift apart.
+
+**Use it in `product.py`:** enumerate the noknok modules first, then attach the boards. Each supported type gets a list
+on the Conductor, like `c.buzzer`:
+
+```python
+from noknok import Conductor
+import noknok_thirdparty as tp
+
+c = Conductor()
+c.enumerate()                 # noknok modules first
+tp.attach(c)                  # then the boards: c.veml7700, c.tmp102, ... (lists, maybe empty)
+
+if not c.veml7700 or not c.tmp102:
+    raise RuntimeError("This product needs a VEML7700 light sensor and a TMP102")
+light, temp = c.veml7700[0], c.tmp102[0]   # keep these objects
+
+while True:
+    lux = light.lux               # None = no reading this time: skip, like a module that did not answer
+    t = temp.temperature          # degrees C or None
+    ...
+```
+
+What to know:
+
+- **Readings can be `None`** (I2C hiccup, chip still settling, two chips answering on one address). Never treat `None`
+  as 0. After a bus power loss the driver sets its chip up again by itself; there is nothing to call.
+- **`c.thirdparty`** holds every attached board; `m.read()` gives a dict of its capabilities (keys as in the registry).
+- **Boards without an ID** (the Soldered PIR) are never probed. They show up in `c.unknown_devices` with their
+  `candidates`, and the user names them in the app. A product that knows what is plugged in can name one itself:
+  `tp.assign(c, "soldered_pir", "A", 0x30)`.
+- **Pull-ups:** `tp.attach()` logs a warning when a bus is overloaded; `tp.pullup_warnings(c)` returns the same text.
+- **RAM:** the core library is about 7 KB and each driver 0.9-2.3 KB, loaded only when its chip is present (about
+  21.5 KB with all 7 boards, bench 18 Nov 2026). Products without third-party boards pay nothing.
+- Full API per board (properties, options such as the OLED height): brain-Pico README,
+  [Third-party Qwiic / Stemma QT boards](https://github.com/buildwithnoknok/brain-Pico#third-party-qwiic--stemma-qt-boards-dev-248).
 
 ## Worked example: Whack-a-Mole
 

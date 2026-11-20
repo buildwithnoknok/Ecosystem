@@ -219,6 +219,7 @@ Power cycle: enumerate() → modules back at 0x7F → each re-assigned its old a
 ## 9. Related Documentation
 
 - [Authoring a noknok Product](authoring-products.md) — how to build a new product (manifest + product.py)
+- [Third-party board registry](thirdparty-boards.json) — the supported Qwiic / Stemma QT boards (DEV-251); how to use them: [Authoring, third-party boards](authoring-products.md#third-party-boards-qwiic--stemma-qt)
 - [Product Manifest — structure reference](product-manifest.md) — every field, what it means, full annotated example
 - [Product Manifest schema](product-manifest.schema.json) — machine-checkable manifest spec
 - [Firmware File Header & Versioning Standard](firmware-header.md) — the version block and source header every module firmware carries
