@@ -130,7 +130,7 @@ Command bytes **`0xB0` through `0xBF` are reserved ecosystem-wide** for standard
 | `GET_VERSION` | `0xB1` | write, then read 4 bytes (5 from the bootloader) | Report protocol + firmware version (see below). **Also answered by the bootloader at `0x7E`** (stage-1 version; **5 bytes since stage-1 v1.2.0** — the 5th is the flash layout id, `0` if the stage-1 predates it) — the legacy monolithic bootloader does not implement `0xB1`: it answers its 2-byte status padded with zeros (`0,0,0,0,0`), so only a reply that starts with protocol `0x01` and a major ≥ 1 is a stage-1 (DEV-155). |
 | `GET_DIAGNOSTIC` | `0xB2` | write, then read | USB bootloader only — DEV-12 boot-decision diagnostic. |
 | `GET_UID` | `0xB3` | write, then read 8 bytes | **Bootloader only** (`0x7E`): the chip UID, same bytes and order as the enumeration reply, so a module parked in its bootloader can be matched to the type it enumerated as. See [bootloader-update.md](bootloader-update.md). |
-| `GET_ID` | `0xB4` | write, then read 10 bytes | **Decided, not yet implemented** (ADR-005, build stories DEV-21 / DEV-22): the same 10 bytes as the enumeration reply (`[UID×8][TYPE][CRC8]`), answerable at any time by every app and by the stage-1 bootloader, so a module can always say what it is and which one it is. `0xB1` and `PROTOCOL_VERSION` stay unchanged. Until it ships, do not use `0xB4` for anything else. |
+| `GET_ID` | `0xB4` | write, then read 10 bytes | ADR-005: the same 10 bytes as the enumeration reply (`[UID×8][TYPE][CRC8]`, CRC-8 poly `0x07`), answerable at any time in the assigned state, latched in the I²C ISR at STOP like `0xB1`. **Apps** (DEV-21): Buzzer 3.6.0, Knob 2.4.0, LED Button 2.5.0, Display 0.8.0, PicoHub 0.4.0. **Stage-1 bootloader at `0x7E`** (DEV-22, V003 1.3.0 / X035 1.1.0): TYPE is the type of the last installed app, kept in word 3 of the metadata page and preserved across ERASE, so a module parked mid-update still says what it is (`0` = unknown). The V003 apps carry it in a 20-byte header `{"NKA1","V003",2,version,type}` at app base + `0x100`; the X035 reports its fixed type `0x07`. `0xB1` and `PROTOCOL_VERSION` stay unchanged. |
 | *reserved* | `0xB5`–`0xBF` | — | Reserved for future standard commands. Do not use. |
 
 ### `GET_VERSION` (`0xB1`) — mandatory for all modules
@@ -209,6 +209,7 @@ Power cycle: enumerate() → modules back at 0x7F → each re-assigned its old a
 | Enumeration response | 10 bytes (UID + type + CRC8) |
 | Standard system commands | `0xB0`–`0xBF` reserved ecosystem-wide |
 | Version reporting | `GET_VERSION` (`0xB1`) → 4 bytes `[protocol, major, minor, patch]` from apps; the bootloader at `0x7E` appends a 5th byte, the flash layout id (stage-1 ≥ 1.2.0) |
+| Identity at any time | `GET_ID` (`0xB4`) → the 10-byte enumeration reply `[UID×8][TYPE][CRC8]`, from apps and from the stage-1 bootloader at `0x7E` (ADR-005) |
 | Bootloader | frozen 1 KB stage-0 + field-updatable 4 KB stage-1 (layout 2); apps linked at `0x1400` |
 | App health | IWDG ~2 s + clear `0x200007F8` on address assignment — mandatory, and enforced: stage-1 ≥ 1.2.0 arms the IWDG before the jump, first kick due within ~2 s |
 | Max modules per bus | ~20 (total boot time ≈ 3–4 s) |
