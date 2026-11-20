@@ -215,6 +215,21 @@ New module:   enumerate() → known ones restored/re-assigned → continues poll
 > A legacy `noknok_state.json` on the filesystem is still read (never written) as a
 > fallback when the Store holds no state yet.
 
+**The saved state is a cache; the module proves who it is (ADR-005, DEV-21).** Before a
+remembered module is restored, the brain (noknok.py 1.28+) asks it `0xB4` GET_ID at its saved
+address and expects the same 10 bytes the module sends at `0x7F` (`[UID x8][TYPE][CRC8]`):
+
+| Answer at the saved address | Result |
+|---|---|
+| the saved UID and type, valid CRC-8 | restored |
+| another noknok module (valid CRC-8, other UID) | not restored; sent to its bootloader and back so it re-enumerates at `0x7F` as itself |
+| no valid answer, and the module was saved with firmware that answers `0xB4` | not restored: something else sits there (a Qwiic / Stemma QT board) |
+| no valid answer, saved with older firmware | the older check: `0xB1` must start with protocol `0x01` (old and new modules mix) |
+
+Zeros are not an answer (an older app replies zeros, and the CRC-8 of zeros is also 0). The
+brain only asks at addresses its saved state lists (and at `0x7E` for a parked module it does
+not know), never as a bus scan.
+
 ---
 
 ## Role system: stable names across reboots
