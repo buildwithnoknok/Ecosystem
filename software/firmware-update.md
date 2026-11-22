@@ -32,7 +32,7 @@ These are fixed across the ecosystem — every CH32V003 module honours them:
 | `ENTER_BOOTLOADER` command | `0xB0` |
 | Handoff RAM cell | `0x200007F0` (top 16 B of RAM, reserved in every module) |
 | CRC32 | zlib (polynomial `0xEDB88320`) |
-| Status LED | SWIO / PD1 (active-low). Stage-1 v1.2.0 only toggles it in flash mode; the full scheme (SDI takeover, per-state patterns) is planned — see below |
+| Status LED | SWIO / PD1 (active-low). Stage-1 V003 1.3.0: in flash mode a ~2 s SWD window, then SDI off and per-state patterns; a valid-app boot leaves SDI and PD1 to the app (ADR-012) — see below |
 
 Every updatable application MUST be linked at the `0x1400` offset, reserve the handoff
 RAM cell, implement `0xB0`, **run the independent watchdog, and clear the boot-attempt
@@ -66,11 +66,13 @@ the PicoHub repo's `firmware/readme.md`.
 
 ## Status LED & the SWIO flashing window (Flashing Interface V3)
 
-> **Status: target design, not implemented yet (planned, DEV-22).** What the released
-> stage-1 (v1.2.0) actually does today: it never disables SDI, has no SWD window, and in
-> flash mode (at `0x7E`) toggles PD1 at one fixed rate; there is no per-state blink scheme.
-> The Conductor (`noknok.py`) sends no "go" broadcast on the I2C general call `0x00`.
-> Everything below this box describes the planned scheme.
+> **Status (stage-1 V003 1.3.0, DEV-22, decided 22 Nov 2026 in ADR-012):** in flash mode (at `0x7E`:
+> parked, no valid app, or after `0xB0`) stage-1 leaves PD1 alone for ~2 s, then disables SDI and shows
+> double blink (waiting), 1 Hz (transfer) or 5 Hz (error / parked). On a **valid-app boot stage-1 does not
+> touch SDI or PD1**: an app that drives the status LED turns SDI off itself after ~2 s of uptime
+> ([bootloader-update.md §3a](bootloader-update.md)). After an OTA the app starts with SDI already off, so
+> bench SWD needs a power cycle. The app-side LED states in the table below and the "go" broadcast are
+> not implemented yet.
 
 The status LED sits on **PD1 — the SWIO debug pin** (active-low), so firmware must reclaim
 the pin from the debugger before it can drive it. While SWD/SDI is enabled the debug module
