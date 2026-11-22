@@ -91,6 +91,31 @@ power-cycling the product gives the app three fresh tries — the right behaviou
 transient. Reference implementations: LED Button v2.3, Buzzer v3.4.0, Knob v2.2.0,
 Display v0.4.0 (identical ~20-line block in each).
 
+### 3a. Status LED on PD1: the app turns SWD off itself (CH32V003, decided 22 Nov 2026)
+
+PD1 is both the SWD pin (SWIO) and the status LED. Stage-1 (V003 1.3.0, DEV-22) does **not** touch
+SDI or PD1 when it starts a valid app: stage-1 has no automatic rollback, an app is OTA-fixable.
+An app that drives the status LED must therefore turn SDI off **itself**, by this rule:
+
+1. **Not before ~2 s of uptime.** Keep PD1 untouched for the first ~2000 ms after start-up; that
+   is the SWD window after every power-up (a plain SWD connect or `minichlink -u` catches it).
+2. **Non-blocking, once.** From the main loop, `status_led_service(now_ms)`: when `now_ms >= 2000` and
+   SDI is still on, set `AFIO->PCFR1` SWCFG = `0b100` (`AFIO_PCFR1_SWCFG_DISABLE`, AFIO clock on),
+   configure PD1 push-pull and drive it OFF (active-low: high). Never in an ISR, never before
+   `iwdg_init()`, never a blocking delay (the watchdog contract above still applies).
+3. **Bench escape hatch.** A build flag `NOKNOK_KEEP_SWD` compiles the call out, for bench builds
+   that need SWD while the app runs.
+4. **Recovery stays open in every state.** The 2 s window after any power-up; `minichlink -u`
+   (power-cycle unbrick); a parked / invalid / `0xB0` module sits in stage-1 with its own full ~2 s
+   window; OTA over I2C never needs SWD; an app that crashes after the SDI-off is parked by the
+   three-strikes rule (§3) and re-flashed over I2C.
+5. **After an OTA the app starts with SDI already off** (stage-1 sat in flash mode past its window):
+   SWD then needs a power cycle. Expected, not a fault.
+
+Tests before an app with this ships (tier M): SWD attaches within 2 s of power-up and fails after
+3 s; `minichlink -u` recovers; a parked module keeps its window; I2C OTA recovers a module with SDI
+off; a crash after the SDI-off is parked and recovered; 20 power cuts, the app returns every time.
+
 ## 4. How a bootloader update runs
 
 **It is the same transfer as an application update.** Same `ERASE`, same `WRITE_CHUNK`, same
