@@ -55,7 +55,7 @@ Two conclusions shape this file:
 | `module` | yes | Module type string, from the manifest controlled vocabulary (`buzzer`, `knob`, `led_button`, `usb_leds`, `display`, …). |
 | `version` | yes | Semver of the binary at `url`. **Must match what the firmware reports over `0xB1 GET_VERSION`** — that equality is what lets the brain decide without downloading anything. |
 | `url` | yes | Raw URL to the `.bin`. Pointing at `main` is fine: index and binary move together in one commit, so there is nothing to drift. |
-| `layout` | I²C: yes | The **flash layout this image is linked for**. See below. Omit for USB (CH32V203) modules until the stage-0 port lands. |
+| `layout` | I²C: yes | The **flash layout this image is linked for**. See below. Omit for USB (CH32V203) **apps**: their base is `0x2000` under both the single-stage bootloader 1.x and layout 4 (2.0.0), so one app image runs on both. The USB **stage-1** index does carry `layout` (4). |
 | `size` | yes | Byte length of the `.bin`. |
 | `crc32` | yes | zlib CRC32 of the `.bin`, lower-case hex, no prefix (`python3 -c "import zlib,sys;print('%08x'%zlib.crc32(open(sys.argv[1],'rb').read()))" firmware/bin/x.bin`). |
 | `released` | no | ISO date, for humans reading the file. |
@@ -150,9 +150,10 @@ layout and index, all in repo `module-I2C-bootloader`:
 | --- | --- | --- | --- | --- |
 | `CH32V003` | Buzzer, Knob, LED Button, Display | `firmware/index.json` | `firmware/bin/noknok_stage1.bin` | 2 |
 | `CH32X035` | PicoHub power manager (MOD-0011) | `firmware/index_x035.json` | `firmware/bin/noknok_stage1_x035.bin` | 3 |
+| `CH32V203` | LEDs, LEDs 16x (USB) | `module-USB-bootloader/firmware/index_v203.json` | `module-USB-bootloader/firmware/bin/noknok_usb_stage1.bin` | 4 |
 
-The CH32V203 USB modules have a single-stage USB bootloader that cannot update
-itself (see `bootloader-update.md`), so they have no entry yet.
+The CH32V203 entry is in a different repo (`module-USB-bootloader`) and needs USB bootloader
+2.0.0 on the module; a module on the single-stage 1.x reports no layout and is never offered it.
 
 The CH32V003 index, as an example (the index sits in the same commit as its image):
 
@@ -175,13 +176,14 @@ bootloader update destroys the app region and has no rollback, so nothing about
 it is guessed.
 
 The registry names every stage-1 under `bootloader.stage1`, **keyed by chip
-family** (registry 2.0.0, DEV-128):
+family** (registry 2.0.0, DEV-128; 2.1.0 adds `CH32V203`, DEV-237):
 
 ```json
 "bootloader": {
   "stage1": {
     "CH32V003": { "repo": "module-I2C-bootloader", "index": ".../firmware/index.json" },
-    "CH32X035": { "repo": "module-I2C-bootloader", "index": ".../firmware/index_x035.json" }
+    "CH32X035": { "repo": "module-I2C-bootloader", "index": ".../firmware/index_x035.json" },
+    "CH32V203": { "repo": "module-USB-bootloader", "index": ".../firmware/index_v203.json" }
   }
 }
 ```

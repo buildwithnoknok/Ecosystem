@@ -9,9 +9,11 @@ no BOOT0 jumper**. The USB counterpart of [Firmware Updates (I2C Bootloader)](fi
 
 ## Overview
 
-Each CH32V203 USB module carries a small **bootloader** (fixed, jumper-flashed once
-at manufacture) plus an **application** region that can be re-flashed over USB for the
-life of the product. The Conductor (Pico, as USB host) — or the noknok app — drives the
+Each CH32V203 USB module carries a small **bootloader** (flashed once at manufacture)
+plus an **application** region that can be re-flashed over USB for the life of the
+product. Since bootloader 2.0.0 (**flash layout 4**) the bootloader itself can also be
+updated over USB: see [Bootloader self-update (layout 4)](#bootloader-self-update-layout-4)
+below. The Conductor (Pico, as USB host) — or the noknok app — drives the
 update: it puts the module into the bootloader, streams a new application image, the
 bootloader CRC-verifies it, then boots it. An interrupted flash never bricks a module:
 the bootloader stays in flashing mode and waits for a retry, and the WCH factory ROM
@@ -34,8 +36,9 @@ These are fixed across the USB modules — every CH32V203 module honours them:
 
 | Item | Value |
 |------|-------|
-| Bootloader region | 8 KB at `0x08000000` (immutable in the field) |
-| Application offset | `0x08002000` (apps relinked here, ~23.75 KB region) |
+| Bootloader region | 8 KB at `0x08000000`. Up to 1.1.0 one immutable image; from 2.0.0 (layout 4) stage-0 `0x08000000` (1 KB, frozen) + stage-1 `0x08000400` (7 KB, updatable over USB) |
+| Application offset | `0x08002000` (apps relinked here; ~23.75 KB up to 1.1.0, 23.5 KB on layout 4). **The same on both**, so one app image runs under 1.1.0 and 2.0.0 |
+| Stage-1 control block (layout 4) | `0x08007E00` (256 B): pending stage-1 update for stage-0 |
 | Metadata (validity marker) | `0x08007F00` (256 B): `{magic 0x6E6B5542, app_len, app_crc32}` |
 | Bootloader USB identity | VID `0x1209` / PID `0x4E42` (the application is PID `0x4E4E`) |
 | `ENTER_BOOTLOADER` command | `0xB0` (over CDC) |
@@ -58,6 +61,36 @@ is the one behaviour that has no I2C equivalent. On a Pico brain the USB host do
 a re-enumeration within one host session, so the brain's update goes around hard resets:
 send `0xB0`, reset, flash the module found waiting in its bootloader, reset, check the
 version (brain-Pico `CHANGELOG.md`, code.py 0.27).
+
+## Bootloader self-update (layout 4)
+
+From USB bootloader **2.0.0** the CH32V203 bootloader is split like the I2C one
+([bootloader-update.md](bootloader-update.md)): a tiny frozen **stage-0** that only installs
+a pending update, and a **stage-1** (the USB-CDC bootloader) that can be replaced over USB.
+
+```
+stage-1 update:  0xB0 -> ERASE -> WRITE xN -> VERIFY_STAGE1(0x06, crc32) -> BOOT
+                 -> (module detaches; stage-0 copies the new stage-1 into place)
+                 -> new stage-1 enumerates as PID 0x4E42 -> push the application -> BOOT
+```
+
+- The new stage-1 is staged in the application region, so the app is gone afterwards: the
+  host pushes it again (the module comes back **in the bootloader**, not in the app).
+- `VERIFY_STAGE1` accepts only a V203 layout-4 stage-1 (header at `+0x100`: `NKS1`, base
+  `0x0400`, layout 4, target `V203`); anything else is refused with error 8 (error 4 if the
+  image is larger than the 7 KB stage-1 region) and nothing is armed.
+- `0xB1 GET_VERSION` (bootloader only) answers `[proto, major, minor, patch, layout]`, e.g.
+  `01 02 00 00 04`. A 1.x bootloader does not answer it. The first read right after the
+  bootloader enumerates can come back empty: ask again before concluding "1.x".
+- `BOOT` with no valid app stays in the bootloader (error 6) instead of jumping blind.
+- Power-cut safe: the update marker is written only after the full CRC pass, stage-0
+  re-checks the descriptor and the image CRC itself, verifies every page and redoes an
+  interrupted copy at the next power-on.
+- A module still on 1.x gets stage-0 **once** by a full-image flash (BOOT0 jumper +
+  WCHISPTool, or SWD). A 1.x bootloader cannot do it: it never writes below `0x2000`.
+
+The stage-1 index for this chip family is `module-USB-bootloader/firmware/index_v203.json`
+(registry `bootloader.stage1.CH32V203`, see [firmware-index.md](firmware-index.md)).
 
 ## Unified across both buses (Conductor)
 
