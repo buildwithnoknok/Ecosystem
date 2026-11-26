@@ -10,6 +10,7 @@ reports and delivery checklists are not part of this file.
 
 ## Unreleased
 
+- Lamp shades for the noknok LEDs 16x: ready-made STLs in `mechanical/lamp-shades/` (mushroom, flutes, facet globe, rocket, moon and stars, police car, hero lamp, red egg, with optional diffusers), made by the Housing Configurator's shade buttons on the existing ø44 bayonet. Nothing printed yet. Breaking: no.
 - DEV-281 - data products: new optional manifest field `needs` (`["internet"]`: the app says "needs your home Wi-Fi"; information only, the brain never refuses on it), `text` settings documented (`help`, untrusted-input rules), new authoring chapter "Data feeds (`noknok_feeds`)" with the rules measured on a real Pico 2 W. Breaking: no (additive; every existing manifest still validates).
 - DEV-280 - manifest `3d_files` has a format: a list of parts `{part, file, qty, orientation, notes}` (schema + docs). Existing manifests (all `[]`) still validate. Breaking: no.
 - DEV-280 - new `mechanical/products/`: printable housings for finished products, generated with CadQuery (scripts + print-ready STL in the repo, STEP as release assets). Focus Timer desk wedge (shell, base, knob cap) and Quiz Buzzers (console + 4 team pucks), one shared wedge generator, fit coupon. Print-proven so far: the knob cap (D13) and the fit coupon (shaft bore 6.2, M2.5 pilot 2.4). The wedge shell/base, pucks and console are NOT printed yet; heat (DEV-146) and the USB-C plug are untested. The README lists the exact next prints. Docs/CAD only. Breaking: no.
