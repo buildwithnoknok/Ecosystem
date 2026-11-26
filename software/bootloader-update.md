@@ -107,9 +107,13 @@ stage-1 update:      0xB0 -> ERASE -> WRITE_CHUNK xN -> VERIFY_STAGE1(0x06) -> B
 
 In the Conductor: `noknok.py` `stage1_update(entry, stage1_image, app_image)` does all of
 it, including re-pushing the app and re-enumerating. `bootloader_version(entry)` reads the
-installed stage-1 version. Both are I2C-only for now; the USB bootloader 2.0.0 uses the same
-sequence over CDC (`module-USB-bootloader/tools/usb_flash.py --stage1`), the Conductor's USB
-branch is still to come.
+installed stage-1 version. Both are I2C-only; the USB bootloader 2.0.0 uses the same
+sequence over CDC (`module-USB-bootloader/tools/usb_flash.py --stage1`). On a Pico brain a USB
+module is updated in *bootloader visits* around hard resets instead (`Conductor.usb_fw_pass()`,
+brain-Pico code.py 0.54): its version is read whenever it is in its bootloader anyway, once by
+a dedicated visit otherwise; a stage-1 update is ask -> install -> push the app -> verify, one
+brain reset each. A USB bootloader 1.x (no `0xB1`) is never offered a stage-1. Details:
+brain-Pico `README.md`.
 
 **What gets checked, and by whom, before anything is erased:**
 
