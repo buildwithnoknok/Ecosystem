@@ -1,7 +1,7 @@
 {
   "format": 1,
-  "registry_version": "2.0.0",
-  "updated": "2026-11-16",
+  "registry_version": "2.1.0",
+  "updated": "2026-11-26",
   "_comment": "Official noknok module registry: maps each module type string to its firmware index, and names the current stage-1 bootloader index per chip family. The brain fetches this, then each index.json, to decide what firmware to install. See firmware-index.md. A repo must be PUBLIC for the brain to reach its index; private-repo modules are listed here only once their repo is public.",
   "bootloader": {
     "stage1": {
@@ -12,6 +12,10 @@
       "CH32X035": {
         "repo": "module-I2C-bootloader",
         "index": "https://raw.githubusercontent.com/buildwithnoknok/module-I2C-bootloader/main/firmware/index_x035.json"
+      },
+      "CH32V203": {
+        "repo": "module-USB-bootloader",
+        "index": "https://raw.githubusercontent.com/buildwithnoknok/module-USB-bootloader/main/firmware/index_v203.json"
       }
     }
   },

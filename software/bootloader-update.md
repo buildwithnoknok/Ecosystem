@@ -10,11 +10,12 @@ for; the mechanism behind it is bench-proven (11 Sep 2026).
 > [firmware-update.md](firmware-update.md) "Other chips"). The brain's automatic stage-1 rollout
 > below covers the CH32V003 stage-1 only; an X035 stage-1 is updated with the same commands
 > (`Conductor.stage1_update()`), not yet over the registry.
-> The CH32V203 USB modules do **not** have this design:
-> USB bootloader v1.1.0 is a single-stage bootloader with no stage-0, no bootloader
-> self-update, no watchdog / boot-attempt counter, no parking and rescue, and no `0xB1` /
-> `0xB3` (only `0xB2` diagnostics). Its bootloader is updated over SWD only — see
-> [Firmware Updates (USB Bootloader)](firmware-update-usb.md).
+> The CH32V203 USB modules have this design from USB bootloader **2.0.0 (flash layout 4)**:
+> a frozen stage-0 + a stage-1 that updates itself over USB with the same `VERIFY_STAGE1`
+> (`0x06`) close and the same three stage-0 gates; `0xB1` answers 5 bytes with layout 4. Not
+> ported to USB: the watchdog / boot-attempt counter, parking and rescue, and `0xB3`. USB
+> bootloader 1.1.0 and older is single-stage (no stage-0, no self-update, no `0xB1`) and is
+> updated over SWD / BOOT0 only. Detail: [Firmware Updates (USB Bootloader)](firmware-update-usb.md).
 > Design and implementation detail: `module-I2C-bootloader/docs/stage0-design.md`.
 
 ## 1. Why this exists
@@ -106,7 +107,9 @@ stage-1 update:      0xB0 -> ERASE -> WRITE_CHUNK xN -> VERIFY_STAGE1(0x06) -> B
 
 In the Conductor: `noknok.py` `stage1_update(entry, stage1_image, app_image)` does all of
 it, including re-pushing the app and re-enumerating. `bootloader_version(entry)` reads the
-installed stage-1 version. Both are I2C-only: the USB bootloader cannot update itself.
+installed stage-1 version. Both are I2C-only for now; the USB bootloader 2.0.0 uses the same
+sequence over CDC (`module-USB-bootloader/tools/usb_flash.py --stage1`), the Conductor's USB
+branch is still to come.
 
 **What gets checked, and by whom, before anything is erased:**
 
@@ -114,7 +117,7 @@ installed stage-1 version. Both are I2C-only: the USB bootloader cannot update i
 |---|---|---|
 | Staged image fits the stage-1 region (4 KB) | stage-1, `VERIFY_STAGE1` | error 4 |
 | Staged image CRC matches what the host declared | stage-1 | error 5 |
-| Staged image **is a stage-1 for this layout** (header at `+0x100`: `NKS1`, base `0x0400`, layout 2; CH32X035: at `+0x200`, layout 3, target `X035`) | stage-1 | error 8 |
+| Staged image **is a stage-1 for this layout** (header at `+0x100`: `NKS1`, base `0x0400`, layout 2; CH32X035: at `+0x200`, layout 3, target `X035`; CH32V203: at `+0x100`, layout 4, target `V203`, stage-1 region 7 KB) | stage-1 | error 8 |
 | Control block descriptor intact (its own CRC) | **stage-0** | not pending → boots old stage-1 |
 | Descriptor geometry sane (can only ever address the stage-1 region) | stage-0 | not pending |
 | Staged image CRC — **recomputed by stage-0**, it does not trust stage-1 | stage-0 | not pending |
